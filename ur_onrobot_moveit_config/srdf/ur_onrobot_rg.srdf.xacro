@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+  <xacro:macro name="ur_onrobot_rg_srdf" params="name prefix">
+    
+    <group name="${prefix}${name}_gripper">
+      <link name="${prefix}onrobot_base_link"/>
+      <link name="${prefix}cable_connector_0"/>
+      <link name="${prefix}cable_connector_1"/>
+      <link name="${prefix}left_inner_knuckle"/>
+      <link name="${prefix}left_outer_knuckle"/>
+      <link name="${prefix}left_inner_finger"/>
+      <link name="${prefix}left_finger_tip"/>
+      <link name="${prefix}right_inner_knuckle"/>
+      <link name="${prefix}right_outer_knuckle"/>
+      <link name="${prefix}right_inner_finger"/>
+      <link name="${prefix}right_finger_tip"/>
+      <link name="${prefix}finger_width_mock_link"/>
+      <link name="${prefix}gripper_tcp"/>
+      <joint name="${prefix}finger_width"/>
+    </group>
+
+    <group_state name="closed" group="${prefix}${name}_gripper">
+      <joint name="${prefix}finger_width" value="0.0"/>
+    </group_state>
+    <group_state name="open" group="${prefix}${name}_gripper">
+      <joint name="${prefix}finger_width" value="0.100"/>
+    </group_state>
+
+    <!-- RG-specific collision disablements -->
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}cable_connector_1" reason="Never"/>
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}left_inner_finger" reason="Never"/>
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}left_inner_knuckle" reason="Never"/>
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}left_outer_knuckle" reason="Never"/>
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}onrobot_base_link" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}right_inner_finger" reason="Never"/>
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}right_inner_knuckle" reason="Never"/>
+    <disable_collisions link1="${prefix}cable_connector_0" link2="${prefix}right_outer_knuckle" reason="Never"/>
+    
+    <!-- Add all your existing RG collision rules here -->
+    <disable_collisions link1="${prefix}left_inner_finger" link2="${prefix}left_inner_knuckle" reason="Default"/>
+    <disable_collisions link1="${prefix}left_inner_finger" link2="${prefix}left_outer_knuckle" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}left_inner_finger" link2="${prefix}onrobot_base_link" reason="Never"/>
+    <disable_collisions link1="${prefix}left_inner_finger" link2="${prefix}right_inner_finger" reason="Default"/>
+    
+    <!-- Continue with all RG-specific collision rules... -->
+    
+  </xacro:macro>
+</robot>

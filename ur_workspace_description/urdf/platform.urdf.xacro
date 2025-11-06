@@ -1,0 +1,134 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="platform">
+
+   <!-- Include UR and OnRobot descriptions -->
+   <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot.urdf.xacro"/>
+
+   <!-- Your complete environment setup from the RViz file -->
+   <xacro:arg name="ur_type" default="ur5e"/>
+   <xacro:arg name="onrobot_type" default="2fg7"/>
+   <xacro:arg name="robot_ip" default="0.0.0.0" />
+   <xacro:arg name="use_fake_hardware" default="true" />
+
+   <!-- TABLE PROPERTIES -->
+   <xacro:property name="table_length" value="1.2"/>
+   <xacro:property name="table_width" value="0.7"/>
+   <xacro:property name="table_height" value="0.75"/>
+   <xacro:property name="table_thickness" value="0.063"/>
+   <xacro:property name="leg_width" value="0.05"/>
+
+   <link name="world"/>
+
+   <!-- FIRST TABLE DEFINITION -->
+   <link name="table_top">
+      <visual>
+         <geometry>
+            <box size="${table_length} ${table_width} ${table_thickness}"/>
+         </geometry>
+         <origin xyz="0 0 -${table_thickness/2}" rpy="0 0 0"/>
+         <material name="white">
+            <color rgba="1 1 1 1"/>
+         </material>
+      </visual>
+      <collision>
+         <geometry>
+            <box size="${table_length} ${table_width} ${table_thickness}"/>
+         </geometry>
+         <origin xyz="0 0 -${table_thickness/2}" rpy="0 0 0"/>
+      </collision>
+   </link>
+
+   <!-- First table rotated 90 degrees -->
+   <joint name="world_to_table" type="fixed">
+      <parent link="world"/>
+      <child link="table_top"/>
+      <origin xyz="0 0 ${table_height}" rpy="0 0 1.5708"/>
+   </joint>
+
+   <xacro:macro name="table_leg" params="name x y z">
+      <link name="${name}">
+         <visual>
+            <geometry>
+               <box size="${leg_width} ${leg_width} ${z}"/>
+            </geometry>
+            <origin xyz="0 0 ${z / 2}" rpy="0 0 0"/>
+            <material name="gray">
+               <color rgba="0.53 0.53 0.53 1"/>
+            </material>
+         </visual>
+         <collision>
+            <geometry>
+               <box size="${leg_width} ${leg_width} ${z}"/>
+            </geometry>
+            <origin xyz="0 0 ${z / 2}" rpy="0 0 0"/>
+         </collision>
+      </link>
+      <joint name="joint_${name}" type="fixed">
+         <parent link="world"/>
+         <child link="${name}"/>
+         <origin xyz="${-y} ${x} 0" rpy="0 0 1.5708"/>
+      </joint>
+   </xacro:macro>
+
+   <xacro:table_leg name="leg_1" x="${table_length / 2 - leg_width / 2}" y="${table_width / 2 - leg_width / 2}" z="${table_height - table_thickness}"/>
+   <xacro:table_leg name="leg_2" x="${-table_length / 2 + leg_width / 2}" y="${table_width / 2 - leg_width / 2}" z="${table_height - table_thickness}"/>
+   <xacro:table_leg name="leg_3" x="${table_length / 2 - leg_width / 2}" y="${-table_width / 2 + leg_width / 2}" z="${table_height - table_thickness}"/>
+   <xacro:table_leg name="leg_4" x="${-table_length / 2 + leg_width / 2}" y="${-table_width / 2 + leg_width / 2}" z="${table_height - table_thickness}"/>
+
+   <!-- Safety barriers -->
+   <xacro:macro name="safety_barrier" params="name xyz size">
+   <link name="${name}">
+      <visual>
+         <geometry>
+         <box size="${size}"/>
+         </geometry>
+         <origin xyz="${xyz}" rpy="0 0 0"/>
+         <material name="red_transparent">
+         <color rgba="1.0 1.0 0.5 0.3"/>
+         </material>
+      </visual>
+      <collision>
+         <geometry>
+         <box size="${size}"/>
+         </geometry>
+         <origin xyz="${xyz}" rpy="0 0 0"/>
+      </collision>
+   </link>
+   <joint name="joint_${name}" type="fixed">
+      <parent link="table_top"/>
+      <child link="${name}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+   </joint>
+   </xacro:macro>
+
+   <!-- Safety barriers -->
+   <xacro:safety_barrier name="barrier_back"
+   xyz="0 ${table_length/2 + 0.2} 0.3"
+   size="${table_length} 0.01 0.8"/>
+
+   <xacro:safety_barrier name="barrier_right"
+   xyz="${-table_length/2 + 0.15} 0 0.3"
+   size="0.01 ${table_width} 0.8"/>
+
+   <xacro:safety_barrier name="barrier_left"
+   xyz="${table_width/2 + 0.5} 0 0.3"
+   size="0.01 ${table_width} 0.8"/>
+
+   <xacro:safety_barrier name="barrier_top"
+   xyz="0 0 1.2"
+   size="${table_width} ${table_length} 0.01"/>
+
+   <!-- MAIN ROBOT -->
+   <xacro:ur_onrobot
+        parent="table_top"
+        robot_ip="$(arg robot_ip)"
+        ur_type="$(arg ur_type)"
+        onrobot_type="$(arg onrobot_type)"
+        tf_prefix=""
+        use_fake_hardware="$(arg use_fake_hardware)"
+        >
+        <!-- Robot origin rotated 180 degrees around Z-axis -->
+        <origin xyz="0.125 ${-table_width/2.0 + 0.225} 0" rpy="0 0 3.14159"/>
+   </xacro:ur_onrobot>
+
+</robot>

@@ -5,9 +5,22 @@
   <xacro:arg name="name" default="ur_onrobot"/>
   <!-- parameters -->
   <xacro:arg name="prefix" default="" />
+  <xacro:arg name="onrobot_type" default="rg2" />
 
   <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/ur_onrobot_macro.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/ur_onrobot_rg.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/ur_onrobot_2fg7.srdf.xacro"/>
 
+  <!-- Common robot configuration -->
   <xacro:ur_onrobot_srdf name="$(arg name)" prefix="$(arg prefix)"/>
+
+  <!-- Gripper-specific configuration -->
+  <xacro:if value="$(arg onrobot_type) == 'rg2' or $(arg onrobot_type) == 'rg6'">
+    <xacro:ur_onrobot_rg_srdf name="$(arg name)" prefix="$(arg prefix)"/>
+  </xacro:if>
+  
+  <xacro:if value="$(arg onrobot_type) == '2fg7' or $(arg onrobot_type) == '2fg14'">
+    <xacro:ur_onrobot_2fg7_srdf name="$(arg name)" prefix="$(arg prefix)"/>
+  </xacro:if>
 
 </robot>

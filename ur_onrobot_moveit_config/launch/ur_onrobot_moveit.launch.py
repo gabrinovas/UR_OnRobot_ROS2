@@ -149,6 +149,9 @@ def launch_setup(context, *args, **kwargs):
             "prefix:=",
             prefix,
             " ",
+            "onrobot_type:=",
+            onrobot_type,
+            " ",
         ]
     )
     robot_description_semantic = {"robot_description_semantic": robot_description_semantic_content}
@@ -285,13 +288,15 @@ def generate_launch_description():
             "ur_type",
             description="Type/series of used UR robot.",
             choices=["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e", "ur20", "ur30"],
+            default_value="ur5e",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "onrobot_type",
+            "onrobot_type",  # ADD THIS ARGUMENT
             description="Type of the OnRobot gripper.",
-            choices=["rg2", "rg6"],
+            choices=["rg2", "rg6", "2fg7", "2fg14"],
+            default_value="2fg7",
         )
     )
     declared_arguments.append(

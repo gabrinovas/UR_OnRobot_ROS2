@@ -260,7 +260,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "onrobot_type",
             description="Type/series of used OnRobot gripper.",
-            choices=["rg2", "rg6"],
+            choices=["rg2", "rg6", "2fg7", "2fg14"],
             default_value="rg2",
         )
     )
