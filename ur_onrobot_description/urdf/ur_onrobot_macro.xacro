@@ -28,6 +28,7 @@
             name="${ur_type}"
             parent="${parent}"
             tf_prefix="${tf_prefix}"
+            use_fake_hardware="${use_fake_hardware}"
             joint_limits_parameters_file="${joint_limits_parameters_file}"
             kinematics_parameters_file="${kinematics_parameters_file}"
             physical_parameters_file="${physical_parameters_file}"
