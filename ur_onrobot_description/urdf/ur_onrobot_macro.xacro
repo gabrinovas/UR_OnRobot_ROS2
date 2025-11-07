@@ -20,7 +20,6 @@
         script_filename
         output_recipe_filename
         input_recipe_filename
-        initial_positions_file
         ">
 
         <!-- Create the UR robot -->
@@ -37,7 +36,6 @@
             script_filename="${script_filename}"
             output_recipe_filename="${output_recipe_filename}"
             input_recipe_filename="${input_recipe_filename}"
-            initial_positions_file="${initial_positions_file}"
         >
             <xacro:insert_block name="origin" />
         </xacro:ur_robot>

@@ -65,10 +65,6 @@ def launch_setup(context, *args, **kwargs):
         [FindPackageShare('ur_onrobot_control'), "config", 'ur_onrobot_controllers.yaml']
     )
 
-    initial_positions_config = PathJoinSubstitution(
-        [FindPackageShare('ur_onrobot_description'), "config", 'initial_joint_positions.yaml']
-    )
-
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare('ur_onrobot_description'), "rviz", "view_robot.rviz"]
     )
@@ -82,6 +78,17 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
+    # Create parameters for initial positions
+    initial_positions_params = {
+        # Set initial positions for fake hardware
+        "initial_shoulder_pan_joint": 0.0,
+        "initial_shoulder_lift_joint": -1.57,
+        "initial_elbow_joint": 1.57,
+        "initial_wrist_1_joint": -1.57,
+        "initial_wrist_2_joint": -1.57,
+        "initial_wrist_3_joint": 0.0,
+    }
+
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -89,7 +96,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
-            ParameterFile(initial_positions_config, allow_substs=True),
+            initial_positions_params,
         ],
         output="screen",
         condition=IfCondition(use_fake_hardware),
@@ -102,7 +109,6 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
-            ParameterFile(initial_positions_config, allow_substs=True),
         ],
         output="screen",
         condition=UnlessCondition(use_fake_hardware),
