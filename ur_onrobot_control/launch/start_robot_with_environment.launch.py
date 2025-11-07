@@ -3,8 +3,9 @@ from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     AndSubstitution,
     Command,
@@ -20,10 +21,8 @@ def launch_setup(context, *args, **kwargs):
     ur_type = LaunchConfiguration("ur_type")
     onrobot_type = LaunchConfiguration("onrobot_type")
     robot_ip = LaunchConfiguration("robot_ip")
-
     tf_prefix = LaunchConfiguration("tf_prefix")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
-
     controller_spawner_timeout = LaunchConfiguration("controller_spawner_timeout")
     initial_joint_controller = LaunchConfiguration("initial_joint_controller")
     activate_joint_controller = LaunchConfiguration("activate_joint_controller")
@@ -31,11 +30,28 @@ def launch_setup(context, *args, **kwargs):
     headless_mode = LaunchConfiguration("headless_mode")
     launch_dashboard_client = LaunchConfiguration("launch_dashboard_client")
 
+    # Launch the workspace environment first
+    workspace_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('ur_workspace_description'),
+                'launch',
+                'view_platform.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'ur_type': ur_type.perform(context),
+            'onrobot_type': onrobot_type.perform(context),
+            'use_fake_hardware': use_fake_hardware.perform(context),
+        }.items()
+    )
+
+    # Robot description - using the platform description instead of standalone robot
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare('ur_onrobot_description'), "urdf", 'ur_onrobot.urdf.xacro']),
+            PathJoinSubstitution([FindPackageShare('ur_workspace_description'), "urdf", 'platform.urdf.xacro']),
             " ",
             "robot_ip:=",
             robot_ip,
@@ -48,9 +64,6 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "tf_prefix:=",
             tf_prefix,
-            " ",
-            "name:=",
-            "ur_onrobot",
             " ",
             "use_fake_hardware:=",
             use_fake_hardware,
@@ -65,8 +78,9 @@ def launch_setup(context, *args, **kwargs):
         [FindPackageShare('ur_onrobot_control'), "config", 'ur_onrobot_controllers.yaml']
     )
 
+    # Use workspace RViz config instead of robot-only config
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare('ur_onrobot_description'), "rviz", "view_robot.rviz"]
+        [FindPackageShare('ur_workspace_description'), "rviz", "view_platform.rviz"]
     )
 
     # define update rate
@@ -168,12 +182,7 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    robot_state_publisher_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        output="both",
-        parameters=[robot_description],
-    )
+    # Note: We don't need robot_state_publisher here as it's already in the workspace launch
 
     rviz_node = Node(
         package="rviz2",
@@ -231,6 +240,7 @@ def launch_setup(context, *args, **kwargs):
     ]
 
     nodes_to_start = [
+        workspace_launch,  # Environment first
         control_node,
         ur_control_node,
         dashboard_client_node,
@@ -238,7 +248,6 @@ def launch_setup(context, *args, **kwargs):
         tool_communication_node,
         controller_stopper_node,
         urscript_interface,
-        robot_state_publisher_node,
         rviz_node,
     ] + controller_spawners
 
@@ -268,7 +277,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "robot_ip",
             description="IP address by which the robot can be reached.",
-            default_value="192.168.1.101",  # Uses the Polyscope sim by default
+            default_value="192.168.1.101",
         )
     )
 

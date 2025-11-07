@@ -7,6 +7,11 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 
+# Find dependencies
+find_package(ur_onrobot_description REQUIRED)
+find_package(ur_description REQUIRED)
+find_package(onrobot_description REQUIRED)
+
 install(
   DIRECTORY launch rviz urdf
   DESTINATION share/${PROJECT_NAME}
