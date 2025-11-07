@@ -52,7 +52,6 @@ finger_width_controller:
       - position
     state_interfaces:
       - position
-      - velocity
     state_publish_rate: 50.0
     action_monitor_rate: 10.0
 

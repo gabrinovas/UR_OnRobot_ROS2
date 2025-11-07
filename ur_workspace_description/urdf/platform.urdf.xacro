@@ -26,7 +26,7 @@
             <box size="${table_length} ${table_width} ${table_thickness}"/>
          </geometry>
          <origin xyz="0 0 -${table_thickness/2}" rpy="0 0 0"/>
-         <material name="white">
+         <material name="white_table">
             <color rgba="1 1 1 1"/>
          </material>
       </visual>
@@ -52,7 +52,7 @@
                <box size="${leg_width} ${leg_width} ${z}"/>
             </geometry>
             <origin xyz="0 0 ${z / 2}" rpy="0 0 0"/>
-            <material name="gray">
+            <material name="gray_leg">
                <color rgba="0.53 0.53 0.53 1"/>
             </material>
          </visual>
