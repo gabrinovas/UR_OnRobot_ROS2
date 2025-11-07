@@ -65,6 +65,10 @@ def launch_setup(context, *args, **kwargs):
         [FindPackageShare('ur_onrobot_control'), "config", 'ur_onrobot_controllers.yaml']
     )
 
+    initial_positions_config = PathJoinSubstitution(
+        [FindPackageShare('ur_onrobot_description'), "config", 'initial_joint_positions.yaml']
+    )
+
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare('ur_onrobot_description'), "rviz", "view_robot.rviz"]
     )
@@ -85,6 +89,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
+            ParameterFile(initial_positions_config, allow_substs=True),
         ],
         output="screen",
         condition=IfCondition(use_fake_hardware),
@@ -97,6 +102,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
+            ParameterFile(initial_positions_config, allow_substs=True),
         ],
         output="screen",
         condition=UnlessCondition(use_fake_hardware),
@@ -268,7 +274,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "robot_ip",
             description="IP address by which the robot can be reached.",
-            default_value="192.168.1.101",  # Uses the Polyscope sim by default
+            default_value="192.168.56.101",  # Uses the Polyscope sim by default
         )
     )
 
