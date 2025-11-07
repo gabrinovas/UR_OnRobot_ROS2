@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <robot name="ur_onrobot" xmlns:xacro="http://ros.org/wiki/xacro">
     <!-- Arguments -->
-    <xacro:arg name="robot_ip" default="192.168.56.101"/>
-    <xacro:arg name="ur_type" default="ur3e"/>
+    <xacro:arg name="robot_ip" default="192.168.1.101"/>
+    <xacro:arg name="ur_type" default="ur5e"/>
     <xacro:arg name="onrobot_type" default="rg2"/>
     <xacro:arg name="tf_prefix" default=""/>
     <xacro:arg name="name" default="ur_onrobot"/>
@@ -14,6 +14,7 @@
     <xacro:arg name="script_filename" default="$(find ur_client_library)/resources/external_control.urscript"/>
     <xacro:arg name="input_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_input_recipe.txt"/>
     <xacro:arg name="output_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_output_recipe.txt"/>
+    <xacro:arg name="initial_positions_file" default="$(find ur_onrobot_description)/config/initial_joint_positions.yaml"/>
 
     <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot_macro.xacro"/>
 
@@ -34,6 +35,7 @@
         script_filename="$(arg script_filename)"
         output_recipe_filename="$(arg output_recipe_filename)"
         input_recipe_filename="$(arg input_recipe_filename)"
+        initial_positions_file="$(arg initial_positions_file)"
         >
         <origin xyz="0 0 1" rpy="0 0 0" />
     </xacro:ur_onrobot>
