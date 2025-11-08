@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="workspace_environment">
+
+  <!-- Materials -->
+  <xacro:include filename="$(find ur_workspace_description)/meshes/materials/materials.xacro" />
+
+  <!-- World Link -->
+  <link name="world"/>
+
+  <!-- Floor -->
+  <link name="floor">
+    <visual>
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ur_workspace_description/meshes/environment/floor.stl"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="4.0 4.0 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="world_to_floor" type="fixed">
+    <parent link="world"/>
+    <child link="floor"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Main Table -->
+  <link name="main_table">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ur_workspace_description/meshes/environment/table.stl"/>
+      </geometry>
+      <material name="light_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.375" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.7 0.75"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="floor_to_main_table" type="fixed">
+    <parent link="floor"/>
+    <child link="main_table"/>
+    <origin xyz="0 0 0" rpy="0 0 1.5708"/>
+  </joint>
+
+  <!-- Conveyor Belt -->
+  <link name="conveyor_belt">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ur_workspace_description/meshes/environment/conveyor.stl"/>
+      </geometry>
+      <material name="dark_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.2" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.5 0.6 0.4"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="floor_to_conveyor" type="fixed">
+    <parent link="floor"/>
+    <child link="conveyor_belt"/>
+    <origin xyz="1.5 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Safety Barriers -->
+  <link name="safety_barrier_back">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://ur_workspace_description/meshes/environment/barrier.stl"/>
+      </geometry>
+      <material name="safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.05 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_back" type="fixed">
+    <parent link="main_table"/>
+    <child link="safety_barrier_back"/>
+    <origin xyz="0 0.45 0.3" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Add more barriers as needed -->
+
+</robot>
