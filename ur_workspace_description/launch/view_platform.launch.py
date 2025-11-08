@@ -38,7 +38,7 @@ def generate_launch_description():
     onrobot_type = LaunchConfiguration("onrobot_type")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
 
-    # Platform description - REMOVE use_fake_hardware parameter from xacro command
+    # Platform description
     platform_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -51,6 +51,8 @@ def generate_launch_description():
             "onrobot_type:=",
             onrobot_type,
             " ",
+            "use_fake_hardware:=",
+            use_fake_hardware,
         ]
     )
     

@@ -21,4 +21,29 @@
     <color rgba="0.1 0.1 0.1 1.0"/>
   </material>
 
+  <!-- Additional materials from target xacro -->
+  <material name="white">
+    <color rgba="1 1 1 1"/>
+  </material>
+
+  <material name="brown">
+    <color rgba="0.4 0.2 0 1"/>
+  </material>
+
+  <material name="red_transparent">
+    <color rgba="1.0 0.0 0.0 0.3"/>
+  </material>
+
+  <material name="dark_green_rubber">
+    <color rgba="0 0.43 0 1"/>
+  </material>
+
+  <material name="gray_steel">
+    <color rgba="0.5 0.5 0.5 1"/>
+  </material>
+
+  <material name="steel">
+    <color rgba="0.5 0.5 0.5 1"/>
+  </material>
+
 </robot>

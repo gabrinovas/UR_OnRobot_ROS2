@@ -14,7 +14,7 @@
 
    <!-- MAIN ROBOT -->
    <xacro:ur_onrobot
-        parent="main_table"
+        parent="table_top"
         robot_ip="$(arg robot_ip)"
         ur_type="$(arg ur_type)"
         onrobot_type="$(arg onrobot_type)"
@@ -28,7 +28,7 @@
         script_filename="$(find ur_robot_driver)/resources/ros_control.urscript"
         output_recipe_filename="$(find ur_robot_driver)/resources/rtde_output_recipe.txt"
         input_recipe_filename="$(find ur_robot_driver)/resources/rtde_input_recipe.txt">
-        <!-- Robot positioned on table -->
+        <!-- Robot positioned on table - adjusted for new environment -->
         <origin xyz="0.125 -0.225 0.75" rpy="0 0 3.14159"/>
    </xacro:ur_onrobot>
 
