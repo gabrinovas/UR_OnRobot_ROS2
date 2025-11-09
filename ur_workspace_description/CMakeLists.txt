@@ -13,7 +13,7 @@ find_package(ur_description REQUIRED)
 find_package(onrobot_description REQUIRED)
 
 install(
-  DIRECTORY launch rviz urdf
+  DIRECTORY launch rviz urdf meshes
   DESTINATION share/${PROJECT_NAME}
 )
 
