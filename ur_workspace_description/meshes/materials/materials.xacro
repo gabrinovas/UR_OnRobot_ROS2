@@ -1,48 +1,49 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <material name="gray">
+  <!-- Use unique prefix for workspace materials to avoid conflicts -->
+  <material name="workspace_gray">
     <color rgba="0.5 0.5 0.5 1.0"/>
   </material>
 
-  <material name="light_gray">
+  <material name="workspace_light_gray">
     <color rgba="0.8 0.8 0.8 1.0"/>
   </material>
 
-  <material name="dark_gray">
+  <material name="workspace_dark_gray">
     <color rgba="0.3 0.3 0.3 1.0"/>
   </material>
 
-  <material name="safety_yellow">
+  <material name="workspace_safety_yellow">
     <color rgba="1.0 1.0 0.0 0.3"/>
   </material>
 
-  <material name="conveyor_black">
+  <material name="workspace_conveyor_black">
     <color rgba="0.1 0.1 0.1 1.0"/>
   </material>
 
   <!-- Additional materials from target xacro -->
-  <material name="white">
+  <material name="workspace_white">
     <color rgba="1 1 1 1"/>
   </material>
 
-  <material name="brown">
+  <material name="workspace_brown">
     <color rgba="0.4 0.2 0 1"/>
   </material>
 
-  <material name="red_transparent">
+  <material name="workspace_red_transparent">
     <color rgba="1.0 0.0 0.0 0.3"/>
   </material>
 
-  <material name="dark_green_rubber">
+  <material name="workspace_dark_green_rubber">
     <color rgba="0 0.43 0 1"/>
   </material>
 
-  <material name="gray_steel">
+  <material name="workspace_gray_steel">
     <color rgba="0.5 0.5 0.5 1"/>
   </material>
 
-  <material name="steel">
+  <material name="workspace_steel">
     <color rgba="0.5 0.5 0.5 1"/>
   </material>
 

@@ -14,7 +14,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/table.stl"/>
       </geometry>
-      <material name="light_gray"/>
+      <material name="workspace_light_gray"/>
     </visual>
     <collision>
       <origin xyz="0 0 0.375" rpy="0 0 0"/>
@@ -37,7 +37,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/table.stl"/>
       </geometry>
-      <material name="light_gray"/>
+      <material name="workspace_light_gray"/>
     </visual>
     <collision>
       <origin xyz="0 0 0.375" rpy="0 0 0"/>
@@ -60,7 +60,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/conveyor.stl"/>
       </geometry>
-      <material name="dark_gray"/>
+      <material name="workspace_dark_gray"/>
     </visual>
     <collision>
       <origin xyz="0 0 0.2" rpy="0 0 0"/>
@@ -84,7 +84,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl"/>
       </geometry>
-      <material name="safety_yellow"/>
+      <material name="workspace_safety_yellow"/>
     </visual>
     <collision>
       <origin xyz="0 0 0.4" rpy="0 0 0"/>
@@ -107,7 +107,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl"/>
       </geometry>
-      <material name="safety_yellow"/>
+      <material name="workspace_safety_yellow"/>
     </visual>
     <collision>
       <origin xyz="0 0 0.4" rpy="0 0 0"/>
@@ -130,7 +130,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl"/>
       </geometry>
-      <material name="safety_yellow"/>
+      <material name="workspace_safety_yellow"/>
     </visual>
     <collision>
       <origin xyz="0 0 0.4" rpy="0 0 0"/>
@@ -153,7 +153,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl"/>
       </geometry>
-      <material name="safety_yellow"/>
+      <material name="workspace_safety_yellow"/>
     </visual>
     <collision>
       <origin xyz="0 0 0.4" rpy="0 0 0"/>
@@ -176,7 +176,7 @@
       <geometry>
         <mesh filename="package://ur_workspace_description/meshes/environment/top_safety_barrier.stl"/>
       </geometry>
-      <material name="safety_yellow"/>
+      <material name="workspace_safety_yellow"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
