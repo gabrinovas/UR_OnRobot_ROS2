@@ -56,7 +56,8 @@ def generate_launch_description():
         ]
     )
     
-    platform_description = {'robot_description': platform_description_content}
+    # Use ParameterValue to properly handle the command output
+    platform_description = {'robot_description': ParameterValue(platform_description_content, value_type=str)}
 
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
