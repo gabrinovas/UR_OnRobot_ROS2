@@ -94,6 +94,9 @@ def launch_setup(context, *args, **kwargs):
             "device_address:=",
             gripper_device_address,
             " ",
+            # Add the device parameter for completeness
+            "device:=/tmp/ttyUR",
+            " ",
         ]
     )
     robot_description = {

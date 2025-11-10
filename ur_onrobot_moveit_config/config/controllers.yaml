@@ -86,3 +86,7 @@ finger_width_trajectory_controller:
     state_publish_rate: 50.0
     action_monitor_rate: 10.0
     allow_partial_joints_goal: true
+    # Add action feedback for better gripper control
+    action_feedback:
+      joint_names:
+        - finger_width

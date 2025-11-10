@@ -60,8 +60,9 @@ def launch_setup(context, *args, **kwargs):
             "use_fake_hardware:=",
             use_fake_hardware,
             " ",
-            # MODBUS parameters for 2FG7
-            "connection_type:=tcp",
+            # MODBUS parameters for 2FG7 - ensure ALL parameters are passed
+            "connection_type:=",
+            "tcp",
             " ",
             "ip_address:=",
             gripper_ip,
@@ -71,6 +72,9 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "device_address:=",
             gripper_device_address,
+            " ",
+            # Add the device parameter for completeness
+            "device:=/tmp/ttyUR",
             " ",
         ]
     )

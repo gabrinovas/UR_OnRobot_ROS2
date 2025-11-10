@@ -44,7 +44,7 @@
             <xacro:insert_block name="origin" />
         </xacro:ur_robot>
 
-        <!--Create the OnRobot model -->
+        <!--Create the OnRobot model with ALL parameters -->
         <xacro:onrobot
             onrobot_type="${onrobot_type}"
             prefix="${tf_prefix}"
@@ -53,6 +53,7 @@
             ip_address="${ip_address}"
             port="${port}"
             device_address="${device_address}"
+            device="/tmp/ttyUR"
         />
 
         <!-- Connect the OnRobot to the UR robot -->

@@ -139,6 +139,8 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "device_address:=65",
             " ",
+            "device:=/tmp/ttyUR",
+            " ",
         ]
     )
     robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}

@@ -54,6 +54,14 @@ finger_width_controller:
       - position
     state_publish_rate: 50.0
     action_monitor_rate: 10.0
+    # Add gripper-specific parameters
+    allow_partial_joints_goal: true
+    constraints:
+      goal_time: 5.0
+      stopped_velocity_tolerance: 0.01
+      finger_width:
+        goal: 0.001
+        trajectory: 0.001
 
 speed_scaling_state_broadcaster:
   ros__parameters:
@@ -196,3 +204,6 @@ onrobot_2fg7_hardware:
     port: 502
     device_address: 65  # Default from documentation
     prefix: "$(var tf_prefix)"
+    # Add these missing parameters
+    use_fake_hardware: false
+    device: "/tmp/ttyUR"  # fallback for serial

@@ -17,6 +17,7 @@
    <xacro:arg name="ip_address" default="192.168.1.1"/>
    <xacro:arg name="port" default="502"/>
    <xacro:arg name="device_address" default="65"/>
+   <xacro:arg name="device" default="/tmp/ttyUR"/>
 
    <!-- MAIN ROBOT -->
    <xacro:ur_onrobot
@@ -37,7 +38,8 @@
         connection_type="$(arg connection_type)"
         ip_address="$(arg ip_address)"
         port="$(arg port)"
-        device_address="$(arg device_address)">
+        device_address="$(arg device_address)"
+        device="$(arg device)">
         <!-- Robot positioned on table - adjusted for new environment -->
         <origin xyz="0.125 -0.225 0.75" rpy="0 0 3.14159"/>
    </xacro:ur_onrobot>
