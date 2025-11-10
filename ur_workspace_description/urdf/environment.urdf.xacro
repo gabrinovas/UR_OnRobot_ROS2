@@ -45,7 +45,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="2.05 0.85 0"/>
+        <box size="2.05 0.8 0"/>
       </geometry>
     </collision>
   </link>
@@ -79,7 +79,7 @@
     <parent link="world"/>
     <child link="table_top_2"/>
     <!-- Second table positioned on the other side of conveyor with 90-degree rotation -->
-    <origin xyz="1.74 0.05 0" rpy="0 0 0"/>
+    <origin xyz="1.64 0.05 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Safety Barriers - Adjusted positions for 90-degree rotated tables -->
@@ -128,7 +128,7 @@
   <joint name="table_to_barrier_right" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_right"/>
-    <origin xyz="0.25 0 0.75" rpy="0 0 0"/>
+    <origin xyz="0 0.2 0.75" rpy="0 0 0"/>
   </joint>
 
   <!-- Back Barrier (formerly Right Barrier) -->
@@ -152,7 +152,7 @@
   <joint name="table_to_barrier_back" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_back"/>
-    <origin xyz="0 0 0.75" rpy="0 0 0"/>
+    <origin xyz="-0.15 -0.05 0.75" rpy="0 0 0"/>
   </joint>
 
   <!-- Front Barrier (formerly Left Barrier) -->
@@ -176,7 +176,7 @@
   <joint name="table_to_barrier_front" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_front"/>
-    <origin xyz="1.2 0 0.75" rpy="0 0 0"/>
+    <origin xyz="1.64 -0.05 0.75" rpy="0 0 0"/>
   </joint>
 
 
