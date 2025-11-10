@@ -29,7 +29,7 @@
     <parent link="world"/>
     <child link="table_top"/>
     <!-- Rotated 90 degrees around Z-axis like in reference file -->
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0 0.05 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Conveyor Belt -->
@@ -79,7 +79,7 @@
     <parent link="world"/>
     <child link="table_top_2"/>
     <!-- Second table positioned on the other side of conveyor with 90-degree rotation -->
-    <origin xyz="1.66 0 0" rpy="0 0 0"/>
+    <origin xyz="1.66 0.05 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Safety Barriers - Adjusted positions for 90-degree rotated tables -->
