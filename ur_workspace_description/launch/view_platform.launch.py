@@ -78,4 +78,16 @@ def generate_launch_description():
         arguments=["-d", rviz_config_file],
     )
 
-    return LaunchDescription(declared_arguments + [robot_state_publisher_node, rviz_node])
+    # Add joint state publisher for manual joint control in visualization
+    joint_state_publisher_node = Node(
+        package="joint_state_publisher_gui",
+        executable="joint_state_publisher_gui",
+        name="joint_state_publisher_gui",
+        condition=LaunchConfiguration.equals('use_fake_hardware', 'true')
+    )
+
+    return LaunchDescription(declared_arguments + [
+        robot_state_publisher_node, 
+        joint_state_publisher_node,
+        rviz_node
+    ])

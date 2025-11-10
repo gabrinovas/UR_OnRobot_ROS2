@@ -1,0 +1,140 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    # Basic controllers for environment visualization
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # Environment-specific controllers (if needed for interactive elements)
+    # These can be expanded based on your environment requirements
+
+# Configuration for joint state broadcaster
+joint_state_broadcaster:
+  ros__parameters:
+    # No specific parameters needed for basic operation
+
+# Optional: Conveyor belt controller (if you want moving conveyor)
+# conveyor_controller:
+#   ros__parameters:
+#     joints:
+#       - conveyor_joint
+#     command_interfaces:
+#       - velocity
+#     state_interfaces:
+#       - position
+#       - velocity
+#     state_publish_rate: 50.0
+
+# Optional: Interactive element controllers
+# safety_barrier_controller:
+#   ros__parameters:
+#     joints:
+#       - safety_barrier_joint
+#     command_interfaces:
+#       - position
+#     state_interfaces:
+#       - position
+
+# Example static transform publishers for environment elements
+static_transform_publishers:
+  ros__parameters:
+    transforms:
+      - frame_id: "world"
+        child_frame_id: "table_frame"
+        translation: [0.0, 0.0, 0.0]
+        rotation: [0.0, 0.0, 0.0, 1.0]
+      - frame_id: "world" 
+        child_frame_id: "conveyor_frame"
+        translation: [0.93, 0.0, 0.0]
+        rotation: [0.0, 0.0, 1.5708, 0.0]
+      - frame_id: "table_frame"
+        child_frame_id: "barrier_back_frame"
+        translation: [0.0, 0.45, 0.3]
+        rotation: [0.0, 0.0, 0.0, 1.0]
+      - frame_id: "table_frame"
+        child_frame_id: "barrier_front_frame"
+        translation: [0.0, -0.45, 0.3]
+        rotation: [0.0, 0.0, 0.0, 1.0]
+      - frame_id: "table_frame"
+        child_frame_id: "barrier_left_frame"
+        translation: [0.55, 0.0, 0.3]
+        rotation: [0.0, 0.0, 0.0, 1.0]
+      - frame_id: "table_frame"
+        child_frame_id: "barrier_right_frame"
+        translation: [-0.55, 0.0, 0.3]
+        rotation: [0.0, 0.0, 0.0, 1.0]
+      - frame_id: "table_frame"
+        child_frame_id: "barrier_top_frame"
+        translation: [0.0, 0.0, 1.2]
+        rotation: [0.0, 0.0, 0.0, 1.0]
+
+# Environment-specific parameters
+environment:
+  ros__parameters:
+    # Table dimensions and properties
+    table1:
+      position: [0.0, 0.0, 0.0]
+      dimensions: [1.2, 0.7, 0.75]
+      rotation: [0.0, 0.0, 1.5708]
+    
+    table2:
+      position: [1.86, 0.0, 0.0]
+      dimensions: [1.2, 0.7, 0.75]
+      rotation: [0.0, 0.0, 1.5708]
+    
+    # Conveyor properties
+    conveyor:
+      position: [0.93, 0.0, 0.0]
+      dimensions: [2.05, 0.8, 0.4]
+      rotation: [0.0, 0.0, 1.5708]
+      speed: 0.1  # m/s (if animated)
+    
+    # Safety barrier properties
+    barriers:
+      back:
+        position: [0.0, 0.45, 0.3]
+        dimensions: [1.2, 0.05, 0.8]
+      front:
+        position: [0.0, -0.45, 0.3]
+        dimensions: [1.2, 0.05, 0.8]
+      left:
+        position: [0.55, 0.0, 0.3]
+        dimensions: [0.05, 0.7, 0.8]
+      right:
+        position: [-0.55, 0.0, 0.3]
+        dimensions: [0.05, 0.7, 0.8]
+      top:
+        position: [0.0, 0.0, 1.2]
+        dimensions: [0.7, 1.2, 0.01]
+
+# Visualization parameters
+visualization:
+  ros__parameters:
+    # Colors for environment elements
+    colors:
+      table: [0.8, 0.8, 0.8, 1.0]
+      conveyor: [0.3, 0.3, 0.3, 1.0]
+      safety_barrier: [1.0, 1.0, 0.0, 0.3]
+    
+    # Marker settings
+    marker_scale: 1.0
+    marker_lifetime: 0.0  # 0 = forever
+    
+    # Update rates
+    transform_publish_rate: 10.0
+    marker_publish_rate: 1.0
+
+# Collision detection parameters (if implementing collision checking)
+collision_detection:
+  ros__parameters:
+    enabled: false
+    update_rate: 5.0
+    collision_margin: 0.02
+    # Collision pairs to monitor
+    monitored_pairs:
+      - ["robot_arm", "table"]
+      - ["robot_arm", "conveyor"]
+      - ["robot_arm", "safety_barrier"]
+      - ["gripper", "table"]
+      - ["gripper", "conveyor"]

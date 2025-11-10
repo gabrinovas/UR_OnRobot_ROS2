@@ -14,6 +14,7 @@ from launch.substitutions import (
     NotSubstitution,
     PathJoinSubstitution,
 )
+import rclpy
 
 
 def launch_setup(context, *args, **kwargs):
@@ -30,21 +31,29 @@ def launch_setup(context, *args, **kwargs):
     headless_mode = LaunchConfiguration("headless_mode")
     launch_dashboard_client = LaunchConfiguration("launch_dashboard_client")
 
-    # Launch the workspace environment first
-    workspace_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('ur_workspace_description'),
-                'launch',
-                'view_platform.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'ur_type': ur_type.perform(context),
-            'onrobot_type': onrobot_type.perform(context),
-            'use_fake_hardware': use_fake_hardware.perform(context),
-        }.items()
-    )
+    nodes_to_start = []
+
+    # Launch the workspace environment first (with error handling)
+    try:
+        workspace_package_share = FindPackageShare('ur_workspace_description').perform(context)
+        workspace_launch = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([
+                    FindPackageShare('ur_workspace_description'),
+                    'launch',
+                    'view_platform.launch.py'
+                ])
+            ]),
+            launch_arguments={
+                'ur_type': ur_type.perform(context),
+                'onrobot_type': onrobot_type.perform(context),
+                'use_fake_hardware': use_fake_hardware.perform(context),
+            }.items()
+        )
+        nodes_to_start.append(workspace_launch)
+        rclpy.logging.get_logger("launch").info("Workspace environment launched successfully")
+    except Exception as e:
+        rclpy.logging.get_logger("launch").warn(f"Workspace package not available: {e}. Continuing without environment visualization.")
 
     # Robot description - using the platform description instead of standalone robot
     robot_description_content = Command(
@@ -229,18 +238,20 @@ def launch_setup(context, *args, **kwargs):
     ]
     if activate_joint_controller.perform(context) == "true":
         controllers_active.append(initial_joint_controller.perform(context))
-        controllers_inactive.remove(initial_joint_controller.perform(context))
+        if initial_joint_controller.perform(context) in controllers_inactive:
+            controllers_inactive.remove(initial_joint_controller.perform(context))
 
     if use_fake_hardware.perform(context) == "true":
-        controllers_active.remove("tcp_pose_broadcaster")
+        if "tcp_pose_broadcaster" in controllers_active:
+            controllers_active.remove("tcp_pose_broadcaster")
 
     controller_spawners = [
         controller_spawner(controllers_active),
         controller_spawner(controllers_inactive, active=False),
     ]
 
-    nodes_to_start = [
-        workspace_launch,  # Environment first
+    # Add all nodes to start list
+    nodes_to_start.extend([
         control_node,
         ur_control_node,
         dashboard_client_node,
@@ -249,7 +260,7 @@ def launch_setup(context, *args, **kwargs):
         controller_stopper_node,
         urscript_interface,
         rviz_node,
-    ] + controller_spawners
+    ] + controller_spawners)
 
     return nodes_to_start
 
