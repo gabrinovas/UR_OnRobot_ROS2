@@ -186,3 +186,13 @@ tcp_pose_broadcaster:
     pose_name: $(var tf_prefix)tcp_pose
     tf:
       child_frame_id: $(var tf_prefix)tool0_controller
+
+# 2FG7 specific hardware parameters
+onrobot_2fg7_hardware:
+  ros__parameters:
+    onrobot_type: "2fg7"
+    connection_type: "tcp"
+    ip_address: "192.168.1.1"  # Default from documentation
+    port: 502
+    device_address: 65  # Default from documentation
+    prefix: "$(var tf_prefix)"

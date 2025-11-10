@@ -81,3 +81,8 @@ finger_width_trajectory_controller:
     finger_width:
       goal: 0.001
       trajectory: 0.001
+  # Gripper-specific parameters
+  ros__parameters:
+    state_publish_rate: 50.0
+    action_monitor_rate: 10.0
+    allow_partial_joints_goal: true

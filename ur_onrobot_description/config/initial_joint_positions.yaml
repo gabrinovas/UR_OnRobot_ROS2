@@ -7,4 +7,3 @@ controller_manager:
     initial_wrist_1_joint: -1.57
     initial_wrist_2_joint: -1.57
     initial_wrist_3_joint: 0.0
-  

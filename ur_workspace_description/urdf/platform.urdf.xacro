@@ -11,6 +11,12 @@
    <xacro:arg name="onrobot_type" default="2fg7"/>
    <xacro:arg name="robot_ip" default="0.0.0.0" />
    <xacro:arg name="use_fake_hardware" default="true" />
+   
+   <!-- MODBUS parameters for 2FG7 -->
+   <xacro:arg name="connection_type" default="tcp"/>
+   <xacro:arg name="ip_address" default="192.168.1.1"/>
+   <xacro:arg name="port" default="502"/>
+   <xacro:arg name="device_address" default="65"/>
 
    <!-- MAIN ROBOT -->
    <xacro:ur_onrobot
@@ -27,7 +33,11 @@
         visual_parameters_file="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"
         script_filename="$(find ur_robot_driver)/resources/ros_control.urscript"
         output_recipe_filename="$(find ur_robot_driver)/resources/rtde_output_recipe.txt"
-        input_recipe_filename="$(find ur_robot_driver)/resources/rtde_input_recipe.txt">
+        input_recipe_filename="$(find ur_robot_driver)/resources/rtde_input_recipe.txt"
+        connection_type="$(arg connection_type)"
+        ip_address="$(arg ip_address)"
+        port="$(arg port)"
+        device_address="$(arg device_address)">
         <!-- Robot positioned on table - adjusted for new environment -->
         <origin xyz="0.125 -0.225 0.75" rpy="0 0 3.14159"/>
    </xacro:ur_onrobot>

@@ -20,6 +20,10 @@
         script_filename
         output_recipe_filename
         input_recipe_filename
+        connection_type:=tcp
+        ip_address:=192.168.1.1
+        port:=502
+        device_address:=65
         ">
 
         <!-- Create the UR robot -->
@@ -45,6 +49,10 @@
             onrobot_type="${onrobot_type}"
             prefix="${tf_prefix}"
             use_fake_hardware="${use_fake_hardware}"
+            connection_type="${connection_type}"
+            ip_address="${ip_address}"
+            port="${port}"
+            device_address="${device_address}"
         />
 
         <!-- Connect the OnRobot to the UR robot -->

@@ -31,6 +31,11 @@ def launch_setup(context, *args, **kwargs):
     headless_mode = LaunchConfiguration("headless_mode")
     launch_dashboard_client = LaunchConfiguration("launch_dashboard_client")
 
+    # MODBUS parameters for 2FG7 gripper
+    gripper_ip = LaunchConfiguration("gripper_ip", default="192.168.1.1")
+    gripper_port = LaunchConfiguration("gripper_port", default="502")
+    gripper_device_address = LaunchConfiguration("gripper_device_address", default="65")
+
     nodes_to_start = []
 
     # Launch the workspace environment first (with error handling)
@@ -76,6 +81,18 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "use_fake_hardware:=",
             use_fake_hardware,
+            " ",
+            # MODBUS parameters for 2FG7
+            "connection_type:=tcp",
+            " ",
+            "ip_address:=",
+            gripper_ip,
+            " ",
+            "port:=",
+            gripper_port,
+            " ",
+            "device_address:=",
+            gripper_device_address,
             " ",
         ]
     )
@@ -202,6 +219,18 @@ def launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config_file],
     )
 
+    # Gripper status monitor node
+    gripper_status_node = Node(
+        package="onrobot_driver",
+        executable="gripper_status_monitor",
+        name="gripper_status_monitor",
+        output="screen",
+        parameters=[{
+            "onrobot_type": onrobot_type,
+        }],
+        condition=UnlessCondition(use_fake_hardware),
+    )
+
     # Spawn controllers
     def controller_spawner(controllers, active=True):
         inactive_flags = ["--inactive"] if not active else []
@@ -260,6 +289,7 @@ def launch_setup(context, *args, **kwargs):
         controller_stopper_node,
         urscript_interface,
         rviz_node,
+        gripper_status_node,
     ] + controller_spawners)
 
     return nodes_to_start
@@ -352,4 +382,28 @@ def generate_launch_description():
             "launch_dashboard_client", default_value="true", description="Launch Dashboard Client?"
         )
     )
+    
+    # MODBUS parameters for 2FG7 gripper
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "gripper_ip",
+            default_value="192.168.1.1",
+            description="IP address of the OnRobot 2FG7 gripper (Modbus TCP server).",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "gripper_port",
+            default_value="502",
+            description="Port number for the OnRobot 2FG7 gripper Modbus TCP connection.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "gripper_device_address",
+            default_value="65",
+            description="Modbus device address for the OnRobot 2FG7 gripper.",
+        )
+    )
+    
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
