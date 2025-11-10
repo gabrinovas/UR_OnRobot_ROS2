@@ -89,7 +89,7 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <!-- Scale down from mm to m -->
-        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="workspace_safety_yellow"/>
     </visual>
@@ -114,7 +114,7 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <!-- Scale down from mm to m -->
-        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="workspace_safety_yellow"/>
     </visual>
@@ -139,7 +139,7 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <!-- Scale down from mm to m -->
-        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="workspace_safety_yellow"/>
     </visual>
@@ -164,7 +164,7 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <!-- Scale down from mm to m -->
-        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="workspace_safety_yellow"/>
     </visual>
