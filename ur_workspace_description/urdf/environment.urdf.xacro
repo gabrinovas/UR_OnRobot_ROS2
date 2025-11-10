@@ -29,7 +29,7 @@
     <parent link="world"/>
     <child link="table_top"/>
     <!-- Rotated 90 degrees around Z-axis like in reference file -->
-    <origin xyz="0 0 0.75" rpy="0 0 0"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Conveyor Belt -->
@@ -45,7 +45,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="2.05 0.8 0.4"/>
+        <box size="2.05 0.8 0"/>
       </geometry>
     </collision>
   </link>
@@ -54,7 +54,7 @@
     <parent link="world"/>
     <child link="conveyor_belt"/>
     <!-- Conveyor rotated 90 degrees and positioned between tables -->
-    <origin xyz="0.83 0.4 0.8" rpy="0 0 0"/>
+    <origin xyz="0.83 0 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Second Table -->
@@ -79,7 +79,7 @@
     <parent link="world"/>
     <child link="table_top_2"/>
     <!-- Second table positioned on the other side of conveyor with 90-degree rotation -->
-    <origin xyz="1.66 0 0.75" rpy="0 0 0"/>
+    <origin xyz="1.66 0 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Safety Barriers - Adjusted positions for 90-degree rotated tables -->
@@ -105,7 +105,7 @@
   <joint name="table_to_barrier_back" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_back"/>
-    <origin xyz="0 0.85 0.3" rpy="0 0 0"/>
+    <origin xyz="0 0.85 0.75" rpy="0 0 0"/>
   </joint>
 
   <!-- Right Barrier -->
@@ -130,7 +130,7 @@
   <joint name="table_to_barrier_right" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_right"/>
-    <origin xyz="-0.45 0 0.3" rpy="0 0 0"/>
+    <origin xyz="-0.45 0 0.75" rpy="0 0 0"/>
   </joint>
 
   <!-- Left Barrier -->
@@ -155,7 +155,7 @@
   <joint name="table_to_barrier_left" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_left"/>
-    <origin xyz="0.85 0 0.3" rpy="0 0 0"/>
+    <origin xyz="0.85 0 0.75" rpy="0 0 0"/>
   </joint>
 
   <!-- Front Barrier (between table and conveyor) -->
@@ -180,7 +180,7 @@
   <joint name="table_to_barrier_front" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_front"/>
-    <origin xyz="0 -0.84 0.3" rpy="0 0 0"/>
+    <origin xyz="0 -0.84 0.75" rpy="0 0 0"/>
   </joint>
 
   <!-- Top Barrier -->
