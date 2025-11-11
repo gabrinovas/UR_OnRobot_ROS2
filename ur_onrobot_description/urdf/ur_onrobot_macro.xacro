@@ -59,7 +59,7 @@
         <joint name="${tf_prefix}onrobot_base_link_joint" type="fixed">
             <parent link="${tf_prefix}tool0"/>
             <child link="${tf_prefix}onrobot_base_link"/>
-            <origin xyz="0 0 0" rpy="0 0 ${-pi/2}"/>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
         </joint>
 
         <!-- Include cable connector collision links -->
