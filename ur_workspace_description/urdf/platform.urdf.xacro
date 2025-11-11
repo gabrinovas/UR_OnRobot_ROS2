@@ -9,7 +9,7 @@
 
    <xacro:arg name="ur_type" default="ur5e"/>
    <xacro:arg name="onrobot_type" default="2fg7"/>
-   <xacro:arg name="robot_ip" default="0.0.0.0" />
+   <xacro:arg name="robot_ip" default="192.168.1.101" />
    <xacro:arg name="use_fake_hardware" default="true" />
    
    <!-- MODBUS parameters for 2FG7 -->
