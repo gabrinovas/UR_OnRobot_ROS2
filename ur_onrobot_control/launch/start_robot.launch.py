@@ -310,7 +310,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "robot_ip",
             description="IP address by which the robot can be reached.",
-            default_value="192.168.56.101",  # Uses the Polyscope sim by default
+            default_value="192.168.1.101",  # Uses the Polyscope sim by default
         )
     )
 
