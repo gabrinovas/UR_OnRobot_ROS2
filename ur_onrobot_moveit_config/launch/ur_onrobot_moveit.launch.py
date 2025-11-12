@@ -219,9 +219,6 @@ def launch_setup(context, *args, **kwargs):
     }
 
     # === Servo Node ===
-    servo_config_path = PathJoinSubstitution(
-        [FindPackageShare("ur_onrobot_moveit_config"), "config", "ur_onrobot_servo.yaml"]
-    )
     servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
     servo_params = {"moveit_servo": servo_yaml}
 
@@ -237,7 +234,6 @@ def launch_setup(context, *args, **kwargs):
             robot_description_semantic,
             robot_description_kinematics,
             planning_scene_monitor_parameters,
-            servo_config_path,
         ],
     )
 
@@ -333,7 +329,7 @@ def generate_launch_description():
     declared_arguments.append(DeclareLaunchArgument("launch_rviz", default_value="true"))
     declared_arguments.append(DeclareLaunchArgument("launch_servo", default_value="true"))
 
-    # === Hybrid Camera Control ===
+    # === Hybrid Camera ===
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_camera",
