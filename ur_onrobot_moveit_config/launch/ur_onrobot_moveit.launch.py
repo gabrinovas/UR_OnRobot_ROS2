@@ -81,6 +81,7 @@ def launch_setup(context, *args, **kwargs):
         [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "visual_parameters.yaml"]
     )
 
+    # Robot Description (URDF)
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -128,9 +129,9 @@ def launch_setup(context, *args, **kwargs):
             "prefix:=",
             prefix,
             " ",
-            "use_fake_hardware:=true",  # For MoveIt simulation
+            "use_fake_hardware:=true",
             " ",
-            "connection_type:=tcp",  # MODBUS parameters
+            "connection_type:=tcp",
             " ",
             "ip_address:=192.168.1.1",
             " ",
@@ -168,10 +169,11 @@ def launch_setup(context, *args, **kwargs):
         "publish_robot_description_semantic": _publish_robot_description_semantic
     }
 
-    robot_description_kinematics = PathJoinSubstitution(
-        [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
-    )
+    # === CORRECT KINEMATICS LOADING ===
+    kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
+    robot_description_kinematics = {"robot_description_kinematics": kinematics_yaml}
 
+    # Joint Limits
     robot_description_planning = {
         "robot_description_planning": load_yaml(
             str(moveit_config_package.perform(context)),
@@ -262,9 +264,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description_kinematics,
             robot_description_planning,
             warehouse_ros_config,
-            {
-                "use_sim_time": use_sim_time,
-            },
+            {"use_sim_time": use_sim_time},
         ],
     )
 
@@ -284,122 +284,42 @@ def launch_setup(context, *args, **kwargs):
     )
 
     nodes_to_start = [move_group_node, rviz_node, servo_node]
-
     return nodes_to_start
 
 
 def generate_launch_description():
     declared_arguments = []
+
+    # Robot & Gripper
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "ur_type",
-            description="Type/series of used UR robot.",
-            choices=["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e", "ur20", "ur30"],
-            default_value="ur5e",
-        )
+        DeclareLaunchArgument("ur_type", default_value="ur5e",
+                              description="Type/series of used UR robot.",
+                              choices=["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e", "ur20", "ur30"])
     )
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "onrobot_type",
-            description="Type of the OnRobot gripper.",
-            choices=["rg2", "rg6", "2fg7", "2fg14"],
-            default_value="2fg7",
-        )
+        DeclareLaunchArgument("onrobot_type", default_value="2fg7",
+                              description="Type of the OnRobot gripper.",
+                              choices=["rg2", "rg6", "2fg7", "2fg14"])
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "safety_limits",
-            default_value="true",
-            description="Enables the safety limits controller if true.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "safety_pos_margin",
-            default_value="0.15",
-            description="The margin to lower and upper limits in the safety controller.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "safety_k_position",
-            default_value="20",
-            description="k-position factor in the safety controller.",
-        )
-    )
-    # General arguments
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "ur_description_package",
-            default_value="ur_description",
-            description="Description package with robot URDF/XACRO files. Usually the argument "
-            "is not set, it enables use of a custom description.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "description_file",
-            default_value="ur_onrobot.urdf.xacro",
-            description="URDF/XACRO description file with the robot.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "publish_robot_description_semantic",
-            default_value="True",
-            description="Whether to publish the SRDF description on topic /robot_description_semantic.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "moveit_config_package",
-            default_value="ur_onrobot_moveit_config",
-            description="MoveIt config package with robot SRDF/XACRO files. Usually the argument "
-            "is not set, it enables use of a custom moveit config.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "moveit_config_file",
-            default_value="ur_onrobot.srdf.xacro",
-            description="MoveIt SRDF/XACRO description file with the robot.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "moveit_joint_limits_file",
-            default_value="joint_limits.yaml",
-            description="MoveIt joint limits that augment or override the values from the URDF robot_description.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "warehouse_sqlite_path",
-            default_value=os.path.expanduser("~/.ros/warehouse_ros.sqlite"),
-            description="Path where the warehouse database should be stored",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_sim_time",
-            default_value="false",
-            description="Make MoveIt to use simulation time. This is needed for the trajectory planing in simulation.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "prefix",
-            default_value='""',
-            description="Prefix of the joint names, useful for "
-            "multi-robot setup. If changed than also joint names in the controllers' configuration "
-            "have to be updated.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?")
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?")
-    )
+
+    # Safety
+    declared_arguments.append(DeclareLaunchArgument("safety_limits", default_value="true"))
+    declared_arguments.append(DeclareLaunchArgument("safety_pos_margin", default_value="0.15"))
+    declared_arguments.append(DeclareLaunchArgument("safety_k_position", default_value="20"))
+
+    # Descriptions
+    declared_arguments.append(DeclareLaunchArgument("ur_description_package", default_value="ur_description"))
+    declared_arguments.append(DeclareLaunchArgument("description_file", default_value="ur_onrobot.urdf.xacro"))
+    declared_arguments.append(DeclareLaunchArgument("publish_robot_description_semantic", default_value="True"))
+    declared_arguments.append(DeclareLaunchArgument("moveit_config_package", default_value="ur_onrobot_moveit_config"))
+    declared_arguments.append(DeclareLaunchArgument("moveit_config_file", default_value="ur_onrobot.srdf.xacro"))
+    declared_arguments.append(DeclareLaunchArgument("moveit_joint_limits_file", default_value="joint_limits.yaml"))
+
+    # Misc
+    declared_arguments.append(DeclareLaunchArgument("warehouse_sqlite_path", default_value=os.path.expanduser("~/.ros/warehouse_ros.sqlite")))
+    declared_arguments.append(DeclareLaunchArgument("use_sim_time", default_value="false"))
+    declared_arguments.append(DeclareLaunchArgument("prefix", default_value='""'))
+    declared_arguments.append(DeclareLaunchArgument("launch_rviz", default_value="true"))
+    declared_arguments.append(DeclareLaunchArgument("launch_servo", default_value="true"))
 
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
