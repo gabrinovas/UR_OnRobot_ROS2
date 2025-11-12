@@ -290,9 +290,9 @@ def launch_setup(context, *args, **kwargs):
             robot_description_semantic,
             robot_description_kinematics,
             planning_scene_monitor_parameters,
+            {"use_intra_process_comms": True},  # ← FIXED: now a parameter
         ],
         output="screen",
-        extra_arguments=[{'use_intra_process_comms': True}],
     )
 
     # === Delayed Camera Check ===
@@ -301,15 +301,12 @@ def launch_setup(context, *args, **kwargs):
         actions=[OpaqueFunction(function=check_camera_and_decide)]
     )
 
-    nodes_to_start = [
+    return [
         delayed_check,
         move_group_node,
         rviz_node,
         servo_node,
     ]
-
-    return nodes_to_start
-
 
 def generate_launch_description():
     declared_arguments = []
