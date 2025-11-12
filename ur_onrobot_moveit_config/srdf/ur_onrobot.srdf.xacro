@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
 
-  <!-- robot name parameter -->
   <xacro:arg name="name" default="ur_onrobot"/>
-  <!-- parameters -->
   <xacro:arg name="prefix" default="" />
   <xacro:arg name="onrobot_type" default="rg2" />
 
@@ -15,11 +13,13 @@
   <xacro:ur_onrobot_srdf name="$(arg name)" prefix="$(arg prefix)"/>
 
   <!-- Gripper-specific configuration -->
-  <xacro:if value="${onrobot_type in ['rg2', 'rg6']}">
+  <xacro:property name="gripper" value="$(arg onrobot_type)" />
+
+  <xacro:if value="${gripper == 'rg2' or gripper == 'rg6'}">
     <xacro:ur_onrobot_rg_srdf name="$(arg name)" prefix="$(arg prefix)"/>
   </xacro:if>
   
-  <xacro:if value="${onrobot_type in ['2fg7', '2fg14']}">
+  <xacro:if value="${gripper == '2fg7' or gripper == '2fg14'}">
     <xacro:ur_onrobot_2fg7_srdf name="$(arg name)" prefix="$(arg prefix)"/>
   </xacro:if>
 
