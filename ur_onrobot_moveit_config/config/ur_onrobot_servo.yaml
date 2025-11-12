@@ -1,5 +1,5 @@
 ###############################################
-# Modify all parameters related to servoing here
+# Realtime jogging (servo) configuration
 ###############################################
 use_gazebo: false # Whether the robot is started in a Gazebo simulation environment
 
@@ -23,8 +23,6 @@ low_latency_mode: false  # Set this to true to publish as soon as an incoming Tw
 # What type of topic does your robot driver expect?
 # Currently supported are std_msgs/Float64MultiArray or trajectory_msgs/JointTrajectory
 command_out_type: std_msgs/Float64MultiArray
-
-# What to publish? Can save some bandwidth as most robots only require positions or velocities
 publish_joint_positions: true
 publish_joint_velocities: false
 publish_joint_accelerations: false
@@ -73,10 +71,10 @@ collision_check_rate: 50.0 # [Hz] Collision-checking can easily bog down a CPU i
 # Two collision check algorithms are available:
 # "threshold_distance" begins slowing down when nearer than a specified distance. Good if you want to tune collision thresholds manually.
 # "stop_distance" stops if a collision is nearer than the worst-case stopping distance and the distance is decreasing. Requires joint acceleration limits
-collision_check_type: threshold_distance
-# Parameters for "threshold_distance"-type collision checking
-self_collision_proximity_threshold: 0.01 # Start decelerating when a self-collision is this far [m]
-scene_collision_proximity_threshold: 0.02 # Start decelerating when a scene collision is this far [m]
+collision_check_type: stop_distance
+# Parameters for "stop_distance"-type collision checking
+self_collision_proximity_threshold: 0.05 # Start decelerating when a self-collision is this far [m]
+scene_collision_proximity_threshold: 0.01 # Start decelerating when a scene collision is this far [m]
 # Parameters for "stop_distance"-type collision checking
 collision_distance_safety_factor: 1000.0 # Must be >= 1. A large safety factor is recommended to account for latency
 min_allowable_collision_distance: 0.01 # Stop if a collision is closer than this [m]
