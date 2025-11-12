@@ -70,16 +70,16 @@ def launch_setup(context, *args, **kwargs):
     launch_servo = LaunchConfiguration("launch_servo")
 
     joint_limit_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "joint_limits.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "joint_limits.yaml"]
     )
     kinematics_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "default_kinematics.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "default_kinematics.yaml"]
     )
     physical_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "physical_parameters.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "physical_parameters.yaml"]
     )
     visual_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "visual_parameters.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "visual_parameters.yaml"]
     )
 
     robot_description_content = Command(
@@ -153,8 +153,6 @@ def launch_setup(context, *args, **kwargs):
             ),
             " ",
             "name:=",
-            # Also ur_type parameter could be used but then the planning group names in yaml
-            # configs has to be updated!
             "ur_onrobot",
             " ",
             "prefix:=",
@@ -304,7 +302,7 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "onrobot_type",  # ADD THIS ARGUMENT
+            "onrobot_type",
             description="Type of the OnRobot gripper.",
             choices=["rg2", "rg6", "2fg7", "2fg14"],
             default_value="2fg7",
