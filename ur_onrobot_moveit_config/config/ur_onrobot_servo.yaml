@@ -2,6 +2,7 @@
 # Realtime jogging (servo) configuration
 ###############################################
 /ros__parameters:
+  move_group_name: ur_onrobot_manipulator
   moveit_servo:
     use_intra_process_comms: true
     use_gazebo: false # Whether the robot is started in a Gazebo simulation environment
