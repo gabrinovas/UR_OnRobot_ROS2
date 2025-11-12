@@ -21,7 +21,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "onrobot_type",
             description="Type of mounted OnRobot end-effector.",
-            choices=["rg2", "rg6", "2fg7", "2fg14"],
+            choices=["rg2", "rg6", "2fg7", "2fg14", "3fg15"],
             default_value="2fg7",
         )
     )
