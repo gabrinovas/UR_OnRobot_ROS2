@@ -32,43 +32,61 @@
 import os
 import subprocess
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, FindExecutable, Command
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    FindExecutable,
+    Command,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
-from launch.event_handlers import OnProcessStart
-from launch.actions import RegisterEventHandler
 from ur_onrobot_moveit_config.launch_common import load_yaml
 
 
-# Global flag to store camera detection result
+# Global state
 camera_detected = False
+camera_enabled = False
 
 
-def check_camera_topic(event, context):
-    """Check if RealSense depth image topic exists."""
-    global camera_detected
+def check_camera_and_decide(context):
+    """Check for RealSense and decide whether to enable OctoMap."""
+    global camera_detected, camera_enabled
+
+    use_camera_val = LaunchConfiguration("use_camera").perform(context)
+
+    # Detect camera
     try:
         result = subprocess.run(
             ["ros2", "topic", "list"], capture_output=True, text=True, timeout=2
         )
         topics = result.stdout.splitlines()
-        if "/camera/depth/image_rect_raw" in topics:
-            camera_detected = True
-            print("[INFO] RealSense D435i detected → OctoMap will be enabled (unless forced off)")
-        else:
-            camera_detected = False
-            print("[INFO] No RealSense depth image found.")
+        camera_detected = "/camera/depth/image_rect_raw" in topics
     except Exception as e:
         camera_detected = False
-        print(f"[WARN] Failed to check topics: {e}")
+        print(f"[WARN] Failed to detect topics: {e}")
+
+    # Apply hybrid logic
+    if use_camera_val == "true":
+        camera_enabled = True
+        print("[INFO] use_camera:=true → Forcing OctoMap ON")
+    elif use_camera_val == "false":
+        camera_enabled = False
+        print("[INFO] use_camera:=false → OctoMap disabled")
+    else:  # auto
+        camera_enabled = camera_detected
+        if camera_detected:
+            print("[INFO] RealSense D435i detected → enabling OctoMap")
+        else:
+            print("[INFO] No RealSense → running without OctoMap")
+
+    return []
 
 
 def launch_setup(context, *args, **kwargs):
-    # Initialize Arguments
-    global camera_detected
+    global camera_enabled
 
     # === Launch Arguments ===
     ur_type = LaunchConfiguration("ur_type")
@@ -89,7 +107,6 @@ def launch_setup(context, *args, **kwargs):
     use_sim_time = LaunchConfiguration("use_sim_time")
     launch_rviz = LaunchConfiguration("launch_rviz")
     launch_servo = LaunchConfiguration("launch_servo")
-    use_camera = LaunchConfiguration("use_camera")  # auto / true / false
 
     # === URDF (Robot Description) ===
     joint_limit_params = PathJoinSubstitution(
@@ -135,7 +152,7 @@ def launch_setup(context, *args, **kwargs):
     )
     robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
 
-    # === MoveIt Configuration ===
+    # === SRDF ===
     robot_description_semantic_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -164,7 +181,7 @@ def launch_setup(context, *args, **kwargs):
         )
     }
 
-    # === OMPL Planning ===
+    # === OMPL Planning Pipeline ===
     ompl_planning_pipeline_config = {
         "move_group": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
@@ -175,7 +192,7 @@ def launch_setup(context, *args, **kwargs):
     ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
     ompl_planning_pipeline_config["move_group"].update(ompl_planning_yaml)
 
-    # Trajectory Execution Configuration
+    # === Controllers ===
     controllers_yaml = load_yaml("ur_onrobot_moveit_config", "config/controllers.yaml")
     # the scaled_joint_trajectory_controller does not work on fake hardware
     if context.perform_substitution(use_sim_time) == "true":
@@ -204,41 +221,18 @@ def launch_setup(context, *args, **kwargs):
         "publish_transforms_updates": True,
     }
 
-    warehouse_ros_config = {
-        "warehouse_plugin": "warehouse_ros_sqlite::DatabaseConnection",
-        "warehouse_host": warehouse_sqlite_path,
-    }
-
-    # === Hybrid RealSense Detection ===
-    use_camera_val = context.perform_substitution(use_camera)
-
-    def enable_sensors():
-        if use_camera_val == "false":
-            print("[INFO] use_camera:=false → OctoMap disabled")
-            return
-        if use_camera_val == "true":
-            print("[INFO] use_camera:=true → Forcing OctoMap ON")
-        elif camera_detected:
-            print("[INFO] RealSense detected → enabling OctoMap")
-        else:
-            print("[INFO] No RealSense → skipping OctoMap")
-            return
-
+    # === Conditionally Add RealSense OctoMap ===
+    if camera_enabled:
         sensors_3d_yaml = load_yaml("ur_onrobot_moveit_config", "config/sensors_3d.yaml")
         planning_scene_monitor_parameters.update({
             "sensors_3d": sensors_3d_yaml,
             "camera_info_topic": "/camera/depth/camera_info",
         })
 
-    # Trigger sensor load after camera check
-    trigger_sensor_load = Node(
-        package="rclcpp_components",
-        executable="component_container",
-        name="sensor_trigger",
-        output="screen",
-        parameters=[{"autostart": True}],
-        on_start=enable_sensors,
-    )
+    warehouse_ros_config = {
+        "warehouse_plugin": "warehouse_ros_sqlite::DatabaseConnection",
+        "warehouse_host": warehouse_sqlite_path,
+    }
 
     # === Nodes ===
     move_group_node = Node(
@@ -301,23 +295,14 @@ def launch_setup(context, *args, **kwargs):
         extra_arguments=[{'use_intra_process_comms': True}],
     )
 
-    # === Delayed camera check ===
-    delayed_camera_check = TimerAction(
+    # === Delayed Camera Check ===
+    delayed_check = TimerAction(
         period=1.5,
-        actions=[ExecuteProcess(
-            cmd=["true"],
-            on_start=RegisterEventHandler(
-                OnProcessStart(
-                    target_action=ExecuteProcess(cmd=["true"]),
-                    on_start=check_camera_topic
-                )
-            )
-        )]
+        actions=[OpaqueFunction(function=check_camera_and_decide)]
     )
 
     nodes_to_start = [
-        delayed_camera_check,
-        trigger_sensor_load,
+        delayed_check,
         move_group_node,
         rviz_node,
         servo_node,
@@ -362,12 +347,12 @@ def generate_launch_description():
     declared_arguments.append(DeclareLaunchArgument("launch_rviz", default_value="true"))
     declared_arguments.append(DeclareLaunchArgument("launch_servo", default_value="true"))
 
-    # === Hybrid Camera Argument ===
+    # === Hybrid Camera Control ===
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_camera",
             default_value="auto",
-            description="Control RealSense OctoMap: 'auto' (default), 'true', or 'false'"
+            description="OctoMap control: 'auto' (detect camera), 'true' (force on), 'false' (force off)"
         )
     )
 
