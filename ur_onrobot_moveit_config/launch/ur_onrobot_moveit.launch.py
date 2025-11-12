@@ -40,7 +40,8 @@ from launch.substitutions import (
     FindExecutable,
     Command,
 )
-from launch_ros.actions import Node
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
 from ur_onrobot_moveit_config.launch_common import load_yaml
@@ -222,20 +223,27 @@ def launch_setup(context, *args, **kwargs):
     servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
     servo_params = {"moveit_servo": servo_yaml}
 
-    servo_node = Node(
-        package="moveit_servo",
-        condition=IfCondition(launch_servo),
-        executable="servo_node_main",
-        name="servo_node",
-        output="screen",
-        parameters=[
-            servo_params,
-            robot_description,
-            robot_description_semantic,
-            robot_description_kinematics,
-            planning_scene_monitor_parameters,
+    servo_container = ComposableNodeContainer(
+        name="servo_container",
+        namespace="",
+        package="rclcpp_components",
+        executable="component_container",
+        composable_node_descriptions=[
+            ComposableNode(
+                package="moveit_servo",
+                plugin="moveit_servo::ServoNode",
+                name="servo_node",
+                parameters=[
+                    servo_params,
+                    robot_description,
+                    robot_description_semantic,
+                    robot_description_kinematics,
+                    planning_scene_monitor_parameters,
+                ],
+                extra_arguments=[{"use_intra_process_comms": True}],
+            ),
         ],
-        extra_arguments=[{"use_intra_process_comms": True}],
+        output="screen",
     )
 
     # === MoveGroup Node ===
@@ -291,8 +299,9 @@ def launch_setup(context, *args, **kwargs):
         delayed_check,
         move_group_node,
         rviz_node,
-        servo_node,
+        servo_container if context.perform_substitution(launch_servo) == "true" else None,
     ]
+
 
 def generate_launch_description():
     declared_arguments = []
