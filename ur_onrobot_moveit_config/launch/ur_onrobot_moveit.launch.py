@@ -54,7 +54,6 @@ camera_enabled = False
 def check_camera_and_decide(context):
     """Check for RealSense and decide whether to enable OctoMap."""
     global camera_detected, camera_enabled
-
     use_camera_val = LaunchConfiguration("use_camera").perform(context)
 
     # Detect camera
@@ -64,9 +63,8 @@ def check_camera_and_decide(context):
         )
         topics = result.stdout.splitlines()
         camera_detected = "/camera/depth/image_rect_raw" in topics
-    except Exception as e:
+    except:
         camera_detected = False
-        print(f"[WARN] Failed to detect topics: {e}")
 
     # Apply hybrid logic
     if use_camera_val == "true":
@@ -75,12 +73,9 @@ def check_camera_and_decide(context):
     elif use_camera_val == "false":
         camera_enabled = False
         print("[INFO] use_camera:=false → OctoMap disabled")
-    else:  # auto
+    else:
         camera_enabled = camera_detected
-        if camera_detected:
-            print("[INFO] RealSense D435i detected → enabling OctoMap")
-        else:
-            print("[INFO] No RealSense → running without OctoMap")
+        print(f"[INFO] {'RealSense D435i detected → enabling OctoMap' if camera_detected else 'No RealSense → running without OctoMap'}")
 
     return []
 
@@ -108,7 +103,7 @@ def launch_setup(context, *args, **kwargs):
     launch_rviz = LaunchConfiguration("launch_rviz")
     launch_servo = LaunchConfiguration("launch_servo")
 
-    # === URDF (Robot Description) ===
+    # === URDF ===
     joint_limit_params = PathJoinSubstitution(
         [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "joint_limits.yaml"]
     )
@@ -139,15 +134,8 @@ def launch_setup(context, *args, **kwargs):
             " name:=ur_onrobot",
             " ur_type:=", ur_type,
             " onrobot_type:=", onrobot_type,
-            " script_filename:=ros_control.urscript",
-            " input_recipe_filename:=rtde_input_recipe.txt",
-            " output_recipe_filename:=rtde_output_recipe.txt",
             " prefix:=", prefix,
             " use_fake_hardware:=true",
-            " connection_type:=tcp",
-            " ip_address:=192.168.1.1",
-            " port:=502",
-            " device_address:=65",
         ]
     )
     robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
@@ -165,11 +153,9 @@ def launch_setup(context, *args, **kwargs):
     )
     robot_description_semantic = {"robot_description_semantic": ParameterValue(robot_description_semantic_content, value_type=str)}
 
-    publish_robot_description_semantic = {
-        "publish_robot_description_semantic": _publish_robot_description_semantic
-    }
+    publish_robot_description_semantic = {"publish_robot_description_semantic": _publish_robot_description_semantic}
 
-    # === Kinematics (MoveIt) ===
+    # === Kinematics ===
     kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
     robot_description_kinematics = {"robot_description_kinematics": kinematics_yaml}
 
@@ -181,7 +167,7 @@ def launch_setup(context, *args, **kwargs):
         )
     }
 
-    # === OMPL Planning Pipeline ===
+    # === OMPL ===
     ompl_planning_pipeline_config = {
         "move_group": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
@@ -194,7 +180,6 @@ def launch_setup(context, *args, **kwargs):
 
     # === Controllers ===
     controllers_yaml = load_yaml("ur_onrobot_moveit_config", "config/controllers.yaml")
-    # the scaled_joint_trajectory_controller does not work on fake hardware
     if context.perform_substitution(use_sim_time) == "true":
         controllers_yaml["scaled_joint_trajectory_controller"]["default"] = False
         controllers_yaml["joint_trajectory_controller"]["default"] = True
@@ -209,11 +194,10 @@ def launch_setup(context, *args, **kwargs):
         "trajectory_execution.allowed_execution_duration_scaling": 1.2,
         "trajectory_execution.allowed_goal_duration_margin": 0.5,
         "trajectory_execution.allowed_start_tolerance": 0.01,
-        # Execution time monitoring can be incompatible with the scaled JTC
         "trajectory_execution.execution_duration_monitoring": False,
     }
 
-    # === Planning Scene Monitor (Base) ===
+    # === Planning Scene Monitor ===
     planning_scene_monitor_parameters = {
         "publish_planning_scene": True,
         "publish_geometry_updates": True,
@@ -234,7 +218,30 @@ def launch_setup(context, *args, **kwargs):
         "warehouse_host": warehouse_sqlite_path,
     }
 
-    # === Nodes ===
+    # === Servo Node ===
+    servo_config_path = PathJoinSubstitution(
+        [FindPackageShare("ur_onrobot_moveit_config"), "config", "ur_onrobot_servo.yaml"]
+    )
+    servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
+    servo_params = {"moveit_servo": servo_yaml}
+
+    servo_node = Node(
+        package="moveit_servo",
+        condition=IfCondition(launch_servo),
+        executable="servo_node_main",
+        name="servo_node",
+        output="screen",
+        parameters=[
+            servo_params,
+            robot_description,
+            robot_description_semantic,
+            robot_description_kinematics,
+            planning_scene_monitor_parameters,
+            servo_config_path,
+        ],
+    )
+
+    # === MoveGroup Node ===
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
@@ -254,7 +261,7 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    # rviz with moveit configuration
+    # === RViz ===
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(moveit_config_package), "rviz", "view_robot.rviz"]
     )
@@ -275,23 +282,6 @@ def launch_setup(context, *args, **kwargs):
             planning_scene_monitor_parameters,
             {"use_sim_time": use_sim_time},
         ],
-    )
-
-    # Servo node for realtime control
-    servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
-    servo_params = {"moveit_servo": servo_yaml}
-    servo_node = Node(
-        package="moveit_servo",
-        condition=IfCondition(launch_servo),
-        executable="servo_node_main",
-        parameters=[
-            servo_params,
-            robot_description,
-            robot_description_semantic,
-            robot_description_kinematics,
-            planning_scene_monitor_parameters,
-        ],
-        output="screen",
     )
 
     # === Delayed Camera Check ===
@@ -318,7 +308,7 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument("onrobot_type", default_value="2fg7",
-                              description="Type of the OnRobot gripper.",
+                              description="Type of OnRobot gripper.",
                               choices=["rg2", "rg6", "2fg7", "2fg14"])
     )
 
@@ -348,7 +338,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "use_camera",
             default_value="auto",
-            description="OctoMap control: 'auto' (detect camera), 'true' (force on), 'false' (force off)"
+            description="OctoMap: 'auto' (detect), 'true' (force on), 'false' (force off)"
         )
     )
 

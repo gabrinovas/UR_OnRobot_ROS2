@@ -1,4 +1,3 @@
-# ur_onrobot_moveit_config/config/sensors_3d.yaml
 sensors:
   - realsense_depth
 
@@ -6,10 +5,9 @@ realsense_depth:
   sensor_plugin: occupancy_map_monitor/DepthImageOctomapUpdater
   image_topic: /camera/depth/image_rect_raw
   queue_size: 5
-  near_clipping_plane_distance: 0.2   # [m] – ignore anything closer
-  far_clipping_plane_distance: 3.0    # [m] – ignore anything farther
-  skip_empty_space_distance: 0.01
-  max_update_rate: 2.0                # Hz – keep CPU low
-  padding_offset: 0.03                # [m] – safety margin around robot
+  near_clipping_plane_distance: 0.2
+  far_clipping_plane_distance: 3.0
+  max_update_rate: 2.0
+  padding_offset: 0.03
   padding_scale: 1.0
   filtered_cloud_topic: realsense_octomap_cloud
