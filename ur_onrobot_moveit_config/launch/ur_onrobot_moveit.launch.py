@@ -239,6 +239,7 @@ def launch_setup(context, *args, **kwargs):
                     robot_description_semantic,
                     robot_description_kinematics,
                     planning_scene_monitor_parameters,
+                    {"moveit_servo.move_group_name": "ur_onrobot_manipulator"},
                     {"move_group_name": "ur_onrobot_manipulator"},
                 ],
                 extra_arguments=[{"use_intra_process_comms": True}],
