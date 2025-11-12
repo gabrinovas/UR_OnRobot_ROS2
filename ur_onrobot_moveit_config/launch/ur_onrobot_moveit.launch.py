@@ -30,26 +30,61 @@
 # Author: Denis Stogl
 
 import os
-
-from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
-from ur_onrobot_moveit_config.launch_common import load_yaml
-
+import subprocess
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
 from launch.conditions import IfCondition
 from launch.substitutions import (
-    Command,
-    FindExecutable,
     LaunchConfiguration,
     PathJoinSubstitution,
+    FindExecutable,
+    Command,
 )
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
+from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
+from ur_onrobot_moveit_config.launch_common import load_yaml
+
+
+# Global state
+camera_detected = False
+camera_enabled = False
+
+
+def check_camera_and_decide(context):
+    """Check for RealSense and decide whether to enable OctoMap."""
+    global camera_detected, camera_enabled
+    use_camera_val = LaunchConfiguration("use_camera").perform(context)
+
+    # Detect camera
+    try:
+        result = subprocess.run(
+            ["ros2", "topic", "list"], capture_output=True, text=True, timeout=2
+        )
+        topics = result.stdout.splitlines()
+        camera_detected = "/camera/depth/image_rect_raw" in topics
+    except:
+        camera_detected = False
+
+    # Apply hybrid logic
+    if use_camera_val == "true":
+        camera_enabled = True
+        print("[INFO] use_camera:=true → Forcing OctoMap ON")
+    elif use_camera_val == "false":
+        camera_enabled = False
+        print("[INFO] use_camera:=false → OctoMap disabled")
+    else:
+        camera_enabled = camera_detected
+        print(f"[INFO] {'RealSense D435i detected → enabling OctoMap' if camera_detected else 'No RealSense → running without OctoMap'}")
+
+    return []
 
 
 def launch_setup(context, *args, **kwargs):
+    global camera_enabled
 
-    # Initialize Arguments
+    # === Launch Arguments ===
     ur_type = LaunchConfiguration("ur_type")
     onrobot_type = LaunchConfiguration("onrobot_type")
     safety_limits = LaunchConfiguration("safety_limits")
@@ -69,112 +104,63 @@ def launch_setup(context, *args, **kwargs):
     launch_rviz = LaunchConfiguration("launch_rviz")
     launch_servo = LaunchConfiguration("launch_servo")
 
+    # === URDF ===
     joint_limit_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "joint_limits.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "joint_limits.yaml"]
     )
     kinematics_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "default_kinematics.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "default_kinematics.yaml"]
     )
     physical_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "physical_parameters.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "physical_parameters.yaml"]
     )
     visual_params = PathJoinSubstitution(
-        [FindPackageShare(ur_description_package), "config", ur_type, "visual_parameters.yaml"]
+        [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "visual_parameters.yaml"]
     )
 
+    # Robot Description (URDF)
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution([FindPackageShare("ur_onrobot_description"), "urdf", description_file]),
-            " ",
-            "robot_ip:=xxx.yyy.zzz.www",
-            " ",
-            "joint_limit_params:=",
-            joint_limit_params,
-            " ",
-            "kinematics_params:=",
-            kinematics_params,
-            " ",
-            "physical_params:=",
-            physical_params,
-            " ",
-            "visual_params:=",
-            visual_params,
-            " ",
-            "safety_limits:=",
-            safety_limits,
-            " ",
-            "safety_pos_margin:=",
-            safety_pos_margin,
-            " ",
-            "safety_k_position:=",
-            safety_k_position,
-            " ",
-            "name:=",
-            "ur_onrobot",
-            " ",
-            "ur_type:=",
-            ur_type,
-            " ",
-            "onrobot_type:=",
-            onrobot_type,
-            " ",
-            "script_filename:=ros_control.urscript",
-            " ",
-            "input_recipe_filename:=rtde_input_recipe.txt",
-            " ",
-            "output_recipe_filename:=rtde_output_recipe.txt",
-            " ",
-            "prefix:=",
-            prefix,
-            " ",
-            "use_fake_hardware:=true",  # For MoveIt simulation
-            " ",
-            "connection_type:=tcp",  # MODBUS parameters
-            " ",
-            "ip_address:=192.168.1.1",
-            " ",
-            "port:=502",
-            " ",
-            "device_address:=65",
-            " ",
+            " robot_ip:=xxx.yyy.zzz.www",
+            " joint_limit_params:=", joint_limit_params,
+            " kinematics_params:=", kinematics_params,
+            " physical_params:=", physical_params,
+            " visual_params:=", visual_params,
+            " safety_limits:=", safety_limits,
+            " safety_pos_margin:=", safety_pos_margin,
+            " safety_k_position:=", safety_k_position,
+            " name:=ur_onrobot",
+            " ur_type:=", ur_type,
+            " onrobot_type:=", onrobot_type,
+            " prefix:=", prefix,
+            " use_fake_hardware:=true",
         ]
     )
     robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
 
-    # MoveIt Configuration
+    # === SRDF ===
     robot_description_semantic_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "srdf", moveit_config_file]
-            ),
-            " ",
-            "name:=",
-            # Also ur_type parameter could be used but then the planning group names in yaml
-            # configs has to be updated!
-            "ur_onrobot",
-            " ",
-            "prefix:=",
-            prefix,
-            " ",
-            "onrobot_type:=",
-            onrobot_type,
-            " ",
+            PathJoinSubstitution([FindPackageShare(moveit_config_package), "srdf", moveit_config_file]),
+            " name:=ur_onrobot",
+            " prefix:=", prefix,
+            " onrobot_type:=", onrobot_type,
         ]
     )
     robot_description_semantic = {"robot_description_semantic": ParameterValue(robot_description_semantic_content, value_type=str)}
 
-    publish_robot_description_semantic = {
-        "publish_robot_description_semantic": _publish_robot_description_semantic
-    }
+    publish_robot_description_semantic = {"publish_robot_description_semantic": _publish_robot_description_semantic}
 
-    robot_description_kinematics = PathJoinSubstitution(
-        [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
-    )
+    # === Kinematics ===
+    kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
+    robot_description_kinematics = {"robot_description_kinematics": kinematics_yaml}
 
+    # === Joint Limits ===
     robot_description_planning = {
         "robot_description_planning": load_yaml(
             str(moveit_config_package.perform(context)),
@@ -182,7 +168,7 @@ def launch_setup(context, *args, **kwargs):
         )
     }
 
-    # Planning Configuration
+    # === OMPL ===
     ompl_planning_pipeline_config = {
         "move_group": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
@@ -193,11 +179,9 @@ def launch_setup(context, *args, **kwargs):
     ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
     ompl_planning_pipeline_config["move_group"].update(ompl_planning_yaml)
 
-    # Trajectory Execution Configuration
+    # === Controllers ===
     controllers_yaml = load_yaml("ur_onrobot_moveit_config", "config/controllers.yaml")
-    # the scaled_joint_trajectory_controller does not work on fake hardware
-    change_controllers = context.perform_substitution(use_sim_time)
-    if change_controllers == "true":
+    if context.perform_substitution(use_sim_time) == "true":
         controllers_yaml["scaled_joint_trajectory_controller"]["default"] = False
         controllers_yaml["joint_trajectory_controller"]["default"] = True
 
@@ -211,10 +195,10 @@ def launch_setup(context, *args, **kwargs):
         "trajectory_execution.allowed_execution_duration_scaling": 1.2,
         "trajectory_execution.allowed_goal_duration_margin": 0.5,
         "trajectory_execution.allowed_start_tolerance": 0.01,
-        # Execution time monitoring can be incompatible with the scaled JTC
         "trajectory_execution.execution_duration_monitoring": False,
     }
 
+    # === Planning Scene Monitor ===
     planning_scene_monitor_parameters = {
         "publish_planning_scene": True,
         "publish_geometry_updates": True,
@@ -222,12 +206,49 @@ def launch_setup(context, *args, **kwargs):
         "publish_transforms_updates": True,
     }
 
+    # === Conditionally Add RealSense OctoMap ===
+    if camera_enabled:
+        sensors_3d_yaml = load_yaml("ur_onrobot_moveit_config", "config/sensors_3d.yaml")
+        planning_scene_monitor_parameters.update({
+            "sensors_3d": sensors_3d_yaml,
+            "camera_info_topic": "/camera/depth/camera_info",
+        })
+
     warehouse_ros_config = {
         "warehouse_plugin": "warehouse_ros_sqlite::DatabaseConnection",
         "warehouse_host": warehouse_sqlite_path,
     }
 
-    # Start the actual move_group node/action server
+    # === Servo Node ===
+    servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
+    servo_params = {"moveit_servo": servo_yaml}
+
+    servo_container = ComposableNodeContainer(
+        name="servo_container",
+        namespace="",
+        package="rclcpp_components",
+        executable="component_container",
+        composable_node_descriptions=[
+            ComposableNode(
+                package="moveit_servo",
+                plugin="moveit_servo::ServoNode",
+                name="servo_node",
+                parameters=[
+                    servo_params,
+                    robot_description,
+                    robot_description_semantic,
+                    robot_description_kinematics,
+                    planning_scene_monitor_parameters,
+                    {"moveit_servo.move_group_name": "ur_onrobot_manipulator"},
+                    {"move_group_name": "ur_onrobot_manipulator"},
+                ],
+                extra_arguments=[{"use_intra_process_comms": True}],
+            ),
+        ],
+        output="screen",
+    )
+
+    # === MoveGroup Node ===
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
@@ -247,7 +268,7 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    # rviz with moveit configuration
+    # === RViz ===
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(moveit_config_package), "rviz", "view_robot.rviz"]
     )
@@ -265,145 +286,68 @@ def launch_setup(context, *args, **kwargs):
             robot_description_kinematics,
             robot_description_planning,
             warehouse_ros_config,
-            {
-                "use_sim_time": use_sim_time,
-            },
+            planning_scene_monitor_parameters,
+            {"use_sim_time": use_sim_time},
         ],
     )
 
-    # Servo node for realtime control
-    servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
-    servo_params = {"moveit_servo": servo_yaml}
-    servo_node = Node(
-        package="moveit_servo",
-        condition=IfCondition(launch_servo),
-        executable="servo_node_main",
-        parameters=[
-            servo_params,
-            robot_description,
-            robot_description_semantic,
-        ],
-        output="screen",
+    # === Delayed Camera Check ===
+    delayed_check = TimerAction(
+        period=1.5,
+        actions=[OpaqueFunction(function=check_camera_and_decide)]
     )
 
-    nodes_to_start = [move_group_node, rviz_node, servo_node]
-
-    return nodes_to_start
+    return [
+        delayed_check,
+        move_group_node,
+        rviz_node,
+        servo_container if context.perform_substitution(launch_servo) == "true" else None,
+    ]
 
 
 def generate_launch_description():
-
     declared_arguments = []
+
+    # Robot & Gripper
+    declared_arguments.append(
+        DeclareLaunchArgument("ur_type", default_value="ur5e",
+                              description="Type/series of used UR robot.",
+                              choices=["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e", "ur20", "ur30"])
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("onrobot_type", default_value="2fg7",
+                              description="Type of OnRobot gripper.",
+                              choices=["rg2", "rg6", "2fg7", "2fg14"])
+    )
+
+    # Safety
+    declared_arguments.append(DeclareLaunchArgument("safety_limits", default_value="true"))
+    declared_arguments.append(DeclareLaunchArgument("safety_pos_margin", default_value="0.15"))
+    declared_arguments.append(DeclareLaunchArgument("safety_k_position", default_value="20"))
+
+    # Descriptions
+    declared_arguments.append(DeclareLaunchArgument("ur_description_package", default_value="ur_description"))
+    declared_arguments.append(DeclareLaunchArgument("description_file", default_value="ur_onrobot.urdf.xacro"))
+    declared_arguments.append(DeclareLaunchArgument("publish_robot_description_semantic", default_value="True"))
+    declared_arguments.append(DeclareLaunchArgument("moveit_config_package", default_value="ur_onrobot_moveit_config"))
+    declared_arguments.append(DeclareLaunchArgument("moveit_config_file", default_value="ur_onrobot.srdf.xacro"))
+    declared_arguments.append(DeclareLaunchArgument("moveit_joint_limits_file", default_value="joint_limits.yaml"))
+
+    # Misc
+    declared_arguments.append(DeclareLaunchArgument("warehouse_sqlite_path",
+        default_value=os.path.expanduser("~/.ros/warehouse_ros.sqlite")))
+    declared_arguments.append(DeclareLaunchArgument("use_sim_time", default_value="false"))
+    declared_arguments.append(DeclareLaunchArgument("prefix", default_value='""'))
+    declared_arguments.append(DeclareLaunchArgument("launch_rviz", default_value="true"))
+    declared_arguments.append(DeclareLaunchArgument("launch_servo", default_value="true"))
+
+    # === Hybrid Camera ===
     declared_arguments.append(
         DeclareLaunchArgument(
-            "ur_type",
-            description="Type/series of used UR robot.",
-            choices=["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e", "ur20", "ur30"],
-            default_value="ur5e",
+            "use_camera",
+            default_value="auto",
+            description="OctoMap: 'auto' (detect), 'true' (force on), 'false' (force off)"
         )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "onrobot_type",  # ADD THIS ARGUMENT
-            description="Type of the OnRobot gripper.",
-            choices=["rg2", "rg6", "2fg7", "2fg14"],
-            default_value="2fg7",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "safety_limits",
-            default_value="true",
-            description="Enables the safety limits controller if true.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "safety_pos_margin",
-            default_value="0.15",
-            description="The margin to lower and upper limits in the safety controller.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "safety_k_position",
-            default_value="20",
-            description="k-position factor in the safety controller.",
-        )
-    )
-    # General arguments
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "ur_description_package",
-            default_value="ur_description",
-            description="Description package with robot URDF/XACRO files. Usually the argument "
-            "is not set, it enables use of a custom description.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "description_file",
-            default_value="ur_onrobot.urdf.xacro",
-            description="URDF/XACRO description file with the robot.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "publish_robot_description_semantic",
-            default_value="True",
-            description="Whether to publish the SRDF description on topic /robot_description_semantic.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "moveit_config_package",
-            default_value="ur_onrobot_moveit_config",
-            description="MoveIt config package with robot SRDF/XACRO files. Usually the argument "
-            "is not set, it enables use of a custom moveit config.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "moveit_config_file",
-            default_value="ur_onrobot.srdf.xacro",
-            description="MoveIt SRDF/XACRO description file with the robot.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "moveit_joint_limits_file",
-            default_value="joint_limits.yaml",
-            description="MoveIt joint limits that augment or override the values from the URDF robot_description.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "warehouse_sqlite_path",
-            default_value=os.path.expanduser("~/.ros/warehouse_ros.sqlite"),
-            description="Path where the warehouse database should be stored",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_sim_time",
-            default_value="false",
-            description="Make MoveIt to use simulation time. This is needed for the trajectory planing in simulation.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "prefix",
-            default_value='""',
-            description="Prefix of the joint names, useful for "
-            "multi-robot setup. If changed than also joint names in the controllers' configuration "
-            "have to be updated.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?")
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?")
     )
 
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
