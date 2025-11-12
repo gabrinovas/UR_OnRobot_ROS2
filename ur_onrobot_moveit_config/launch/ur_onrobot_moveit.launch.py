@@ -290,7 +290,6 @@ def launch_setup(context, *args, **kwargs):
             robot_description_semantic,
             robot_description_kinematics,
             planning_scene_monitor_parameters,
-            {"use_intra_process_comms": True},  # ← FIXED: now a parameter
         ],
         output="screen",
     )
