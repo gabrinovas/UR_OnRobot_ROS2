@@ -302,7 +302,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "onrobot_type",
             description="Type/series of used OnRobot gripper.",
-            choices=["rg2", "rg6", "2fg7", "2fg14"],
+            choices=["rg2", "rg6", "2fg7", "2fg14", "3fg15"],
             default_value="2fg7",
         )
     )
@@ -310,7 +310,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "robot_ip",
             description="IP address by which the robot can be reached.",
-            default_value="192.168.1.101",  # Uses the Polyscope sim by default
+            default_value="192.168.1.101",
         )
     )
 
