@@ -235,6 +235,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description_kinematics,
             planning_scene_monitor_parameters,
         ],
+        extra_arguments=[{"use_intra_process_comms": True}],
     )
 
     # === MoveGroup Node ===
