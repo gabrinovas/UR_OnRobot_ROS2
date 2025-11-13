@@ -1,5 +1,8 @@
-# Copyright (c) 2021 PickNik, Inc.
+# -*- coding: utf-8 -*-
 # SPDX-License-Identifier: Apache-2.0
+# --------------------------------------------------------------
+#  MoveIt + UR + OnRobot (2FG7 / RG2 / RG6) – works with real robot or URSim
+# --------------------------------------------------------------
 
 import os
 import socket
@@ -9,10 +12,9 @@ from typing import List
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    ExecuteProcess,
     OpaqueFunction,
-    TimerAction,
     SetLaunchConfiguration,
+    TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import (
@@ -22,24 +24,18 @@ from launch.substitutions import (
     PathJoinSubstitution,
     PythonExpression,
 )
-from launch_ros.actions import Node, ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
-from launch_ros.substitutions import FindPackageShare
+from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue, ParameterFile
-
-from ur_onrobot_moveit_config.launch_common import load_yaml
-
+from launch_ros.substitutions import FindPackageShare
 
 # ----------------------------------------------------------------------
-# Global state – only used inside OpaqueFunctions
+# Global state (only used inside OpaqueFunctions)
 # ----------------------------------------------------------------------
-camera_detected: bool = False
-camera_enabled: bool = False
 chosen_robot_ip: str | None = None
+camera_enabled: bool = False
 
 
-def ping_ip(ip: str, timeout: float = 1.0) -> bool:
-    """Ping the UR primary interface (port 30003)."""
+def ping_ip(ip: str, timeout: float = 1.0);x -> bool:
     try:
         with socket.create_connection((ip, 30003), timeout=timeout):
             return True
@@ -48,7 +44,6 @@ def ping_ip(ip: str, timeout: float = 1.0) -> bool:
 
 
 def detect_robot(context) -> List[SetLaunchConfiguration]:
-    """Try every candidate IP → set chosen_robot_ip + detected_mode."""
     global chosen_robot_ip
     candidates = [
         ip.strip()
@@ -66,61 +61,51 @@ def detect_robot(context) -> List[SetLaunchConfiguration]:
             print(f"[INFO] Robot FOUND at {ip} → REAL hardware")
             return [SetLaunchConfiguration("detected_mode", "false")]
 
-    # ----- fallback to URSim -----
+    # fallback → URSim
     chosen_robot_ip = "127.0.0.1"
-    print("[INFO] No robot responded → URSim (fake mode)")
+    print("[INFO] No robot → URSim (fake mode)")
     return [SetLaunchConfiguration("detected_mode", "true")]
 
 
-def check_camera_and_decide(context) -> List:
-    """Detect RealSense → set camera_enabled (used later by MoveGroup)."""
-    global camera_enabled, camera_detected
+def check_camera(context) -> List:
+    global camera_enabled
     use_camera = LaunchConfiguration("use_camera").perform(context)
-
-    # ---- detect topic ----
-    try:
-        out = subprocess.run(
-            ["ros2", "topic", "list"], capture_output=True, text=True, timeout=2
-        )
-        camera_detected = "/camera/depth/image_rect_raw" in out.stdout
-    except Exception:
-        camera_detected = False
 
     if use_camera == "true":
         camera_enabled = True
-        print("[INFO] use_camera:=true → OctoMap forced ON")
+        print("[INFO] use_camera:=true → OctoMap ON")
     elif use_camera == "false":
         camera_enabled = False
-        print("[INFO] use_camera:=false → OctoMap disabled")
+        print("[INFO] use_camera:=false → OctoMap OFF")
     else:  # auto
-        camera_enabled = camera_detected
+        try:
+            out = subprocess.run(
+                ["ros2", "topic", "list"], capture_output=True, text=True, timeout=2
+            )
+            camera_enabled = "/camera/depth/image_rect_raw" in out.stdout
+        except Exception:
+            camera_enabled = False
         print(
             "[INFO] "
-            + ("RealSense detected → OctoMap ON" if camera_detected else "No RealSense → OctoMap OFF")
+            + ("RealSense detected → OctoMap ON" if camera_enabled else "No RealSense → OctoMap OFF")
         )
     return []
 
 
 # ----------------------------------------------------------------------
 def launch_setup(context, *_, **__) -> List:
-    global camera_enabled, chosen_robot_ip
+    global chosen_robot_ip, camera_enabled
 
-    # ------------------------------------------------------------------
-    # Launch arguments
-    # ------------------------------------------------------------------
+    # ------------------- Arguments -------------------
     ur_type = LaunchConfiguration("ur_type")
     onrobot_type = LaunchConfiguration("onrobot_type")
-    prefix = LaunchConfiguration("prefix")
+    tf_prefix = LaunchConfiguration("tf_prefix")
     launch_rviz = LaunchConfiguration("launch_rviz")
     launch_servo = LaunchConfiguration("launch_servo")
     use_sim_time = LaunchConfiguration("use_sim_time")
-    moveit_pkg = LaunchConfiguration("moveit_config_package")
-    moveit_srdf = LaunchConfiguration("moveit_config_file")
-    detected_mode = LaunchConfiguration("detected_mode")  # "true" or "false"
+    detected_mode = LaunchConfiguration("detected_mode")   # "true" = fake
 
-    # ------------------------------------------------------------------
-    # URDF (xacro) – works for 2fg7, rg2, rg6 automatically
-    # ------------------------------------------------------------------
+    # ------------------- URDF (xacro) -------------------
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -128,13 +113,13 @@ def launch_setup(context, *_, **__) -> List:
             PathJoinSubstitution(
                 [FindPackageShare("ur_onrobot_description"), "urdf", "ur_onrobot.urdf.xacro"]
             ),
-            " robot_ip:=", chosen_robot_ip,
-            " ur_type:=", ur_type,
-            " onrobot_type:=", onrobot_type,
-            " prefix:=", prefix,
-            " use_fake_hardware:=", detected_mode,
+            f" robot_ip:={chosen_robot_ip}",
+            f" ur_type:={ur_type}",
+            f" onrobot_type:={onrobot_type}",
+            f" tf_prefix:={tf_prefix}",
+            f" use_fake_hardware:={detected_mode}",
             " connection_type:=tcp",
-            " ip_address:=", chosen_robot_ip,
+            f" ip_address:={chosen_robot_ip}",
             " port:=502",
             " device_address:=65",
         ]
@@ -143,17 +128,17 @@ def launch_setup(context, *_, **__) -> List:
         "robot_description": ParameterValue(robot_description_content, value_type=str)
     }
 
-    # ------------------------------------------------------------------
-    # SRDF (xacro)
-    # ------------------------------------------------------------------
+    # ------------------- SRDF (xacro) -------------------
     robot_description_semantic_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare(moveit_pkg), "srdf", moveit_srdf]),
+            PathJoinSubstitution(
+                [FindPackageShare("ur_onrobot_moveit_config"), "srdf", "ur_onrobot.srdf.xacro"]
+            ),
             " name:=ur_onrobot",
-            " prefix:=", prefix,
-            " onrobot_type:=", onrobot_type,
+            f" prefix:={tf_prefix}",
+            f" onrobot_type:={onrobot_type}",
         ]
     )
     robot_description_semantic = {
@@ -162,36 +147,18 @@ def launch_setup(context, *_, **__) -> List:
         )
     }
 
-    # ------------------------------------------------------------------
-    # Kinematics
-    # ------------------------------------------------------------------
-    kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
-    robot_description_kinematics = {"robot_description_kinematics": kinematics_yaml}
-
-    # ------------------------------------------------------------------
-    # OMPL planning pipeline
-    # ------------------------------------------------------------------
-    ompl_planning_pipeline = {
-        "move_group": {
-            "planning_plugin": "ompl_interface/OMPLPlanner",
-            "request_adapters": " ".join(
-                [
-                    "default_planner_request_adapters/AddTimeOptimalParameterization",
-                    "default_planner_request_adapters/FixWorkspaceBounds",
-                    "default_planner_request_adapters/FixStartStateBounds",
-                    "default_planner_request_adapters/FixStartStateCollision",
-                    "default_planner_request_adapters/FixStartStatePathConstraints",
-                ]
-            ),
-            "start_state_max_bounds_error": 0.1,
+    # ------------------- Kinematics -------------------
+    kinematics_yaml = {
+        "robot_description_kinematics": {
+            "ur_onrobot_manipulator": {
+                "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
+                "kinematics_solver_search_resolution": 0.005,
+                "kinematics_solver_timeout": 0.05,
+            }
         }
     }
-    ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
-    ompl_planning_pipeline["move_group"].update(ompl_planning_yaml)
 
-    # ------------------------------------------------------------------
-    # Controllers file – MUST use ParameterFile with allow_substs=True
-    # ------------------------------------------------------------------
+    # ------------------- Controllers (MUST be ParameterFile) -------------------
     controllers_file = ParameterFile(
         PathJoinSubstitution(
             [FindPackageShare("ur_onrobot_moveit_config"), "config", "controllers.yaml"]
@@ -199,9 +166,7 @@ def launch_setup(context, *_, **__) -> List:
         allow_substs=True,
     )
 
-    # ------------------------------------------------------------------
-    # ros2_control node (single node for real + fake)
-    # ------------------------------------------------------------------
+    # ------------------- ros2_control node -------------------
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -213,27 +178,11 @@ def launch_setup(context, *_, **__) -> List:
             {"use_fake_hardware": PythonExpression(["'", detected_mode, "' == 'true'"])},
             {"robot_ip": chosen_robot_ip},
             {"reverse_port": 50001},
-            {"tf_prefix": prefix},
+            {"tf_prefix": tf_prefix},
         ],
     )
 
-    # ------------------------------------------------------------------
-    # URSim Docker (fake mode only)
-    # ------------------------------------------------------------------
-    ursim_docker = ExecuteProcess(
-        cmd=[
-            "docker", "run", "-d", "--rm", "--name", "ursim_auto",
-            "-p", "59000:59000", "-p", "29999:29999",
-            "-p", "30001-30004:30001-30004",
-            "universalrobots/ursim_e-series", "ur_driver"
-        ],
-        output="screen",
-        condition=IfCondition(detected_mode),
-    )
-
-    # ------------------------------------------------------------------
-    # Spawners – scaled (real) / un-scaled (fake) + gripper
-    # ------------------------------------------------------------------
+    # ------------------- Spawners (real = scaled, fake = un-scaled) -------------------
     def spawner(name: str):
         return Node(
             package="controller_manager",
@@ -242,7 +191,7 @@ def launch_setup(context, *_, **__) -> List:
             output="screen",
         )
 
-    spawner_scaled = TimerAction(
+    spawner_real = TimerAction(
         period=5.0,
         actions=[
             spawner("scaled_joint_trajectory_controller"),
@@ -250,8 +199,7 @@ def launch_setup(context, *_, **__) -> List:
         ],
         condition=UnlessCondition(detected_mode),
     )
-
-    spawner_unscaled = TimerAction(
+    spawner_fake = TimerAction(
         period=5.0,
         actions=[
             spawner("joint_trajectory_controller"),
@@ -260,23 +208,32 @@ def launch_setup(context, *_, **__) -> List:
         condition=IfCondition(detected_mode),
     )
 
-    # ------------------------------------------------------------------
-    # MoveGroup – adds OctoMap only when camera_enabled == True
-    # ------------------------------------------------------------------
+    # ------------------- MoveGroup -------------------
     move_group_params = [
         robot_description,
         robot_description_semantic,
-        robot_description_kinematics,
-        ompl_planning_pipeline,
+        kinematics_yaml,
         {"use_sim_time": use_sim_time},
-        {"planning_scene_monitor_options.publish_planning_scene": True},
-        {"moveit_controller_manager": "controller_manager"},
+        # ---- tell MoveIt to use ros2_control ----
+        {"moveit_controller_manager": "ros2_control"},
         {"moveit_controller_manager_name": "controller_manager"},
     ]
 
     if camera_enabled:
-        sensors_yaml = load_yaml("ur_onrobot_moveit_config", "config/sensors_3d.yaml")
-        move_group_params.append({"octomap_updater": sensors_yaml})
+        sensors_yaml = {
+            "sensors": [
+                {
+                    "sensor_plugin": "occupancy_map_monitor/PointCloudOctomapUpdater",
+                    "point_cloud_topic": "/camera/depth/color/points",
+                    "max_range": 5.0,
+                    "padding_offset": 0.01,
+                    "padding_scale": 1.0,
+                    "point_subsample": 1,
+                    "filtered_cloud_topic": "filtered_cloud",
+                }
+            ]
+        }
+        move_group_params.append({"sensors_3d": sensors_yaml})
 
     move_group_node = Node(
         package="moveit_ros_move_group",
@@ -285,11 +242,9 @@ def launch_setup(context, *_, **__) -> List:
         parameters=move_group_params,
     )
 
-    # ------------------------------------------------------------------
-    # RViz
-    # ------------------------------------------------------------------
+    # ------------------- RViz -------------------
     rviz_config = PathJoinSubstitution(
-        [FindPackageShare(moveit_pkg), "rviz", "view_robot.rviz"]
+        [FindPackageShare("ur_onrobot_moveit_config"), "rviz", "view_robot.rviz"]
     )
     rviz_node = Node(
         package="rviz2",
@@ -300,81 +255,71 @@ def launch_setup(context, *_, **__) -> List:
         parameters=[
             robot_description,
             robot_description_semantic,
-            robot_description_kinematics,
+            kinematics_yaml,
             {"use_sim_time": use_sim_time},
         ],
         condition=IfCondition(launch_rviz),
     )
 
-    # ------------------------------------------------------------------
-    # Servo
-    # ------------------------------------------------------------------
-    servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
-    servo_container = ComposableNodeContainer(
-        name="servo_container",
-        namespace="",
+    # ------------------- Servo (optional) -------------------
+    servo_yaml = {
+        "moveit_servo": {
+            "use_gazebo": False,
+            "command_in_type": "unitless",
+            "publish_period": 0.02,
+            "collision_check_rate": 50,
+            "incoming_command_timeout": 0.1,
+        }
+    }
+    servo_container = Node(
         package="rclcpp_components",
         executable="component_container",
-        composable_node_descriptions=[
-            ComposableNode(
-                package="moveit_servo",
-                plugin="moveit_servo::ServoNode",
-                name="servo_node",
-                parameters=[
-                    servo_yaml,
-                    robot_description,
-                    robot_description_semantic,
-                    {"moveit_servo.move_group_name": "ur_onrobot_manipulator"},
-                ],
-                extra_arguments=[{"use_intra_process_comms": True}],
-            )
-        ],
+        name="servo_container",
         output="screen",
+        parameters=[
+            servo_yaml,
+            robot_description,
+            robot_description_semantic,
+            {"moveit_servo.move_group_name": "ur_onrobot_manipulator"},
+        ],
+        composable_node_descriptions=[
+            {
+                "type": "moveit_servo::ServoNode",
+                "name": "servo_node",
+                "namespace": "",
+                "parameters": [],
+            }
+        ],
         condition=IfCondition(launch_servo),
     )
 
-    # ------------------------------------------------------------------
-    # Delayed start
-    # ------------------------------------------------------------------
+    # ------------------- Assemble -------------------
     delayed_nodes = TimerAction(
         period=8.0,
         actions=[move_group_node, rviz_node, servo_container],
     )
 
-    # ------------------------------------------------------------------
-    # Assemble launch description
-    # ------------------------------------------------------------------
-    actions = [
+    return [
         control_node,
-        ursim_docker,
-        spawner_scaled,
-        spawner_unscaled,
+        spawner_real,
+        spawner_fake,
         delayed_nodes,
     ]
-    return [a for a in actions if a is not None]
 
 
 # ----------------------------------------------------------------------
 def generate_launch_description() -> LaunchDescription:
     return LaunchDescription(
         [
-            # ------------------- Launch arguments -------------------
-            DeclareLaunchArgument(
-                "ur_type",
-                default_value="ur5e",
-                description="UR series",
-                choices=[
-                    "ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e",
-                    "ur16e", "ur20", "ur30",
-                ],
-            ),
+            # ------------------- Arguments -------------------
+            DeclareLaunchArgument("ur_type", default_value="ur5e", description="UR series"),
             DeclareLaunchArgument(
                 "onrobot_type",
                 default_value="2fg7",
-                description="OnRobot gripper type",
+                description="OnRobot gripper",
                 choices=["rg2", "rg6", "2fg7", "2fg14"],
             ),
-            DeclareLaunchArgument("prefix", default_value='""', description="Prefix for joint names"),
+            DeclareLaunchArgument("tf_prefix", default_value="", description="tf prefix"),
             DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?"),
             DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?"),
             DeclareLaunchArgument("use_sim_time", default_value="false", description="Use sim time"),
@@ -384,32 +329,21 @@ def generate_launch_description() -> LaunchDescription:
                 description="'auto' (detect), 'true' (force on), 'false' (force off)",
             ),
             DeclareLaunchArgument(
-                "moveit_config_package", default_value="ur_onrobot_moveit_config"
-            ),
-            DeclareLaunchArgument(
-                "moveit_config_file", default_value="ur_onrobot.srdf.xacro"
-            ),
-            DeclareLaunchArgument(
-                "warehouse_sqlite_path",
-                default_value=os.path.expanduser("~/.ros/warehouse_ros.sqlite"),
-            ),
-            # ------------------- Auto-detection -------------------
-            DeclareLaunchArgument(
                 "robot_ip_candidates",
                 default_value="192.168.1.101,192.168.1.105",
-                description="Comma-separated list of robot IPs to try",
+                description="Comma-separated IPs",
             ),
             DeclareLaunchArgument(
-                "connection_timeout", default_value="1.5", description="TCP timeout per IP (seconds)"
+                "connection_timeout", default_value="1.5", description="TCP timeout per IP"
             ),
             DeclareLaunchArgument(
                 "detected_mode",
                 default_value="true",  # fallback = fake
-                description="Internal flag: 'true' = fake, 'false' = real",
+                description="Internal: true = fake",
             ),
             # ------------------- Opaque functions -------------------
             OpaqueFunction(function=detect_robot),
-            OpaqueFunction(function=check_camera_and_decide),
+            OpaqueFunction(function=check_camera),
             OpaqueFunction(function=launch_setup),
         ]
     )
