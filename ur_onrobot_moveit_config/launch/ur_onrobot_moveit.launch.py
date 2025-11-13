@@ -12,6 +12,7 @@ from launch.actions import (
     ExecuteProcess,
     OpaqueFunction,
     TimerAction,
+    SetLaunchConfiguration,
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import (
@@ -21,7 +22,7 @@ from launch.substitutions import (
     PathJoinSubstitution,
     PythonExpression,
 )
-from launch_ros.actions import Node, ComposableNodeContainer, SetLaunchConfiguration
+from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue
