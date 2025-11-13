@@ -35,7 +35,7 @@ chosen_robot_ip: str | None = None
 camera_enabled: bool = False
 
 
-def ping_ip(ip: str, timeout: float = 1.0);x -> bool:
+def ping_ip(ip: str, timeout: float = 1.0) -> bool:  # <-- FIXED: ;x -> :
     try:
         with socket.create_connection((ip, 30003), timeout=timeout):
             return True
