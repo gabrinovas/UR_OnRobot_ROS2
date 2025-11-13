@@ -25,7 +25,7 @@ from launch.substitutions import (
 from launch_ros.actions import Node, ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
-from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.parameter_descriptions import ParameterValue, ParameterFile
 
 from ur_onrobot_moveit_config.launch_common import load_yaml
 
@@ -39,6 +39,7 @@ chosen_robot_ip: str | None = None
 
 
 def ping_ip(ip: str, timeout: float = 1.0) -> bool:
+    """Ping the UR primary interface (port 30003)."""
     try:
         with socket.create_connection((ip, 30003), timeout=timeout):
             return True
@@ -47,6 +48,7 @@ def ping_ip(ip: str, timeout: float = 1.0) -> bool:
 
 
 def detect_robot(context) -> List[SetLaunchConfiguration]:
+    """Try every candidate IP → set chosen_robot_ip + detected_mode."""
     global chosen_robot_ip
     candidates = [
         ip.strip()
@@ -64,15 +66,18 @@ def detect_robot(context) -> List[SetLaunchConfiguration]:
             print(f"[INFO] Robot FOUND at {ip} → REAL hardware")
             return [SetLaunchConfiguration("detected_mode", "false")]
 
+    # ----- fallback to URSim -----
     chosen_robot_ip = "127.0.0.1"
     print("[INFO] No robot responded → URSim (fake mode)")
     return [SetLaunchConfiguration("detected_mode", "true")]
 
 
 def check_camera_and_decide(context) -> List:
+    """Detect RealSense → set camera_enabled (used later by MoveGroup)."""
     global camera_enabled, camera_detected
     use_camera = LaunchConfiguration("use_camera").perform(context)
 
+    # ---- detect topic ----
     try:
         out = subprocess.run(
             ["ros2", "topic", "list"], capture_output=True, text=True, timeout=2
@@ -87,7 +92,7 @@ def check_camera_and_decide(context) -> List:
     elif use_camera == "false":
         camera_enabled = False
         print("[INFO] use_camera:=false → OctoMap disabled")
-    else:
+    else:  # auto
         camera_enabled = camera_detected
         print(
             "[INFO] "
@@ -111,10 +116,10 @@ def launch_setup(context, *_, **__) -> List:
     use_sim_time = LaunchConfiguration("use_sim_time")
     moveit_pkg = LaunchConfiguration("moveit_config_package")
     moveit_srdf = LaunchConfiguration("moveit_config_file")
-    detected_mode = LaunchConfiguration("detected_mode")   # "true"/"false"
+    detected_mode = LaunchConfiguration("detected_mode")  # "true" or "false"
 
     # ------------------------------------------------------------------
-    # URDF (xacro)
+    # URDF (xacro) – works for 2fg7, rg2, rg6 automatically
     # ------------------------------------------------------------------
     robot_description_content = Command(
         [
@@ -158,7 +163,7 @@ def launch_setup(context, *_, **__) -> List:
     }
 
     # ------------------------------------------------------------------
-    # Kinematics (for MoveIt AND robot model)
+    # Kinematics
     # ------------------------------------------------------------------
     kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
     robot_description_kinematics = {"robot_description_kinematics": kinematics_yaml}
@@ -185,14 +190,17 @@ def launch_setup(context, *_, **__) -> List:
     ompl_planning_pipeline["move_group"].update(ompl_planning_yaml)
 
     # ------------------------------------------------------------------
-    # Controllers file (the one you posted)
+    # Controllers file – MUST use ParameterFile with allow_substs=True
     # ------------------------------------------------------------------
-    controllers_file = PathJoinSubstitution(
-        [FindPackageShare("ur_onrobot_moveit_config"), "config", "controllers.yaml"]
+    controllers_file = ParameterFile(
+        PathJoinSubstitution(
+            [FindPackageShare("ur_onrobot_moveit_config"), "config", "controllers.yaml"]
+        ),
+        allow_substs=True,
     )
 
     # ------------------------------------------------------------------
-    # ONE ros2_control node (real + fake)
+    # ros2_control node (single node for real + fake)
     # ------------------------------------------------------------------
     control_node = Node(
         package="controller_manager",
@@ -210,7 +218,7 @@ def launch_setup(context, *_, **__) -> List:
     )
 
     # ------------------------------------------------------------------
-    # URSim Docker (only in fake mode)
+    # URSim Docker (fake mode only)
     # ------------------------------------------------------------------
     ursim_docker = ExecuteProcess(
         cmd=[
@@ -224,7 +232,7 @@ def launch_setup(context, *_, **__) -> List:
     )
 
     # ------------------------------------------------------------------
-    # Spawners (delayed)
+    # Spawners – scaled (real) / un-scaled (fake) + gripper
     # ------------------------------------------------------------------
     def spawner(name: str):
         return Node(
@@ -242,6 +250,7 @@ def launch_setup(context, *_, **__) -> List:
         ],
         condition=UnlessCondition(detected_mode),
     )
+
     spawner_unscaled = TimerAction(
         period=5.0,
         actions=[
@@ -252,7 +261,7 @@ def launch_setup(context, *_, **__) -> List:
     )
 
     # ------------------------------------------------------------------
-    # MoveGroup – **critical** parameters
+    # MoveGroup – adds OctoMap only when camera_enabled == True
     # ------------------------------------------------------------------
     move_group_params = [
         robot_description,
@@ -261,7 +270,6 @@ def launch_setup(context, *_, **__) -> List:
         ompl_planning_pipeline,
         {"use_sim_time": use_sim_time},
         {"planning_scene_monitor_options.publish_planning_scene": True},
-        # ---- tell MoveIt where the controller manager lives ----
         {"moveit_controller_manager": "controller_manager"},
         {"moveit_controller_manager_name": "controller_manager"},
     ]
@@ -326,7 +334,7 @@ def launch_setup(context, *_, **__) -> List:
     )
 
     # ------------------------------------------------------------------
-    # Delayed start (give controllers time)
+    # Delayed start
     # ------------------------------------------------------------------
     delayed_nodes = TimerAction(
         period=8.0,
@@ -334,7 +342,7 @@ def launch_setup(context, *_, **__) -> List:
     )
 
     # ------------------------------------------------------------------
-    # Assemble
+    # Assemble launch description
     # ------------------------------------------------------------------
     actions = [
         control_node,
@@ -355,15 +363,18 @@ def generate_launch_description() -> LaunchDescription:
                 "ur_type",
                 default_value="ur5e",
                 description="UR series",
-                choices=["ur3","ur3e","ur5","ur5e","ur10","ur10e","ur16e","ur20","ur30"],
+                choices=[
+                    "ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e",
+                    "ur16e", "ur20", "ur30",
+                ],
             ),
             DeclareLaunchArgument(
                 "onrobot_type",
                 default_value="2fg7",
-                description="OnRobot gripper",
-                choices=["rg2","rg6","2fg7","2fg14"],
+                description="OnRobot gripper type",
+                choices=["rg2", "rg6", "2fg7", "2fg14"],
             ),
-            DeclareLaunchArgument("prefix", default_value='""', description="Joint name prefix"),
+            DeclareLaunchArgument("prefix", default_value='""', description="Prefix for joint names"),
             DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?"),
             DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?"),
             DeclareLaunchArgument("use_sim_time", default_value="false", description="Use sim time"),
@@ -386,15 +397,15 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument(
                 "robot_ip_candidates",
                 default_value="192.168.1.101,192.168.1.105",
-                description="Comma-separated IPs to try",
+                description="Comma-separated list of robot IPs to try",
             ),
             DeclareLaunchArgument(
-                "connection_timeout", default_value="1.5", description="TCP timeout per IP (s)"
+                "connection_timeout", default_value="1.5", description="TCP timeout per IP (seconds)"
             ),
             DeclareLaunchArgument(
                 "detected_mode",
                 default_value="true",  # fallback = fake
-                description="Internal: 'true' = fake, 'false' = real",
+                description="Internal flag: 'true' = fake, 'false' = real",
             ),
             # ------------------- Opaque functions -------------------
             OpaqueFunction(function=detect_robot),
