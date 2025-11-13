@@ -31,7 +31,7 @@ from ur_onrobot_moveit_config.launch_common import load_yaml
 
 
 # ----------------------------------------------------------------------
-# Global state – only used inside the OpaqueFunctions
+# Global state – only used inside OpaqueFunctions
 # ----------------------------------------------------------------------
 camera_detected: bool = False
 camera_enabled: bool = False
@@ -39,7 +39,6 @@ chosen_robot_ip: str | None = None
 
 
 def ping_ip(ip: str, timeout: float = 1.0) -> bool:
-    """Ping the UR primary interface (port 30003)."""
     try:
         with socket.create_connection((ip, 30003), timeout=timeout):
             return True
@@ -48,7 +47,6 @@ def ping_ip(ip: str, timeout: float = 1.0) -> bool:
 
 
 def detect_robot(context) -> List[SetLaunchConfiguration]:
-    """Try every candidate IP → set chosen_robot_ip + detected_mode."""
     global chosen_robot_ip
     candidates = [
         ip.strip()
@@ -66,18 +64,15 @@ def detect_robot(context) -> List[SetLaunchConfiguration]:
             print(f"[INFO] Robot FOUND at {ip} → REAL hardware")
             return [SetLaunchConfiguration("detected_mode", "false")]
 
-    # ----- fallback to URSim -----
     chosen_robot_ip = "127.0.0.1"
     print("[INFO] No robot responded → URSim (fake mode)")
     return [SetLaunchConfiguration("detected_mode", "true")]
 
 
 def check_camera_and_decide(context) -> List:
-    """Detect RealSense → set camera_enabled (used later by MoveGroup)."""
     global camera_enabled, camera_detected
     use_camera = LaunchConfiguration("use_camera").perform(context)
 
-    # ---- detect topic ----
     try:
         out = subprocess.run(
             ["ros2", "topic", "list"], capture_output=True, text=True, timeout=2
@@ -92,13 +87,13 @@ def check_camera_and_decide(context) -> List:
     elif use_camera == "false":
         camera_enabled = False
         print("[INFO] use_camera:=false → OctoMap disabled")
-    else:  # auto
+    else:
         camera_enabled = camera_detected
         print(
             "[INFO] "
             + ("RealSense detected → OctoMap ON" if camera_detected else "No RealSense → OctoMap OFF")
         )
-    return []  # nothing to launch here
+    return []
 
 
 # ----------------------------------------------------------------------
@@ -116,11 +111,10 @@ def launch_setup(context, *_, **__) -> List:
     use_sim_time = LaunchConfiguration("use_sim_time")
     moveit_pkg = LaunchConfiguration("moveit_config_package")
     moveit_srdf = LaunchConfiguration("moveit_config_file")
-    warehouse_path = LaunchConfiguration("warehouse_sqlite_path")
-    detected_mode = LaunchConfiguration("detected_mode")  # "true" or "false"
+    detected_mode = LaunchConfiguration("detected_mode")   # "true"/"false"
 
     # ------------------------------------------------------------------
-    # URDF (xacro) – works for 2fg7, rg2, rg6 automatically
+    # URDF (xacro)
     # ------------------------------------------------------------------
     robot_description_content = Command(
         [
@@ -135,7 +129,7 @@ def launch_setup(context, *_, **__) -> List:
             " prefix:=", prefix,
             " use_fake_hardware:=", detected_mode,
             " connection_type:=tcp",
-            " ip_address:=", chosen_robot_ip,          # <-- dynamic gripper IP
+            " ip_address:=", chosen_robot_ip,
             " port:=502",
             " device_address:=65",
         ]
@@ -164,7 +158,7 @@ def launch_setup(context, *_, **__) -> List:
     }
 
     # ------------------------------------------------------------------
-    # Kinematics
+    # Kinematics (for MoveIt AND robot model)
     # ------------------------------------------------------------------
     kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
     robot_description_kinematics = {"robot_description_kinematics": kinematics_yaml}
@@ -191,69 +185,48 @@ def launch_setup(context, *_, **__) -> List:
     ompl_planning_pipeline["move_group"].update(ompl_planning_yaml)
 
     # ------------------------------------------------------------------
-    # Controllers (the file you already have)
+    # Controllers file (the one you posted)
     # ------------------------------------------------------------------
     controllers_file = PathJoinSubstitution(
         [FindPackageShare("ur_onrobot_moveit_config"), "config", "controllers.yaml"]
     )
 
     # ------------------------------------------------------------------
-    # ros2_control node
+    # ONE ros2_control node (real + fake)
     # ------------------------------------------------------------------
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
         name="controller_manager",
         output="screen",
-        parameters=[robot_description, controllers_file],
-    )
-
-    # ------------------------------------------------------------------
-    # UR driver (real hardware)
-    # ------------------------------------------------------------------
-    ur_driver = Node(
-        package="ur_robot_driver",
-        executable="ur_ros2_control_node",
-        name="ur_control_node",
-        output="screen",
         parameters=[
             robot_description,
+            controllers_file,
+            {"use_fake_hardware": PythonExpression(["'", detected_mode, "' == 'true'"])},
             {"robot_ip": chosen_robot_ip},
-            {"use_fake_hardware": PythonExpression(["'", detected_mode, "' == 'false'"])},
             {"reverse_port": 50001},
             {"tf_prefix": prefix},
         ],
-        condition=UnlessCondition(detected_mode),  # real mode
     )
 
     # ------------------------------------------------------------------
-    # URSim Docker (fake mode)
+    # URSim Docker (only in fake mode)
     # ------------------------------------------------------------------
     ursim_docker = ExecuteProcess(
         cmd=[
-            "docker",
-            "run",
-            "-d",
-            "--rm",
-            "--name",
-            "ursim_auto",
-            "-p",
-            "59000:59000",
-            "-p",
-            "29999:29999",
-            "-p",
-            "30001-30004:30001-30004",
-            "universalrobots/ursim_e-series",
-            "ur_driver",
+            "docker", "run", "-d", "--rm", "--name", "ursim_auto",
+            "-p", "59000:59000", "-p", "29999:29999",
+            "-p", "30001-30004:30001-30004",
+            "universalrobots/ursim_e-series", "ur_driver"
         ],
         output="screen",
         condition=IfCondition(detected_mode),
     )
 
     # ------------------------------------------------------------------
-    # Spawners – scaled (real) / un-scaled (fake) + gripper
+    # Spawners (delayed)
     # ------------------------------------------------------------------
-    def spawner_node(name: str):
+    def spawner(name: str):
         return Node(
             package="controller_manager",
             executable="spawner",
@@ -264,23 +237,22 @@ def launch_setup(context, *_, **__) -> List:
     spawner_scaled = TimerAction(
         period=5.0,
         actions=[
-            spawner_node("scaled_joint_trajectory_controller"),
-            spawner_node("finger_width_trajectory_controller"),
+            spawner("scaled_joint_trajectory_controller"),
+            spawner("finger_width_trajectory_controller"),
         ],
         condition=UnlessCondition(detected_mode),
     )
-
     spawner_unscaled = TimerAction(
         period=5.0,
         actions=[
-            spawner_node("joint_trajectory_controller"),
-            spawner_node("finger_width_trajectory_controller"),
+            spawner("joint_trajectory_controller"),
+            spawner("finger_width_trajectory_controller"),
         ],
         condition=IfCondition(detected_mode),
     )
 
     # ------------------------------------------------------------------
-    # MoveGroup – adds OctoMap only when camera_enabled == True
+    # MoveGroup – **critical** parameters
     # ------------------------------------------------------------------
     move_group_params = [
         robot_description,
@@ -289,6 +261,9 @@ def launch_setup(context, *_, **__) -> List:
         ompl_planning_pipeline,
         {"use_sim_time": use_sim_time},
         {"planning_scene_monitor_options.publish_planning_scene": True},
+        # ---- tell MoveIt where the controller manager lives ----
+        {"moveit_controller_manager": "controller_manager"},
+        {"moveit_controller_manager_name": "controller_manager"},
     ]
 
     if camera_enabled:
@@ -317,6 +292,7 @@ def launch_setup(context, *_, **__) -> List:
         parameters=[
             robot_description,
             robot_description_semantic,
+            robot_description_kinematics,
             {"use_sim_time": use_sim_time},
         ],
         condition=IfCondition(launch_rviz),
@@ -350,7 +326,7 @@ def launch_setup(context, *_, **__) -> List:
     )
 
     # ------------------------------------------------------------------
-    # Delayed start
+    # Delayed start (give controllers time)
     # ------------------------------------------------------------------
     delayed_nodes = TimerAction(
         period=8.0,
@@ -358,11 +334,10 @@ def launch_setup(context, *_, **__) -> List:
     )
 
     # ------------------------------------------------------------------
-    # Assemble launch description
+    # Assemble
     # ------------------------------------------------------------------
     actions = [
         control_node,
-        ur_driver,
         ursim_docker,
         spawner_scaled,
         spawner_unscaled,
@@ -380,25 +355,15 @@ def generate_launch_description() -> LaunchDescription:
                 "ur_type",
                 default_value="ur5e",
                 description="UR series",
-                choices=[
-                    "ur3",
-                    "ur3e",
-                    "ur5",
-                    "ur5e",
-                    "ur10",
-                    "ur10e",
-                    "ur16e",
-                    "ur20",
-                    "ur30",
-                ],
+                choices=["ur3","ur3e","ur5","ur5e","ur10","ur10e","ur16e","ur20","ur30"],
             ),
             DeclareLaunchArgument(
                 "onrobot_type",
                 default_value="2fg7",
-                description="OnRobot gripper type",
-                choices=["rg2", "rg6", "2fg7", "2fg14"],
+                description="OnRobot gripper",
+                choices=["rg2","rg6","2fg7","2fg14"],
             ),
-            DeclareLaunchArgument("prefix", default_value='""', description="Prefix for joint names"),
+            DeclareLaunchArgument("prefix", default_value='""', description="Joint name prefix"),
             DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?"),
             DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?"),
             DeclareLaunchArgument("use_sim_time", default_value="false", description="Use sim time"),
@@ -421,15 +386,15 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument(
                 "robot_ip_candidates",
                 default_value="192.168.1.101,192.168.1.105",
-                description="Comma-separated list of robot IPs to try",
+                description="Comma-separated IPs to try",
             ),
             DeclareLaunchArgument(
-                "connection_timeout", default_value="1.5", description="TCP timeout per IP (seconds)"
+                "connection_timeout", default_value="1.5", description="TCP timeout per IP (s)"
             ),
             DeclareLaunchArgument(
                 "detected_mode",
                 default_value="true",  # fallback = fake
-                description="Internal flag: 'true' = fake, 'false' = real",
+                description="Internal: 'true' = fake, 'false' = real",
             ),
             # ------------------- Opaque functions -------------------
             OpaqueFunction(function=detect_robot),
