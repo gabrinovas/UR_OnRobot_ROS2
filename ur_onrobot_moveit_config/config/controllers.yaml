@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 500  # Hz – matches UR driver default
+    update_rate: 500  # Hz
 
     # -----------------------------------------------------------------
     # 1. Scaled joint trajectory controller (used by MoveIt in real mode)
@@ -19,8 +19,8 @@ controller_manager:
       state_interfaces:
         - position
         - velocity
-      state_publish_rate: 100          # Hz
-      action_monitor_rate: 20          # Hz
+      state_publish_rate: 100
+      action_monitor_rate: 20
       allow_partial_joints_goal: true
       open_loop_control: true
       constraints:
