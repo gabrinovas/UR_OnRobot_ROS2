@@ -10,6 +10,7 @@ from launch.actions import (
     TimerAction,
     ExecuteProcess,
     GroupAction,
+    SetLaunchConfiguration,
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import (
@@ -30,8 +31,7 @@ from ur_onrobot_moveit_config.launch_common import load_yaml
 # Global state
 camera_detected = False
 camera_enabled = False
-chosen_robot_ip = None          # will be set by detect_robot()
-use_fake_hardware_final = None # final decision after detection
+chosen_robot_ip = None  # will be set by detect_robot()
 
 
 def ping_ip(ip, timeout=1.0):
@@ -43,9 +43,9 @@ def ping_ip(ip, timeout=1.0):
         return False
 
 
-def detect_robot(context):
-    """Try the candidate IPs → decide real/fake and set chosen_robot_ip."""
-    global chosen_robot_ip, use_fake_hardware_final
+def detect_robot(context, *args, **kwargs):
+    """Try the candidate IPs → decide real/fake and set globals + launch config."""
+    global chosen_robot_ip
 
     candidates_str = LaunchConfiguration("robot_ip_candidates").perform(context)
     timeout = float(LaunchConfiguration("connection_timeout").perform(context))
@@ -58,24 +58,22 @@ def detect_robot(context):
     for ip in candidates:
         if ping_ip(ip, timeout):
             chosen_robot_ip = ip
-            use_fake_hardware_final = False
             print(f"[INFO] Robot FOUND at {ip} → using REAL hardware")
-            return []
+            # Set launch config for real mode
+            yield SetLaunchConfiguration("detected_mode", "false")
+            return
 
     # No robot found
     chosen_robot_ip = "127.0.0.1"  # irrelevant for fake mode
-    use_fake_hardware_final = True
     print("[INFO] No robot responded → falling back to URSim (fake mode)")
-
-    return []
+    # Set launch config for fake mode
+    yield SetLaunchConfiguration("detected_mode", "true")
 
 
 def check_camera_and_decide(context):
-    """Check for RealSense and decide whether to enable OctoMap."""
     global camera_detected, camera_enabled
     use_camera_val = LaunchConfiguration("use_camera").perform(context)
 
-    # Detect camera
     try:
         result = subprocess.run(
             ["ros2", "topic", "list"], capture_output=True, text=True, timeout=2
@@ -85,7 +83,6 @@ def check_camera_and_decide(context):
     except Exception:
         camera_detected = False
 
-    # Apply hybrid logic
     if use_camera_val == "true":
         camera_enabled = True
         print("[INFO] use_camera:=true → Forcing OctoMap ON")
@@ -102,7 +99,10 @@ def check_camera_and_decide(context):
 
 # ----------------------------------------------------------------------
 def launch_setup(context, *args, **kwargs):
-    global camera_enabled, chosen_robot_ip, use_fake_hardware_final
+    global camera_enabled, chosen_robot_ip
+
+    detected_mode = LaunchConfiguration("detected_mode")
+    use_fake_str = PythonExpression(["'", detected_mode, "'"])  # 'true' or 'false'
 
     # ------------------- Launch arguments -------------------
     ur_type = LaunchConfiguration("ur_type")
@@ -111,7 +111,6 @@ def launch_setup(context, *args, **kwargs):
     safety_pos_margin = LaunchConfiguration("safety_pos_margin")
     safety_k_position = LaunchConfiguration("safety_k_position")
 
-    # General arguments
     ur_description_package = LaunchConfiguration("ur_description_package")
     description_file = LaunchConfiguration("description_file")
     publish_robot_description_semantic = LaunchConfiguration("publish_robot_description_semantic")
@@ -139,13 +138,12 @@ def launch_setup(context, *args, **kwargs):
         [FindPackageShare(ur_description_package), "config", ur_type.perform(context), "visual_parameters.yaml"]
     )
 
-    # Robot Description (URDF)
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution([FindPackageShare("ur_onrobot_description"), "urdf", description_file]),
-            " robot_ip:=", chosen_robot_ip if not use_fake_hardware_final else "127.0.0.1",
+            " robot_ip:=", chosen_robot_ip if chosen_robot_ip else "127.0.0.1",
             " joint_limit_params:=", joint_limit_params,
             " kinematics_params:=", kinematics_params,
             " physical_params:=", physical_params,
@@ -157,7 +155,7 @@ def launch_setup(context, *args, **kwargs):
             " ur_type:=", ur_type,
             " onrobot_type:=", onrobot_type,
             " prefix:=", prefix,
-            " use_fake_hardware:=", "true" if use_fake_hardware_final else "false",
+            " use_fake_hardware:=", detected_mode,
         ]
     )
     robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
@@ -181,7 +179,6 @@ def launch_setup(context, *args, **kwargs):
     kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
     robot_description_kinematics = {"robot_description_kinematics": kinematics_yaml}
 
-    # === Joint Limits ===
     robot_description_planning = {
         "robot_description_planning": load_yaml(
             moveit_config_package.perform(context),
@@ -189,7 +186,6 @@ def launch_setup(context, *args, **kwargs):
         )
     }
 
-    # === OMPL ===
     ompl_planning_pipeline_config = {
         "move_group": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
@@ -226,8 +222,6 @@ def launch_setup(context, *args, **kwargs):
         "publish_state_updates": True,
         "publish_transforms_updates": True,
     }
-
-    # === Conditionally Add RealSense OctoMap ===
     if camera_enabled:
         sensors_3d_yaml = load_yaml("ur_onrobot_moveit_config", "config/sensors_3d.yaml")
         planning_scene_monitor_parameters.update({
@@ -240,7 +234,7 @@ def launch_setup(context, *args, **kwargs):
         "warehouse_host": warehouse_sqlite_path,
     }
 
-    # === Servo Node ===
+    # ------------------- Servo -------------------
     servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
     servo_params = {"moveit_servo": servo_yaml}
 
@@ -269,7 +263,7 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
-    # === MoveGroup Node ===
+    # ------------------- MoveGroup -------------------
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
@@ -289,7 +283,7 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    # === RViz ===
+    # ------------------- RViz -------------------
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(moveit_config_package), "rviz", "view_robot.rviz"]
     )
@@ -312,7 +306,7 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    # ------------------- REAL DRIVER (only if real robot found) -------------------
+    # ------------------- REAL DRIVER (only if detected_mode='false') -------------------
     real_driver = GroupAction(
         actions=[
             Node(
@@ -335,10 +329,10 @@ def launch_setup(context, *args, **kwargs):
                 output="screen",
             ),
         ],
-        condition=UnlessCondition(PythonExpression([use_fake_hardware_final]))
+        condition=UnlessCondition(detected_mode),
     )
 
-    # ------------------- FAKE DRIVER + URSim Docker -------------------
+    # ------------------- FAKE DRIVER + URSim Docker (only if detected_mode='true') -------------------
     ursim_docker = ExecuteProcess(
         cmd=[
             "docker", "run", "-d", "--rm", "--name", "ursim_auto",
@@ -347,7 +341,7 @@ def launch_setup(context, *args, **kwargs):
             "universalrobots/ursim_e-series", "ur_driver"
         ],
         output="screen",
-        condition=IfCondition(PythonExpression([use_fake_hardware_final]))
+        condition=IfCondition(detected_mode),
     )
 
     fake_driver = Node(
@@ -360,7 +354,7 @@ def launch_setup(context, *args, **kwargs):
             {"use_fake_hardware": True},
             {"tf_prefix": prefix},
         ],
-        condition=IfCondition(PythonExpression([use_fake_hardware_final]))
+        condition=IfCondition(detected_mode),
     )
 
     fake_spawner = Node(
@@ -368,7 +362,7 @@ def launch_setup(context, *args, **kwargs):
         executable="spawner",
         arguments=["scaled_joint_trajectory_controller", "--controller-manager", "/controller_manager"],
         output="screen",
-        condition=IfCondition(PythonExpression([use_fake_hardware_final]))
+        condition=IfCondition(detected_mode),
     )
 
     # ------------------- Delayed startup -------------------
@@ -442,10 +436,18 @@ def generate_launch_description():
         )
     )
 
+    # === NEW: Detected mode (set by detect_robot) ===
+    declared_args.append(
+        DeclareLaunchArgument(
+            "detected_mode",
+            default_value="true",  # fallback if detection fails
+            description="Internal: 'true' for fake/URSim, 'false' for real (set by detection)."
+        )
+    )
+
+    # Run detection first (yields SetLaunchConfiguration)
+    detection = OpaqueFunction(function=detect_robot)
+
     return LaunchDescription(
-        declared_args +
-        [
-            OpaqueFunction(function=detect_robot),   # runs first
-            OpaqueFunction(function=launch_setup),
-        ]
+        declared_args + [detection, OpaqueFunction(function=launch_setup)]
     )
