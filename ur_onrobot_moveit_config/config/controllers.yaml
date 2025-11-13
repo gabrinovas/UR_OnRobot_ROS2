@@ -1,92 +1,85 @@
-controller_names:
-  - scaled_joint_trajectory_controller
-  - joint_trajectory_controller
-  - finger_width_trajectory_controller
-
-scaled_joint_trajectory_controller:
-  action_ns: follow_joint_trajectory
-  type: FollowJointTrajectory
-  default: true
-  joints:
-    - shoulder_pan_joint
-    - shoulder_lift_joint
-    - elbow_joint
-    - wrist_1_joint
-    - wrist_2_joint
-    - wrist_3_joint
-  constraints:
-    goal_time: 10.0
-    stopped_velocity_tolerance: 0.05
-    shoulder_pan_joint:
-      goal: 0.01
-      trajectory: 0.01
-    shoulder_lift_joint:
-      goal: 0.01
-      trajectory: 0.01
-    elbow_joint:
-      goal: 0.01
-      trajectory: 0.01
-    wrist_1_joint:
-      goal: 0.01
-      trajectory: 0.01
-    wrist_2_joint:
-      goal: 0.01
-      trajectory: 0.01
-    wrist_3_joint:
-      goal: 0.01
-      trajectory: 0.01
-
-joint_trajectory_controller:
-  action_ns: follow_joint_trajectory
-  type: FollowJointTrajectory
-  default: false
-  joints:
-    - shoulder_pan_joint
-    - shoulder_lift_joint
-    - elbow_joint
-    - wrist_1_joint
-    - wrist_2_joint
-    - wrist_3_joint
-  constraints:
-    goal_time: 10.0
-    stopped_velocity_tolerance: 0.05
-    shoulder_pan_joint:
-      goal: 0.01
-      trajectory: 0.01
-    shoulder_lift_joint:
-      goal: 0.01
-      trajectory: 0.01
-    elbow_joint:
-      goal: 0.01
-      trajectory: 0.01
-    wrist_1_joint:
-      goal: 0.01
-      trajectory: 0.01
-    wrist_2_joint:
-      goal: 0.01
-      trajectory: 0.01
-    wrist_3_joint:
-      goal: 0.01
-      trajectory: 0.01
-
-finger_width_trajectory_controller:
-  action_ns: follow_joint_trajectory
-  type: FollowJointTrajectory
-  default: true
-  joints:
-    - finger_width
-  constraints:
-    goal_time: 5.0
-    stopped_velocity_tolerance: 0.01
-    finger_width:
-      goal: 0.001
-      trajectory: 0.001
-  # Gripper-specific parameters
+controller_manager:
   ros__parameters:
-    state_publish_rate: 50.0
-    action_monitor_rate: 10.0
-    allow_partial_joints_goal: true
-    # Add action feedback for better gripper control
-    action_feedback:
-      joint_names:
+    update_rate: 500  # Hz – matches UR driver default
+
+    # -----------------------------------------------------------------
+    # 1. Scaled joint trajectory controller (used by MoveIt in real mode)
+    # -----------------------------------------------------------------
+    scaled_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - shoulder_pan_joint
+        - shoulder_lift_joint
+        - elbow_joint
+        - wrist_1_joint
+        - wrist_2_joint
+        - wrist_3_joint
+      command_interfaces:
+        - position
+      state_interfaces:
+        - position
+        - velocity
+      state_publish_rate: 100          # Hz
+      action_monitor_rate: 20          # Hz
+      allow_partial_joints_goal: true
+      open_loop_control: true
+      constraints:
+        stopped_velocity_tolerance: 0.05
+        goal_time: 10.0
+        shoulder_pan_joint: { goal: 0.01, trajectory: 0.01 }
+        shoulder_lift_joint: { goal: 0.01, trajectory: 0.01 }
+        elbow_joint:         { goal: 0.01, trajectory: 0.01 }
+        wrist_1_joint:       { goal: 0.01, trajectory: 0.01 }
+        wrist_2_joint:       { goal: 0.01, trajectory: 0.01 }
+        wrist_3_joint:       { goal: 0.01, trajectory: 0.01 }
+
+    # -----------------------------------------------------------------
+    # 2. Un-scaled joint trajectory controller (used in sim / fake mode)
+    # -----------------------------------------------------------------
+    joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
+        - shoulder_pan_joint
+        - shoulder_lift_joint
+        - elbow_joint
+        - wrist_1_joint
+        - wrist_2_joint
+        - wrist_3_joint
+      command_interfaces:
+        - position
+      state_interfaces:
+        - position
+        - velocity
+      state_publish_rate: 100
+      action_monitor_rate: 20
+      allow_partial_joints_goal: true
+      open_loop_control: true
+      constraints:
+        stopped_velocity_tolerance: 0.05
+        goal_time: 10.0
+        shoulder_pan_joint: { goal: 0.01, trajectory: 0.01 }
+        shoulder_lift_joint: { goal: 0.01, trajectory: 0.01 }
+        elbow_joint:         { goal: 0.01, trajectory: 0.01 }
+        wrist_1_joint:       { goal: 0.01, trajectory: 0.01 }
+        wrist_2_joint:       { goal: 0.01, trajectory: 0.01 }
+        wrist_3_joint:       { goal: 0.01, trajectory: 0.01 }
+
+    # -----------------------------------------------------------------
+    # 3. Gripper controller (2FG7 – single joint)
+    # -----------------------------------------------------------------
+    finger_width_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+      joints:
         - finger_width
+      command_interfaces:
+        - position
+      state_interfaces:
+        - position
+        - velocity
+      state_publish_rate: 50
+      action_monitor_rate: 10
+      allow_partial_joints_goal: true
+      constraints:
+        stopped_velocity_tolerance: 0.01
+        goal_time: 5.0
+        finger_width: { goal: 0.001, trajectory: 0.001 }

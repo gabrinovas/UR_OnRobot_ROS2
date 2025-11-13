@@ -306,9 +306,43 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    # ------------------- REAL DRIVER (only if detected_mode='false') -------------------
+    # -----------------------------------------------------------------
+    # REAL DRIVER (real robot)
+    # -----------------------------------------------------------------
     real_driver = GroupAction(
         actions=[
+            # 1. ros2_control node (creates /controller_manager)
+            Node(
+                package="controller_manager",
+                executable="ros2_control_node",
+                name="controller_manager",
+                output="screen",
+                parameters=[
+                    robot_description,
+                    PathJoinSubstitution(
+                        [FindPackageShare("ur_onrobot_moveit_config"), "config", "controllers.yaml"]
+                    ),
+                ],
+            ),
+
+            # 2. Spawner – load the *scaled* controller (real mode)
+            TimerAction(
+                period=3.0,
+                actions=[
+                    Node(
+                        package="controller_manager",
+                        executable="spawner",
+                        arguments=[
+                            "scaled_joint_trajectory_controller",
+                            "--controller-manager",
+                            "/controller_manager",
+                        ],
+                        output="screen",
+                    )
+                ],
+            ),
+
+            # 3. UR hardware interface
             Node(
                 package="ur_robot_driver",
                 executable="ur_ros2_control_node",
@@ -322,17 +356,13 @@ def launch_setup(context, *args, **kwargs):
                     {"tf_prefix": prefix},
                 ],
             ),
-            Node(
-                package="controller_manager",
-                executable="spawner",
-                arguments=["scaled_joint_trajectory_controller", "--controller-manager", "/controller_manager"],
-                output="screen",
-            ),
         ],
         condition=UnlessCondition(detected_mode),
     )
 
-    # ------------------- FAKE DRIVER + URSim Docker (only if detected_mode='true') -------------------
+    # -----------------------------------------------------------------
+    # FAKE DRIVER (URSim)
+    # -----------------------------------------------------------------
     ursim_docker = ExecuteProcess(
         cmd=[
             "docker", "run", "-d", "--rm", "--name", "ursim_auto",
@@ -357,11 +387,20 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(detected_mode),
     )
 
-    fake_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["scaled_joint_trajectory_controller", "--controller-manager", "/controller_manager"],
-        output="screen",
+    fake_spawner = TimerAction(
+        period=3.0,
+        actions=[
+            Node(
+                package="controller_manager",
+                executable="spawner",
+                arguments=[
+                    "joint_trajectory_controller",  # <-- unscaled for sim
+                    "--controller-manager",
+                    "/controller_manager",
+                ],
+                output="screen",
+            )
+        ],
         condition=IfCondition(detected_mode),
     )
 
