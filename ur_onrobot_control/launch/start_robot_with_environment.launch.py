@@ -3,9 +3,8 @@ from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition, UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     AndSubstitution,
     Command,
@@ -14,7 +13,6 @@ from launch.substitutions import (
     NotSubstitution,
     PathJoinSubstitution,
 )
-import rclpy
 
 
 def launch_setup(context, *args, **kwargs):
@@ -36,36 +34,12 @@ def launch_setup(context, *args, **kwargs):
     gripper_port = LaunchConfiguration("gripper_port", default="502")
     gripper_device_address = LaunchConfiguration("gripper_device_address", default="65")
 
-    nodes_to_start = []
-
-    # Launch the workspace environment first (with error handling)
-    try:
-        workspace_package_share = FindPackageShare('ur_workspace_description').perform(context)
-        workspace_launch = IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                PathJoinSubstitution([
-                    FindPackageShare('ur_workspace_description'),
-                    'launch',
-                    'view_platform.launch.py'
-                ])
-            ]),
-            launch_arguments={
-                'ur_type': ur_type.perform(context),
-                'onrobot_type': onrobot_type.perform(context),
-                'use_fake_hardware': use_fake_hardware.perform(context),
-            }.items()
-        )
-        nodes_to_start.append(workspace_launch)
-        rclpy.logging.get_logger("launch").info("Workspace environment launched successfully")
-    except Exception as e:
-        rclpy.logging.get_logger("launch").warn(f"Workspace package not available: {e}. Continuing without environment visualization.")
-
-    # Robot description - using the platform description instead of standalone robot
+    # Combined robot + environment description
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare('ur_workspace_description'), "urdf", 'platform.urdf.xacro']),
+            PathJoinSubstitution([FindPackageShare('ur_onrobot_control'), "urdf", 'robot_with_environment.urdf.xacro']),
             " ",
             "robot_ip:=",
             robot_ip,
@@ -82,7 +56,7 @@ def launch_setup(context, *args, **kwargs):
             "use_fake_hardware:=",
             use_fake_hardware,
             " ",
-            # MODBUS parameters for 2FG7 - ensure ALL parameters are passed
+            # MODBUS parameters for 2FG7
             "connection_type:=tcp",
             " ",
             "ip_address:=",
@@ -100,11 +74,12 @@ def launch_setup(context, *args, **kwargs):
         "robot_description": ParameterValue(value=robot_description_content, value_type=str)
     }
 
+    # Use the combined controllers configuration
     initial_joint_controllers = PathJoinSubstitution(
-        [FindPackageShare('ur_onrobot_control'), "config", 'ur_onrobot_controllers.yaml']
+        [FindPackageShare('ur_onrobot_control'), "config", 'ur_onrobot_with_environment_controllers.yaml']
     )
 
-    # Use workspace RViz config instead of robot-only config
+    # Use workspace RViz config that includes environment visualization
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare('ur_workspace_description'), "rviz", "view_platform.rviz"]
     )
@@ -118,6 +93,17 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
+    # Create parameters for initial positions
+    initial_positions_params = {
+        # Set initial positions for fake hardware
+        "initial_shoulder_pan_joint": 0.0,
+        "initial_shoulder_lift_joint": -1.57,
+        "initial_elbow_joint": 1.57,
+        "initial_wrist_1_joint": -1.57,
+        "initial_wrist_2_joint": -1.57,
+        "initial_wrist_3_joint": 0.0,
+    }
+
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -125,6 +111,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
+            initial_positions_params,
         ],
         output="screen",
         condition=IfCondition(use_fake_hardware),
@@ -203,12 +190,18 @@ def launch_setup(context, *args, **kwargs):
                     "speed_scaling_state_broadcaster",
                     "tcp_pose_broadcaster",
                     "ur_configuration_controller",
+                    "environment_joint_state_broadcaster",
                 ]
             },
         ],
     )
 
-    # Note: We don't need robot_state_publisher here as it's already in the workspace launch
+    robot_state_publisher_node = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        output="both",
+        parameters=[robot_description],
+    )
 
     rviz_node = Node(
         package="rviz2",
@@ -247,7 +240,9 @@ def launch_setup(context, *args, **kwargs):
             + controllers,
         )
 
+    # Add environment joint state broadcaster to active controllers
     controllers_active = [
+        "environment_joint_state_broadcaster",
         "joint_state_broadcaster",
         "io_and_status_controller",
         "speed_scaling_state_broadcaster",
@@ -265,6 +260,7 @@ def launch_setup(context, *args, **kwargs):
         "passthrough_trajectory_controller",
         "freedrive_mode_controller",
     ]
+    
     if activate_joint_controller.perform(context) == "true":
         controllers_active.append(initial_joint_controller.perform(context))
         if initial_joint_controller.perform(context) in controllers_inactive:
@@ -279,8 +275,7 @@ def launch_setup(context, *args, **kwargs):
         controller_spawner(controllers_inactive, active=False),
     ]
 
-    # Add all nodes to start list
-    nodes_to_start.extend([
+    nodes_to_start = [
         control_node,
         ur_control_node,
         dashboard_client_node,
@@ -288,9 +283,10 @@ def launch_setup(context, *args, **kwargs):
         tool_communication_node,
         controller_stopper_node,
         urscript_interface,
+        robot_state_publisher_node,
         rviz_node,
         gripper_status_node,
-    ] + controller_spawners)
+    ] + controller_spawners
 
     return nodes_to_start
 
@@ -310,7 +306,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "onrobot_type",
             description="Type/series of used OnRobot gripper.",
-            choices=["rg2", "rg6", "2fg7", "2fg14"],
+            choices=["rg2", "rg6", "2fg7", "2fg14", "3fg15"],
             default_value="2fg7",
         )
     )

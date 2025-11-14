@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="platform">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur_onrobot_with_environment">
 
-   <!-- Include the environment -->
+   <!-- Include the environment (keeping environment.urdf.xacro exactly as is) -->
    <xacro:include filename="$(find ur_workspace_description)/urdf/environment.urdf.xacro"/>
 
    <!-- Include the complete UR+OnRobot description -->
@@ -11,6 +11,7 @@
    <xacro:arg name="onrobot_type" default="2fg7"/>
    <xacro:arg name="robot_ip" default="192.168.1.101" />
    <xacro:arg name="use_fake_hardware" default="true" />
+   <xacro:arg name="tf_prefix" default=""/>
    
    <!-- MODBUS parameters for 2FG7 -->
    <xacro:arg name="connection_type" default="tcp"/>
@@ -18,13 +19,13 @@
    <xacro:arg name="port" default="502"/>
    <xacro:arg name="device_address" default="65"/>
 
-   <!-- MAIN ROBOT -->
+   <!-- MAIN ROBOT - Attached to the table in the environment -->
    <xacro:ur_onrobot
         parent="table_top"
         robot_ip="$(arg robot_ip)"
         ur_type="$(arg ur_type)"
         onrobot_type="$(arg onrobot_type)"
-        tf_prefix=""
+        tf_prefix="$(arg tf_prefix)"
         use_fake_hardware="$(arg use_fake_hardware)"
         cable_connector="true"
         joint_limits_parameters_file="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"
@@ -39,8 +40,8 @@
         port="$(arg port)"
         device_address="$(arg device_address)"
         >
-        <!-- Robot positioned on table - adjusted for new environment -->
-        <origin xyz="0.125 -0.225 0.75" rpy="0 0 3.14159"/>
+        <!-- Robot positioned on table - centered on first table -->
+        <origin xyz="0.6 0.35 0.75" rpy="0 0 0"/>
    </xacro:ur_onrobot>
 
 </robot>

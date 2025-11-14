@@ -4,7 +4,7 @@ project(ur_onrobot_control)
 find_package(ament_cmake REQUIRED)
 
 install(
-  DIRECTORY launch config
+  DIRECTORY launch urdf config
   DESTINATION share/${PROJECT_NAME}
 )
 
