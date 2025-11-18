@@ -4,6 +4,9 @@
   <!-- Materials -->
   <xacro:include filename="$(find ur_workspace_description)/meshes/materials/materials.xacro" />
 
+  <!-- World Link -->
+  <link name="world"/>
+
   <!-- Main Table (First Table) -->
   <link name="table_top">
     <visual>
