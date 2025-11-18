@@ -197,7 +197,7 @@
   <joint name="table_to_barrier_top" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_top"/>
-    <origin xyz="0 -0.05 1.65" rpy="0 0 0"/>
+    <origin xyz="0 -0.05 1.9" rpy="0 0 0"/>
   </joint>
 
 </robot>
