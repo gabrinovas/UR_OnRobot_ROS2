@@ -32,7 +32,7 @@ def generate_launch_description():
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare('ur_workspace_description'), "urdf", 'environment.urdf.xacro']),
+            PathJoinSubstitution([FindPackageShare('ur_workspace_description'), "urdf", 'environment_only.urdf.xacro']),
         ]
     )
     
