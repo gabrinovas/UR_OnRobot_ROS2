@@ -45,7 +45,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="2.05 0.8 0.4"/>
+        <box size="2.05 0.8 0"/>
       </geometry>
     </collision>
   </link>
@@ -53,8 +53,8 @@
   <joint name="world_to_conveyor" type="fixed">
     <parent link="world"/>
     <child link="conveyor_belt"/>
-    <!-- Conveyor positioned between tables -->
-    <origin xyz="0.93 0 0" rpy="0 0 1.5708"/>
+    <!-- Conveyor rotated 90 degrees and positioned between tables -->
+    <origin xyz="0.77 0 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Second Table -->
@@ -78,60 +78,12 @@
   <joint name="world_to_table_2" type="fixed">
     <parent link="world"/>
     <child link="table_top_2"/>
-    <!-- Second table positioned on the other side of conveyor -->
-    <origin xyz="1.86 0.05 0" rpy="0 0 0"/>
+    <!-- Second table positioned on the other side of conveyor with 90-degree rotation -->
+    <origin xyz="1.64 0.05 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- Safety Barriers -->
-  <!-- Back Barrier -->
-  <link name="safety_barrier_back">
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry>
-        <!-- Scale down from mm to m -->
-        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
-      </geometry>
-      <material name="workspace_safety_yellow"/>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0.4" rpy="0 0 0"/>
-      <geometry>
-        <box size="1.2 0.05 0.8"/>
-      </geometry>
-    </collision>
-  </link>
-
-  <joint name="table_to_barrier_back" type="fixed">
-    <parent link="table_top"/>
-    <child link="safety_barrier_back"/>
-    <origin xyz="0.0 0.35 0.75" rpy="0 0 0"/>
-  </joint>
-
-  <!-- Front Barrier -->
-  <link name="safety_barrier_front">
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry>
-        <!-- Scale down from mm to m -->
-        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
-      </geometry>
-      <material name="workspace_safety_yellow"/>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0.4" rpy="0 0 0"/>
-      <geometry>
-        <box size="1.2 0.05 0.8"/>
-      </geometry>
-    </collision>
-  </link>
-
-  <joint name="table_to_barrier_front" type="fixed">
-    <parent link="table_top"/>
-    <child link="safety_barrier_front"/>
-    <origin xyz="0.0 -0.35 0.75" rpy="0 0 0"/>
-  </joint>
-
-  <!-- Left Barrier -->
+  <!-- Safety Barriers - Adjusted positions for 90-degree rotated tables -->
+  <!-- Left Barrier (formerly Back Barrier) -->
   <link name="safety_barrier_left">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -142,9 +94,9 @@
       <material name="workspace_safety_yellow"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0.4" rpy="0 0 0"/>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
       <geometry>
-        <box size="0.05 0.7 0.8"/>
+        <box size="1.2 0.05 0.8"/>
       </geometry>
     </collision>
   </link>
@@ -152,10 +104,10 @@
   <joint name="table_to_barrier_left" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_left"/>
-    <origin xyz="0.6 0.0 0.75" rpy="0 0 0"/>
+    <origin xyz="0 1.55 0.75" rpy="0 0 0"/>
   </joint>
 
-  <!-- Right Barrier -->
+  <!-- Right Barrier (formerly Front Barrier) -->
   <link name="safety_barrier_right">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -166,9 +118,9 @@
       <material name="workspace_safety_yellow"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0.4" rpy="0 0 0"/>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
       <geometry>
-        <box size="0.05 0.7 0.8"/>
+        <box size="1.2 0.05 0.8"/>
       </geometry>
     </collision>
   </link>
@@ -176,8 +128,57 @@
   <joint name="table_to_barrier_right" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_right"/>
-    <origin xyz="-0.6 0.0 0.75" rpy="0 0 0"/>
+    <origin xyz="0 0.2 0.75" rpy="0 0 0"/>
   </joint>
+
+  <!-- Back Barrier (formerly Right Barrier) -->
+  <link name="safety_barrier_back">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="0.05 0.7 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_back" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_back"/>
+    <origin xyz="-0.15 -0.05 0.75" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Front Barrier (formerly Left Barrier) -->
+  <link name="safety_barrier_front">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="0.05 0.7 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_front" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_front"/>
+    <origin xyz="1.64 -0.05 0.75" rpy="0 0 0"/>
+  </joint>
+
 
   <!-- Top Barrier -->
   <link name="safety_barrier_top">
@@ -192,7 +193,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="1.2 0.7 0.01"/>
+        <box size="0.7 1.2 0.01"/>
       </geometry>
     </collision>
   </link>
@@ -200,7 +201,7 @@
   <joint name="table_to_barrier_top" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_top"/>
-    <origin xyz="0.0 0.0 1.2" rpy="0 0 0"/>
+    <origin xyz="0 -0.05 1.65" rpy="0 0 0"/>
   </joint>
 
 </robot>

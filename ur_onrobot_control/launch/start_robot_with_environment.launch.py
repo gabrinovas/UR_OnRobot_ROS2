@@ -187,10 +187,10 @@ def launch_setup(context, *args, **kwargs):
                     "io_and_status_controller",
                     "force_torque_sensor_broadcaster",
                     "joint_state_broadcaster",
+                    "environment_joint_state_broadcaster",
                     "speed_scaling_state_broadcaster",
                     "tcp_pose_broadcaster",
                     "ur_configuration_controller",
-                    "environment_joint_state_broadcaster",
                 ]
             },
         ],
@@ -261,11 +261,14 @@ def launch_setup(context, *args, **kwargs):
         "freedrive_mode_controller",
     ]
     
+    # Handle initial joint controller activation
     if activate_joint_controller.perform(context) == "true":
-        controllers_active.append(initial_joint_controller.perform(context))
-        if initial_joint_controller.perform(context) in controllers_inactive:
-            controllers_inactive.remove(initial_joint_controller.perform(context))
+        initial_controller = initial_joint_controller.perform(context)
+        controllers_active.append(initial_controller)
+        if initial_controller in controllers_inactive:
+            controllers_inactive.remove(initial_controller)
 
+    # Remove tcp_pose_broadcaster for fake hardware
     if use_fake_hardware.perform(context) == "true":
         if "tcp_pose_broadcaster" in controllers_active:
             controllers_active.remove("tcp_pose_broadcaster")

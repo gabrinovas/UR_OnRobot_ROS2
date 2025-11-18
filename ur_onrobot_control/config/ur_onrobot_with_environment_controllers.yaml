@@ -49,9 +49,18 @@ controller_manager:
     ur_configuration_controller:
       type: ur_controllers/URConfigurationController
 
-# Environment joint state broadcaster (no specific joints needed for static environment)
+# Environment joint state broadcaster - configure for static joints
 environment_joint_state_broadcaster:
-  ros__parameters: {}
+  ros__parameters:
+    joints:
+      - world_to_table
+      - world_to_conveyor
+      - world_to_table_2
+      - table_to_barrier_left
+      - table_to_barrier_right
+      - table_to_barrier_back
+      - table_to_barrier_front
+      - table_to_barrier_top
 
 # Robot joint state broadcaster
 joint_state_broadcaster:
