@@ -54,7 +54,7 @@
         device="$(arg device)"
         cable_connector="true">
         <!-- Robot positioned on table - adjust as needed -->
-        <origin xyz="0.55 0.8 0.75" rpy="0 0 0"/>
+        <origin xyz="0.55 0.65 0.75" rpy="0 0 0"/>
    </xacro:ur_onrobot>
 
 </robot>
