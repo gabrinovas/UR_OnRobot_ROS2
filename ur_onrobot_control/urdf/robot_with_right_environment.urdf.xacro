@@ -1,0 +1,60 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur_onrobot_with_environment">
+
+   <!-- World Link -->
+   <link name="world"/>
+
+   <!-- Include environment components -->
+   <xacro:include filename="$(find ur_workspace_description)/urdf/environment_right.urdf.xacro"/>
+
+   <!-- Create robot description -->
+   <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot_macro.xacro"/>
+
+   <xacro:arg name="ur_type" default="ur5e"/>
+   <xacro:arg name="onrobot_type" default="2fg7"/>
+   <xacro:arg name="robot_ip" default="192.168.1.101" />
+   <xacro:arg name="use_fake_hardware" default="true" />
+   <xacro:arg name="tf_prefix" default=""/>
+   
+   <!-- MODBUS parameters for gripper -->
+   <xacro:arg name="connection_type" default="tcp"/>
+   <xacro:arg name="ip_address" default="192.168.1.1"/>
+   <xacro:arg name="port" default="502"/>
+   <xacro:arg name="device_address" default="65"/>
+   <xacro:arg name="device" default="/tmp/ttyUR"/>
+
+   <!-- Joint limits and other UR parameters -->
+   <xacro:arg name="joint_limits_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+   <xacro:arg name="kinematics_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+   <xacro:arg name="physical_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+   <xacro:arg name="visual_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+   <xacro:arg name="script_filename" default="$(find ur_robot_driver)/resources/ros_control.urscript"/>
+   <xacro:arg name="output_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_output_recipe.txt"/>
+   <xacro:arg name="input_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_input_recipe.txt"/>
+
+   <!-- MAIN ROBOT - Attached to the first table in the environment -->
+   <xacro:ur_onrobot
+        parent="table_top"
+        robot_ip="$(arg robot_ip)"
+        ur_type="$(arg ur_type)"
+        onrobot_type="$(arg onrobot_type)"
+        tf_prefix="$(arg tf_prefix)"
+        use_fake_hardware="$(arg use_fake_hardware)"
+        joint_limits_parameters_file="$(arg joint_limits_parameters_file)"
+        kinematics_parameters_file="$(arg kinematics_parameters_file)"
+        physical_parameters_file="$(arg physical_parameters_file)"
+        visual_parameters_file="$(arg visual_parameters_file)"
+        script_filename="$(arg script_filename)"
+        output_recipe_filename="$(arg output_recipe_filename)"
+        input_recipe_filename="$(arg input_recipe_filename)"
+        connection_type="$(arg connection_type)"
+        ip_address="$(arg ip_address)"
+        port="$(arg port)"
+        device_address="$(arg device_address)"
+        device="$(arg device)"
+        cable_connector="true">
+        <!-- Robot positioned on table - adjust as needed -->
+        <origin xyz="0.55 0.65 0.75" rpy="0 0 0"/>
+   </xacro:ur_onrobot>
+
+</robot>
