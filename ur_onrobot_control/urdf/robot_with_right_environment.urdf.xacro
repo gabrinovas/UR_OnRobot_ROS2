@@ -5,7 +5,7 @@
    <link name="world"/>
 
    <!-- Include environment components -->
-   <xacro:include filename="$(find ur_workspace_description)/urdf/environment_right.urdf.xacro"/>
+   <xacro:include filename="$(find ur_workspace_description)/urdf/right_environment.urdf.xacro"/>
 
    <!-- Create robot description -->
    <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot_macro.xacro"/>
