@@ -112,7 +112,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
-            initial_positions_params,
+            # initial_positions_params,
         ],
         output="screen",
         condition=IfCondition(use_fake_hardware),
