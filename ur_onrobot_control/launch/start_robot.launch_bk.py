@@ -20,8 +20,10 @@ def launch_setup(context, *args, **kwargs):
     ur_type = LaunchConfiguration("ur_type")
     onrobot_type = LaunchConfiguration("onrobot_type")
     robot_ip = LaunchConfiguration("robot_ip")
+
     tf_prefix = LaunchConfiguration("tf_prefix")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
+
     controller_spawner_timeout = LaunchConfiguration("controller_spawner_timeout")
     initial_joint_controller = LaunchConfiguration("initial_joint_controller")
     activate_joint_controller = LaunchConfiguration("activate_joint_controller")
@@ -29,21 +31,10 @@ def launch_setup(context, *args, **kwargs):
     headless_mode = LaunchConfiguration("headless_mode")
     launch_dashboard_client = LaunchConfiguration("launch_dashboard_client")
 
-    # UR description parameters
-    joint_limits_parameters_file = LaunchConfiguration("joint_limits_parameters_file")
-    kinematics_parameters_file = LaunchConfiguration("kinematics_parameters_file")
-    physical_parameters_file = LaunchConfiguration("physical_parameters_file")
-    visual_parameters_file = LaunchConfiguration("visual_parameters_file")
-    script_filename = LaunchConfiguration("script_filename")
-    output_recipe_filename = LaunchConfiguration("output_recipe_filename")
-    input_recipe_filename = LaunchConfiguration("input_recipe_filename")
-
-    # MODBUS parameters for gripper
-    connection_type = LaunchConfiguration("connection_type")
-    gripper_ip = LaunchConfiguration("gripper_ip")
-    gripper_port = LaunchConfiguration("gripper_port")
-    gripper_device_address = LaunchConfiguration("gripper_device_address")
-    gripper_device = LaunchConfiguration("gripper_device")
+    # MODBUS parameters for 2FG7 gripper
+    gripper_ip = LaunchConfiguration("gripper_ip", default="192.168.1.1")
+    gripper_port = LaunchConfiguration("gripper_port", default="502")
+    gripper_device_address = LaunchConfiguration("gripper_device_address", default="65")
 
     robot_description_content = Command(
         [
@@ -51,26 +42,36 @@ def launch_setup(context, *args, **kwargs):
             " ",
             PathJoinSubstitution([FindPackageShare('ur_onrobot_description'), "urdf", 'ur_onrobot.urdf.xacro']),
             " ",
-            "robot_ip:=", robot_ip, " ",
-            "ur_type:=", ur_type, " ",
-            "onrobot_type:=", onrobot_type, " ",
-            "tf_prefix:=", tf_prefix, " ",
-            "name:=ur_onrobot", " ",
-            "use_fake_hardware:=", use_fake_hardware, " ",
-            # UR description parameters
-            "joint_limits_parameters_file:=", joint_limits_parameters_file, " ",
-            "kinematics_parameters_file:=", kinematics_parameters_file, " ",
-            "physical_parameters_file:=", physical_parameters_file, " ",
-            "visual_parameters_file:=", visual_parameters_file, " ",
-            "script_filename:=", script_filename, " ",
-            "output_recipe_filename:=", output_recipe_filename, " ",
-            "input_recipe_filename:=", input_recipe_filename, " ",
-            # MODBUS parameters for gripper
-            "connection_type:=", connection_type, " ",
-            "ip_address:=", gripper_ip, " ",
-            "port:=", gripper_port, " ",
-            "device_address:=", gripper_device_address, " ",
-            "device:=", gripper_device, " ",
+            "robot_ip:=",
+            robot_ip,
+            " ",
+            "ur_type:=",
+            ur_type,
+            " ",
+            "onrobot_type:=",
+            onrobot_type,
+            " ",
+            "tf_prefix:=",
+            tf_prefix,
+            " ",
+            "name:=",
+            "ur_onrobot",
+            " ",
+            "use_fake_hardware:=",
+            use_fake_hardware,
+            " ",
+            # MODBUS parameters for 2FG7 - ensure ALL parameters are passed
+            "connection_type:=tcp",
+            " ",
+            "ip_address:=",
+            gripper_ip,
+            " ",
+            "port:=",
+            gripper_port,
+            " ",
+            "device_address:=",
+            gripper_device_address,
+            " ",
         ]
     )
     robot_description = {
@@ -94,16 +95,16 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
-    # # Create parameters for initial positions
-    # initial_positions_params = {
-    #     # Set initial positions for fake hardware
-    #     "initial_shoulder_pan_joint": 0.0,
-    #     "initial_shoulder_lift_joint": -1.57,
-    #     "initial_elbow_joint": 1.57,
-    #     "initial_wrist_1_joint": -1.57,
-    #     "initial_wrist_2_joint": -1.57,
-    #     "initial_wrist_3_joint": 0.0,
-    # }
+    # Create parameters for initial positions
+    initial_positions_params = {
+        # Set initial positions for fake hardware
+        "initial_shoulder_pan_joint": 0.0,
+        "initial_shoulder_lift_joint": -1.57,
+        "initial_elbow_joint": 1.57,
+        "initial_wrist_1_joint": -1.57,
+        "initial_wrist_2_joint": -1.57,
+        "initial_wrist_3_joint": 0.0,
+    }
 
     control_node = Node(
         package="controller_manager",
@@ -191,7 +192,6 @@ def launch_setup(context, *args, **kwargs):
                     "speed_scaling_state_broadcaster",
                     "tcp_pose_broadcaster",
                     "ur_configuration_controller",
-                    "finger_width_controller",
                 ]
             },
         ],
@@ -241,18 +241,16 @@ def launch_setup(context, *args, **kwargs):
             + controllers,
         )
 
-    # Base controllers that should always be active
-    controllers_always_active = [
+    controllers_active = [
         "joint_state_broadcaster",
         "io_and_status_controller",
         "speed_scaling_state_broadcaster",
         "force_torque_sensor_broadcaster",
+        "tcp_pose_broadcaster",
         "ur_configuration_controller",
         "finger_width_controller",
     ]
-
-    # Controllers that depend on conditions
-    controllers_conditional = [
+    controllers_inactive = [
         "scaled_joint_trajectory_controller",
         "joint_trajectory_controller",
         "forward_velocity_controller",
@@ -261,21 +259,16 @@ def launch_setup(context, *args, **kwargs):
         "passthrough_trajectory_controller",
         "freedrive_mode_controller",
     ]
-
-    # TCP pose broadcaster only for real hardware
-    if use_fake_hardware.perform(context) != "true":
-        controllers_always_active.append("tcp_pose_broadcaster")
-
-    # Handle initial joint controller
     if activate_joint_controller.perform(context) == "true":
-        initial_controller = initial_joint_controller.perform(context)
-        if initial_controller in controllers_conditional:
-            controllers_always_active.append(initial_controller)
-            controllers_conditional.remove(initial_controller)
+        controllers_active.append(initial_joint_controller.perform(context))
+        controllers_inactive.remove(initial_joint_controller.perform(context))
+
+    if use_fake_hardware.perform(context) == "true":
+        controllers_active.remove("tcp_pose_broadcaster")
 
     controller_spawners = [
-        controller_spawner(controllers_always_active),
-        controller_spawner(controllers_conditional, active=False),
+        controller_spawner(controllers_active),
+        controller_spawner(controllers_inactive, active=False),
     ]
 
     nodes_to_start = [
@@ -382,124 +375,26 @@ def generate_launch_description():
         )
     )
     
-    # UR description parameters
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "joint_limits_parameters_file",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
-                "joint_limits.yaml"
-            ]),
-            description="Path to joint limits parameters file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "kinematics_parameters_file",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
-                "default_kinematics.yaml"
-            ]),
-            description="Path to kinematics parameters file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "physical_parameters_file",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
-                "physical_parameters.yaml"
-            ]),
-            description="Path to physical parameters file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "visual_parameters_file",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
-                "visual_parameters.yaml"
-            ]),
-            description="Path to visual parameters file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "script_filename",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_robot_driver"),
-                "resources",
-                "ros_control.urscript",
-            ]),
-            description="Path to URScript file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "output_recipe_filename",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_robot_driver"),
-                "resources",
-                "rtde_output_recipe.txt",
-            ]),
-            description="Path to RTDE output recipe file.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "input_recipe_filename",
-            default_value=PathJoinSubstitution([
-                FindPackageShare("ur_robot_driver"),
-                "resources",
-                "rtde_input_recipe.txt",
-            ]),
-            description="Path to RTDE input recipe file.",
-        )
-    )
-
-    # MODBUS parameters for gripper
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "connection_type",
-            default_value="tcp",
-            description="Connection type for OnRobot gripper (tcp/serial).",
-            choices=["tcp", "serial"],
-        )
-    )
+    # MODBUS parameters for 2FG7 gripper
     declared_arguments.append(
         DeclareLaunchArgument(
             "gripper_ip",
             default_value="192.168.1.1",
-            description="IP address of the OnRobot gripper (Modbus TCP server).",
+            description="IP address of the OnRobot 2FG7 gripper (Modbus TCP server).",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "gripper_port",
             default_value="502",
-            description="Port number for the OnRobot gripper Modbus TCP connection.",
+            description="Port number for the OnRobot 2FG7 gripper Modbus TCP connection.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "gripper_device_address",
             default_value="65",
-            description="Modbus device address for the OnRobot gripper.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_device",
-            default_value="/tmp/ttyUR",
-            description="Serial device for the OnRobot gripper (for serial connection).",
+            description="Modbus device address for the OnRobot 2FG7 gripper.",
         )
     )
     

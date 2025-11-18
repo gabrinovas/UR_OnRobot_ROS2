@@ -12,7 +12,6 @@
   <depend>ur_onrobot_description</depend>
   <depend>ur_description</depend>
   <depend>onrobot_description</depend>
-  <depend>ur_onrobot_control</depend>
   
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>joint_state_publisher_gui</exec_depend>

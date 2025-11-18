@@ -16,11 +16,12 @@
    <xacro:arg name="use_fake_hardware" default="true" />
    <xacro:arg name="tf_prefix" default=""/>
    
-   <!-- MODBUS parameters for 2FG7 -->
+   <!-- MODBUS parameters for gripper -->
    <xacro:arg name="connection_type" default="tcp"/>
    <xacro:arg name="ip_address" default="192.168.1.1"/>
    <xacro:arg name="port" default="502"/>
    <xacro:arg name="device_address" default="65"/>
+   <xacro:arg name="device" default="/tmp/ttyUR"/>
 
    <!-- Joint limits and other UR parameters -->
    <xacro:arg name="joint_limits_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
@@ -50,6 +51,7 @@
         ip_address="$(arg ip_address)"
         port="$(arg port)"
         device_address="$(arg device_address)"
+        device="$(arg device)"
         cable_connector="true">
         <!-- Robot positioned on table - adjust as needed -->
         <origin xyz="0.0 0.0 0.75" rpy="0 0 0"/>
