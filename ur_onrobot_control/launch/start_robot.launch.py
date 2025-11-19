@@ -108,8 +108,6 @@ def launch_setup(context, *args, **kwargs):
             " port:=", gripper_port,
             " device_address:=", gripper_device_address,
             " device:=", gripper_device,
-            # Solo el robot sin entorno lleva nombre explícito (opcional)
-            " name:=ur_onrobot" if not has_environment else "",
         ]
     )
 
@@ -264,7 +262,9 @@ def launch_setup(context, *args, **kwargs):
         "force_torque_sensor_broadcaster",
         "ur_configuration_controller",
         "finger_width_controller",
+        "scaled_joint_trajectory_controller",
     ]
+
     if has_environment:
         always_active.append("environment_joint_state_broadcaster")
     if use_fake_hardware.perform(context) != "true":
