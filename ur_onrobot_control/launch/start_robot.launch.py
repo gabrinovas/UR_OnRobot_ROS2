@@ -22,7 +22,7 @@ def launch_setup(context, *args, **kwargs):
     robot_ip                 = LaunchConfiguration("robot_ip")
     tf_prefix                = LaunchConfiguration("tf_prefix")
     use_fake_hardware        = LaunchConfiguration("use_fake_hardware")
-    robot_position           = LaunchConfiguration("robot_position")   # nuevo!
+    robot_pos               = LaunchConfiguration("robot_pos")   # nuevo!
     headless_mode            = LaunchConfiguration("headless_mode")
     launch_rviz              = LaunchConfiguration("launch_rviz")
     launch_dashboard_client  = LaunchConfiguration("launch_dashboard_client")
@@ -46,10 +46,8 @@ def launch_setup(context, *args, **kwargs):
     gripper_device_address = LaunchConfiguration("gripper_device_address")
     gripper_device         = LaunchConfiguration("gripper_device")
 
-    # ====================== Selección según robot_position ======================
-    pos = robot_position.perform(context).strip().lower()
-
-    if pos == "left":
+    # ====================== Selección según robot_pos ======================
+    if robot_pos == "left":
         # Robot a la izquierda → entorno espejo
         xacro_file       = PathJoinSubstitution(
             [FindPackageShare("ur_onrobot_control"), "urdf", "left_robot_with_environment.urdf.xacro"]
@@ -62,7 +60,7 @@ def launch_setup(context, *args, **kwargs):
         )
         has_environment  = True
 
-    elif pos == "right":
+    elif robot_pos == "right":
         # Robot a la derecha → entorno principal (el habitual)
         xacro_file       = PathJoinSubstitution(
             [FindPackageShare("ur_onrobot_control"), "urdf", "right_robot_with_environment.urdf.xacro"]
@@ -331,7 +329,7 @@ def generate_launch_description():
         DeclareLaunchArgument("use_fake_hardware", default_value="false",
                               description="Use fake hardware (simulation)."),
 
-        DeclareLaunchArgument("robot_position", default_value="right",
+        DeclareLaunchArgument("robot_pos", default_value="right",
                               description="Posición física del robot respecto al entorno.",
                               choices=["left", "right", "none"]),
 
