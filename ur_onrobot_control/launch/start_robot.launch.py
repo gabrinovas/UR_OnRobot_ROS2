@@ -52,7 +52,7 @@ def launch_setup(context, *args, **kwargs):
     if pos == "left":
         # Robot a la izquierda → entorno espejo
         xacro_file       = PathJoinSubstitution(
-            [FindPackageShare("ur_onrobot_control"), "urdf", "robot_with_right_environment.urdf.xacro"]
+            [FindPackageShare("ur_onrobot_control"), "urdf", "left_robot_with_environment.urdf.xacro"]
         )
         controllers_yaml = PathJoinSubstitution(
             [FindPackageShare("ur_onrobot_control"), "config", "ur_onrobot_with_environment_controllers.yaml"]
@@ -65,7 +65,7 @@ def launch_setup(context, *args, **kwargs):
     elif pos == "right":
         # Robot a la derecha → entorno principal (el habitual)
         xacro_file       = PathJoinSubstitution(
-            [FindPackageShare("ur_onrobot_control"), "urdf", "robot_with_environment.urdf.xacro"]
+            [FindPackageShare("ur_onrobot_control"), "urdf", "right_robot_with_environment.urdf.xacro"]
         )
         controllers_yaml = PathJoinSubstitution(
             [FindPackageShare("ur_onrobot_control"), "config", "ur_onrobot_with_environment_controllers.yaml"]
