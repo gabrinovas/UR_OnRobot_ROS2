@@ -183,13 +183,14 @@ def launch_setup(context, *args, **kwargs):
         executable="tool_communication.py",
         name="ur_tool_comm",
         output="screen",
-        parameters={
-            "robot_ip": robot_ip,
-            "tcp_port": 54321,
-            "device_name": "/tmp/ttyUR",
-        },
+        parameters=[
+            {
+                "robot_ip": robot_ip,
+                "tcp_port": 54321,
+                "device_name": "/tmp/ttyUR",
+            }
+        ],
     )
-
     urscript_interface = Node(
         package="ur_robot_driver",
         executable="urscript_interface",
