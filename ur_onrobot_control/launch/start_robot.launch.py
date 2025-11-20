@@ -3,7 +3,7 @@ from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import (
     AndSubstitution,
@@ -249,7 +249,7 @@ def launch_setup(context, *args, **kwargs):
                 "--controller-manager",
                 "/controller_manager",
                 "--controller-manager-timeout",
-                controller_spawner_timeout,
+                "30",  # Increased timeout
             ]
             + inactive_flags
             + controllers,
@@ -283,8 +283,14 @@ def launch_setup(context, *args, **kwargs):
             controllers_inactive.remove(initial_joint_controller.perform(context))
 
     controller_spawners = [
-        controller_spawner(controllers_active),
-        controller_spawner(controllers_inactive, active=False),
+        TimerAction(
+            period=5.0,  # Wait 5 seconds before starting spawners
+            actions=[controller_spawner(controllers_active)]
+        ),
+        TimerAction(
+            period=6.0,  # Wait 6 seconds before starting inactive spawners
+            actions=[controller_spawner(controllers_inactive, active=False)]
+        ),
     ]
 
     # Base nodes that always start
@@ -334,7 +340,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "robot_ip",
             description="IP address by which the robot can be reached.",
-            default_value="192.168.1.105",  # Uses the Polyscope sim by default
+            default_value="192.168.1.105",
         )
     )
     declared_arguments.append(
@@ -355,9 +361,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "tf_prefix",
             default_value="",
-            description="tf_prefix of the joint names, useful for "
-            "multi-robot setup. If changed, also joint names in the controllers' configuration "
-            "have to be updated.",
+            description="tf_prefix of the joint names, useful for multi-robot setup.",
         )
     )
     declared_arguments.append(
@@ -377,7 +381,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "controller_spawner_timeout",
-            default_value="10",
+            default_value="30",  # Increased default timeout
             description="Timeout used when spawning controllers.",
         )
     )
