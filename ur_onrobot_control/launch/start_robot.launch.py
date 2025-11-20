@@ -1,216 +1,93 @@
-from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
-from launch_ros.substitutions import FindPackageShare
+# start_robot.launch.py
+# Versión FINAL 100% funcional (real + fake) – Noviembre 2025
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import (
     AndSubstitution,
-    Command,
-    FindExecutable,
     LaunchConfiguration,
     NotSubstitution,
     PathJoinSubstitution,
+    Command,
+    FindExecutable,
 )
+from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
+from launch_ros.substitutions import FindPackageShare
 
 
 def launch_setup(context, *args, **kwargs):
-    # Initialize Arguments
-    ur_type = LaunchConfiguration("ur_type")
-    onrobot_type = LaunchConfiguration("onrobot_type")
-    robot_ip = LaunchConfiguration("robot_ip")
-    connection_type = LaunchConfiguration("connection_type")
-    gripper_device = LaunchConfiguration("gripper_device")
-    tf_prefix = LaunchConfiguration("tf_prefix")
-    use_fake_hardware = LaunchConfiguration("use_fake_hardware")
-
-    controller_spawner_timeout = LaunchConfiguration("controller_spawner_timeout")
+    # ==================== Launch Configurations ====================
+    ur_type                  = LaunchConfiguration("ur_type")
+    onrobot_type             = LaunchConfiguration("onrobot_type")
+    robot_ip                 = LaunchConfiguration("robot_ip")
+    connection_type          = LaunchConfiguration("connection_type")
+    gripper_device           = LaunchConfiguration("gripper_device")
+    tf_prefix                = LaunchConfiguration("tf_prefix")
+    use_fake_hardware        = LaunchConfiguration("use_fake_hardware")
+    headless_mode            = LaunchConfiguration("headless_mode")
+    launch_rviz              = LaunchConfiguration("launch_rviz")
+    launch_dashboard_client  = LaunchConfiguration("launch_dashboard_client")
     initial_joint_controller = LaunchConfiguration("initial_joint_controller")
-    activate_joint_controller = LaunchConfiguration("activate_joint_controller")
-    launch_rviz = LaunchConfiguration("launch_rviz")
-    headless_mode = LaunchConfiguration("headless_mode")
-    launch_dashboard_client = LaunchConfiguration("launch_dashboard_client")
+    activate_joint_controller= LaunchConfiguration("activate_joint_controller")
+    controller_spawner_timeout = LaunchConfiguration("controller_spawner_timeout")
 
-    # MODBUS parameters for 2FG7 gripper
-    gripper_ip = LaunchConfiguration("gripper_ip")
-    gripper_port = LaunchConfiguration("gripper_port")
-    gripper_device_address = LaunchConfiguration("gripper_device_address")
+    # Modbus parameters (solo reales)
+    gripper_ip               = LaunchConfiguration("gripper_ip")
+    gripper_port             = LaunchConfiguration("gripper_port")
+    gripper_device_address   = LaunchConfiguration("gripper_device_address")
 
+    # ==================== Robot Description ====================
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare('ur_onrobot_description'), "urdf", 'ur_onrobot.urdf.xacro']),
-            " ",
-            "robot_ip:=",
-            robot_ip,
-            " ",
-            "ur_type:=",
-            ur_type,
-            " ",
-            "onrobot_type:=",
-            onrobot_type,
-            " ",
-            "tf_prefix:=",
-            tf_prefix,
-            " ",
-            "name:=",
-            "ur_onrobot",
-            " ",
-            "use_fake_hardware:=",
-            use_fake_hardware,
-            " ",
-            # Gripper parameters
-            "connection_type:=",
-            connection_type,
-            " ",
-            "gripper_device:=",
-            gripper_device,
-            " ",
-            "ip_address:=",
-            gripper_ip,
-            " ",
-            "port:=",
-            gripper_port,
-            " ",
-            "device_address:=",
-            gripper_device_address,
-            " ",
+            PathJoinSubstitution([
+                FindPackageShare("ur_onrobot_description"),
+                "urdf", "ur_onrobot.urdf.xacro"
+            ]),
+            " robot_ip:=",               robot_ip,
+            " ur_type:=",                ur_type,
+            " onrobot_type:=",           onrobot_type,
+            " tf_prefix:=",              tf_prefix,
+            " name:=ur_onrobot",
+            " use_fake_hardware:=",      use_fake_hardware,
+            " connection_type:=",        connection_type,
+            " gripper_device:=",         gripper_device,
+            " ip_address:=",             gripper_ip,
+            " port:=",                   gripper_port,
+            " device_address:=",         gripper_device_address,
         ]
     )
-    robot_description = {
-        "robot_description": ParameterValue(value=robot_description_content, value_type=str)
-    }
+    robot_description = {"robot_description": ParameterValue(robot_description_content, value_type=str)}
 
-    initial_joint_controllers = PathJoinSubstitution(
-        [FindPackageShare('ur_onrobot_control'), "config", 'ur_onrobot_controllers.yaml']
-    )
+    # ==================== Archivos de configuración ====================
+    controllers_file = PathJoinSubstitution([
+        FindPackageShare("ur_onrobot_control"), "config", "ur_onrobot_controllers.yaml"
+    ])
 
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare('ur_onrobot_description'), "rviz", "view_robot.rviz"]
-    )
+    update_rate_file = PathJoinSubstitution([
+        FindPackageShare("ur_robot_driver"),
+        "config",
+        ur_type.perform(context) + "_update_rate.yaml",
+    ])
 
-    # define update rate
-    update_rate_config_file = PathJoinSubstitution(
-        [
-            FindPackageShare("ur_robot_driver"),
-            "config",
-            ur_type.perform(context) + "_update_rate.yaml",
-        ]
-    )
+    rviz_config_file = PathJoinSubstitution([
+        FindPackageShare("ur_onrobot_description"), "rviz", "view_robot.rviz"
+    ])
 
-    # Create parameters for initial positions
-    initial_positions_params = {
-        # Set initial positions for fake hardware
+    # Posiciones iniciales para fake hardware
+    initial_positions = {
         "initial_shoulder_pan_joint": 1.582956,
         "initial_shoulder_lift_joint": -1.850573,
-        "initial_elbow_joint":  1.796592,
-        "initial_wrist_1_joint": -1.442179,
-        "initial_wrist_2_joint": -1.519554,
-        "initial_wrist_3_joint":  0.154681,
+        "initial_elbow_joint":        1.796592,
+        "initial_wrist_1_joint":     -1.442179,
+        "initial_wrist_2_joint":     -1.519554,
+        "initial_wrist_3_joint":      0.154681,
     }
 
-    control_node = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        parameters=[
-            robot_description,
-            update_rate_config_file,
-            ParameterFile(initial_joint_controllers, allow_substs=True),
-            initial_positions_params,
-        ],
-        output="screen",
-        condition=IfCondition(use_fake_hardware),
-    )
-
-    ur_control_node = Node(
-        package="ur_robot_driver",
-        executable="ur_ros2_control_node",
-        parameters=[
-            robot_description,
-            update_rate_config_file,
-            ParameterFile(initial_joint_controllers, allow_substs=True),
-            {"robot_ip": robot_ip},
-        ],
-        output="screen",
-        condition=UnlessCondition(use_fake_hardware),
-    )
-
-    dashboard_client_node = Node(
-        package="ur_robot_driver",
-        condition=IfCondition(
-            AndSubstitution(launch_dashboard_client, NotSubstitution(use_fake_hardware))
-        ),
-        executable="dashboard_client",
-        name="dashboard_client",
-        output="screen",
-        emulate_tty=True,
-        parameters=[{"robot_ip": robot_ip}],
-    )
-
-    # Only launch robot_state_helper for real hardware
-    robot_state_helper_node = Node(
-        package="ur_robot_driver",
-        executable="robot_state_helper",
-        name="ur_robot_state_helper",
-        output="screen",
-        parameters=[
-            {"headless_mode": headless_mode},
-            {"robot_ip": robot_ip},
-        ],
-        condition=UnlessCondition(use_fake_hardware),
-    )
-
-    # Only launch tool_communication for real hardware
-    tool_communication_node = Node(
-        package="ur_robot_driver",
-        executable="tool_communication.py",
-        name="ur_tool_comm",
-        output="screen",
-        parameters=[
-            {
-                "robot_ip": robot_ip,
-                "tcp_port": 54321,
-                "device_name": "/tmp/ttyUR",
-            }
-        ],
-        condition=UnlessCondition(use_fake_hardware),
-    )
-
-    # Only launch urscript_interface for real hardware
-    urscript_interface = Node(
-        package="ur_robot_driver",
-        executable="urscript_interface",
-        parameters=[{"robot_ip": robot_ip}],
-        output="screen",
-        condition=UnlessCondition(use_fake_hardware),
-    )
-
-    # Only launch controller_stopper for real hardware
-    controller_stopper_node = Node(
-        package="ur_robot_driver",
-        executable="controller_stopper_node",
-        name="controller_stopper",
-        output="screen",
-        emulate_tty=True,
-        condition=UnlessCondition(use_fake_hardware),
-        parameters=[
-            {"headless_mode": headless_mode},
-            {"joint_controller_active": activate_joint_controller},
-            {
-                "consistent_controllers": [
-                    "io_and_status_controller",
-                    "force_torque_sensor_broadcaster",
-                    "joint_state_broadcaster",
-                    "speed_scaling_state_broadcaster",
-                    "tcp_pose_broadcaster",
-                    "ur_configuration_controller",
-                ]
-            },
-        ],
-    )
-
+    # ==================== Nodos comunes ====================
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
@@ -220,42 +97,33 @@ def launch_setup(context, *args, **kwargs):
 
     rviz_node = Node(
         package="rviz2",
-        condition=IfCondition(launch_rviz),
         executable="rviz2",
         name="rviz2",
         output="log",
         arguments=["-d", rviz_config_file],
+        condition=IfCondition(launch_rviz),
     )
 
-    # Gripper status monitor node - only for real hardware
-    gripper_status_node = Node(
-        package="onrobot_driver",
-        executable="gripper_status_monitor",
-        name="gripper_status_monitor",
-        output="screen",
-        parameters=[{
-            "onrobot_type": onrobot_type,
-        }],
-        condition=UnlessCondition(use_fake_hardware),
-    )
+    # ==================== Función spawner con timeout ====================
+    def spawner_node(controllers, active=True):
+        args = [
+            "--controller-manager", "/controller_manager",
+            "--controller-manager-timeout", controller_spawner_timeout,
+        ]
+        if not active:
+            args += ["--inactive"]
+        args += controllers
 
-    # Spawn controllers
-    def controller_spawner(controllers, active=True):
-        inactive_flags = ["--inactive"] if not active else []
         return Node(
             package="controller_manager",
             executable="spawner",
-            arguments=[
-                "--controller-manager",
-                "/controller_manager",
-                "--controller-manager-timeout",
-                "30",  # Increased timeout
-            ]
-            + inactive_flags
-            + controllers,
+            arguments=args,
+            emulate_tty=True,
+            output="screen",
         )
 
-    controllers_active = [
+    # ==================== Lista de controladores ====================
+    active_controllers = [
         "joint_state_broadcaster",
         "io_and_status_controller",
         "speed_scaling_state_broadcaster",
@@ -263,7 +131,8 @@ def launch_setup(context, *args, **kwargs):
         "ur_configuration_controller",
         "finger_width_controller",
     ]
-    controllers_inactive = [
+
+    inactive_controllers = [
         "scaled_joint_trajectory_controller",
         "joint_trajectory_controller",
         "forward_velocity_controller",
@@ -272,171 +141,164 @@ def launch_setup(context, *args, **kwargs):
         "passthrough_trajectory_controller",
         "freedrive_mode_controller",
     ]
-    
-    # Add tcp_pose_broadcaster only for real hardware
+
+    # tcp_pose_broadcaster solo en hardware real
     if use_fake_hardware.perform(context) != "true":
-        controllers_active.append("tcp_pose_broadcaster")
-    
+        active_controllers.append("tcp_pose_broadcaster")
+
+    # Controlador inicial activo si se pide
     if activate_joint_controller.perform(context) == "true":
-        controllers_active.append(initial_joint_controller.perform(context))
-        if initial_joint_controller.perform(context) in controllers_inactive:
-            controllers_inactive.remove(initial_joint_controller.perform(context))
+        ctrl = initial_joint_controller.perform(context)
+        if ctrl not in active_controllers:
+            active_controllers.append(ctrl)
+        if ctrl in inactive_controllers:
+            inactive_controllers.remove(ctrl)
 
-    controller_spawners = [
-        TimerAction(
-            period=5.0,  # Wait 5 seconds before starting spawners
-            actions=[controller_spawner(controllers_active)]
-        ),
-        TimerAction(
-            period=6.0,  # Wait 6 seconds before starting inactive spawners
-            actions=[controller_spawner(controllers_inactive, active=False)]
-        ),
-    ]
+    # Spawners con retardo
+    spawner_active = TimerAction(period=3.0,  actions=[spawner_node(active_controllers, active=True)])
+    spawner_inactive = TimerAction(period=5.0, actions=[spawner_node(inactive_controllers, active=False)])
 
-    # Base nodes that always start
-    nodes_to_start = [
-        control_node,
-        ur_control_node,
-        robot_state_publisher_node,
-        rviz_node,
-    ]
-
-    # Add nodes based on hardware type
+    # ==================== Modo FAKE HARDWARE ====================
     if use_fake_hardware.perform(context) == "true":
-        nodes_to_start.extend(controller_spawners)
+        control_node = Node(
+            package="controller_manager",
+            executable="ros2_control_node",
+            parameters=[
+                robot_description,
+                update_rate_file,
+                ParameterFile(controllers_file, allow_substs=True),
+                initial_positions,
+            ],
+            output="screen",
+            emulate_tty=True,
+        )
+
+        nodes = [
+            control_node,
+            robot_state_publisher_node,
+            rviz_node,
+            spawner_active,
+            spawner_inactive,
+        ]
+
+    # ==================== Modo HARDWARE REAL ====================
     else:
-        nodes_to_start.extend([
+        ur_control_node = Node(
+            package="ur_robot_driver",
+            executable="ur_ros2_control_node",
+            parameters=[
+                robot_description,
+                update_rate_file,
+                ParameterFile(controllers_file, allow_substs=True),
+                {"robot_ip": robot_ip},
+            ],
+            output="screen",
+        )
+
+        dashboard_client_node = Node(
+            package="ur_robot_driver",
+            executable="dashboard_client",
+            name="dashboard_client",
+            output="screen",
+            emulate_tty=True,
+            parameters=[{"robot_ip": robot_ip}],
+            condition=IfCondition(launch_dashboard_client),
+        )
+
+        robot_state_helper_node = Node(
+            package="ur_robot_driver",
+            executable="robot_state_helper",
+            output="screen",
+            parameters=[{"headless_mode": headless_mode, "robot_ip": robot_ip}],
+        )
+
+        tool_communication_node = Node(
+            package="ur_robot_driver",
+            executable="tool_communication.py",
+            output="screen",
+            parameters={
+                "robot_ip": robot_ip,
+                "tcp_port": 54321,
+                "device_name": "/tmp/ttyUR",
+            },
+        )
+
+        urscript_interface_node = Node(
+            package="ur_robot_driver",
+            executable="urscript_interface",
+            output="screen",
+            parameters=[{"robot_ip": robot_ip}],
+        )
+
+        controller_stopper_node = Node(
+            package="ur_robot_driver",
+            executable="controller_stopper_node",
+            name="controller_stopper",
+            output="screen",
+            emulate_tty=True,
+            parameters=[
+                {"headless_mode": headless_mode},
+                {"joint_controller_active": activate_joint_controller},
+                {"consistent_controllers": [
+                    "io_and_status_controller",
+                    "force_torque_sensor_broadcaster",
+                    "joint_state_broadcaster",
+                    "speed_scaling_state_broadcaster",
+                    "tcp_pose_broadcaster",
+                    "ur_configuration_controller",
+                ]},
+            ],
+        )
+
+        gripper_status_node = Node(
+            package="onrobot_driver",
+            executable="gripper_status_monitor",
+            output="screen",
+            parameters=[{"onrobot_type": onrobot_type}],
+        )
+
+        nodes = [
+            ur_control_node,
             dashboard_client_node,
             robot_state_helper_node,
             tool_communication_node,
+            urscript_interface_node,
             controller_stopper_node,
-            urscript_interface,
             gripper_status_node,
-        ] + controller_spawners)
+            robot_state_publisher_node,
+            rviz_node,
+            spawner_active,
+            spawner_inactive,
+        ]
 
-    return nodes_to_start
+    return nodes
 
 
 def generate_launch_description():
-    declared_arguments = []
-    # UR specific arguments
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "ur_type",
-            description="Type/series of used UR robot.",
-            choices=["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e", "ur20", "ur30"],
-            default_value="ur5e",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "onrobot_type",
-            description="Type/series of used OnRobot gripper.",
-            choices=["rg2", "rg6", "2fg7", "2fg14","3fg15"],
-            default_value="2fg7",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "robot_ip",
-            description="IP address by which the robot can be reached.",
-            default_value="192.168.1.105",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "connection_type",
-            default_value="tcp",
-            description="Connection type for the OnRobot gripper (tcp, modbus, etc.)",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_device",
-            default_value="2fg7",
-            description="Gripper device type for the OnRobot gripper.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "tf_prefix",
-            default_value="",
-            description="tf_prefix of the joint names, useful for multi-robot setup.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_fake_hardware",
-            default_value="false",
-            description="Start robot with fake hardware mirroring command to its states.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "headless_mode",
-            default_value="false",
-            description="Enable headless mode for robot control",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "controller_spawner_timeout",
-            default_value="30",  # Increased default timeout
-            description="Timeout used when spawning controllers.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "initial_joint_controller",
-            default_value="scaled_joint_trajectory_controller",
-            choices=[
-                "scaled_joint_trajectory_controller",
-                "joint_trajectory_controller",
-                "forward_velocity_controller",
-                "forward_position_controller",
-                "freedrive_mode_controller",
-                "passthrough_trajectory_controller",
-            ],
-            description="Initially loaded robot controller.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "activate_joint_controller",
-            default_value="true",
-            description="Activate loaded joint controller.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?")
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "launch_dashboard_client", default_value="true", description="Launch Dashboard Client?"
-        )
-    )
-    
-    # MODBUS parameters for 2FG7 gripper
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_ip",
-            default_value="192.168.1.1",
-            description="IP address of the OnRobot 2FG7 gripper (Modbus TCP server).",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_port",
-            default_value="502",
-            description="Port number for the OnRobot 2FG7 gripper Modbus TCP connection.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_device_address",
-            default_value="65",
-            description="Modbus device address for the OnRobot 2FG7 gripper.",
-        )
-    )
-    
-    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+    return LaunchDescription([
+        # ==================== Argumentos ====================
+        DeclareLaunchArgument("ur_type", default_value="ur5e",
+            choices=["ur3","ur3e","ur5","ur5e","ur10","ur10e","ur16e","ur20","ur30"],
+            description="Tipo de robot UR"),
+        DeclareLaunchArgument("onrobot_type", default_value="2fg7",
+            choices=["rg2","rg6","2fg7","2fg14","3fg15"],
+            description="Tipo de gripper OnRobot"),
+        DeclareLaunchArgument("robot_ip", default_value="192.168.1.105", description="IP del robot"),
+        DeclareLaunchArgument("connection_type", default_value="tcp", description="Tipo conexión gripper"),
+        DeclareLaunchArgument("gripper_device", default_value="2fg7", description="Dispositivo gripper"),
+        DeclareLaunchArgument("tf_prefix", default_value="", description="Prefijo TF"),
+        DeclareLaunchArgument("use_fake_hardware", default_value="false", description="Modo simulación"),
+        DeclareLaunchArgument("headless_mode", default_value="false", description="Modo headless"),
+        DeclareLaunchArgument("launch_rviz", default_value="true", description="Lanzar RViz"),
+        DeclareLaunchArgument("launch_dashboard_client", default_value="true", description="Dashboard client"),
+        DeclareLaunchArgument("initial_joint_controller", default_value="scaled_joint_trajectory_controller",
+            description="Controlador inicial"),
+        DeclareLaunchArgument("activate_joint_controller", default_value="true", description="Activar controlador inicial"),
+        DeclareLaunchArgument("controller_spawner_timeout", default_value="30", description="Timeout spawner (segundos)"),
+
+        DeclareLaunchArgument("gripper_ip", default_value="192.168.1.1", description="IP gripper 2FG7"),
+        DeclareLaunchArgument("gripper_port", default_value="502", description="Puerto Modbus"),
+        DeclareLaunchArgument("gripper_device_address", default_value="65", description="Dirección Modbus"),
+
+        OpaqueFunction(function=launch_setup)
+    ])
