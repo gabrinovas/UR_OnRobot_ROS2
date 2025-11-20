@@ -20,7 +20,7 @@ def launch_setup(context, *args, **kwargs):
     ur_type = LaunchConfiguration("ur_type")
     onrobot_type = LaunchConfiguration("onrobot_type")
     robot_ip = LaunchConfiguration("robot_ip")
-
+    connection_type = LaunchConfiguration("connection_type")
     tf_prefix = LaunchConfiguration("tf_prefix")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
 
@@ -61,7 +61,8 @@ def launch_setup(context, *args, **kwargs):
             use_fake_hardware,
             " ",
             # MODBUS parameters for 2FG7 - ensure ALL parameters are passed
-            "connection_type:=tcp",
+            "connection_type:=",
+            connection_type,
             " ",
             "ip_address:=",
             gripper_ip,
@@ -317,7 +318,13 @@ def generate_launch_description():
             default_value="192.168.1.105",  # Uses the Polyscope sim by default
         )
     )
-
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "connection_type",
+            default_value="tcp",
+            description="Connection type for the OnRobot gripper (tcp, modbus, etc.)",
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "tf_prefix",
@@ -403,4 +410,3 @@ def generate_launch_description():
     )
     
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
-
