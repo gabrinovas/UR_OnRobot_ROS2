@@ -109,8 +109,6 @@ def launch_setup(context, *args, **kwargs):
         "initial_wrist_1_joint": -1.442179,
         "initial_wrist_2_joint": -1.519554,
         "initial_wrist_3_joint":  0.154681,
-
-         
     }
 
     control_node = Node(
@@ -151,6 +149,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{"robot_ip": robot_ip}],
     )
 
+    # Only launch robot_state_helper for real hardware
     robot_state_helper_node = Node(
         package="ur_robot_driver",
         executable="robot_state_helper",
@@ -160,8 +159,10 @@ def launch_setup(context, *args, **kwargs):
             {"headless_mode": headless_mode},
             {"robot_ip": robot_ip},
         ],
+        condition=UnlessCondition(use_fake_hardware),
     )
 
+    # Only launch tool_communication for real hardware
     tool_communication_node = Node(
         package="ur_robot_driver",
         executable="tool_communication.py",
@@ -174,15 +175,19 @@ def launch_setup(context, *args, **kwargs):
                 "device_name": "/tmp/ttyUR",
             }
         ],
+        condition=UnlessCondition(use_fake_hardware),
     )
 
+    # Only launch urscript_interface for real hardware
     urscript_interface = Node(
         package="ur_robot_driver",
         executable="urscript_interface",
         parameters=[{"robot_ip": robot_ip}],
         output="screen",
+        condition=UnlessCondition(use_fake_hardware),
     )
 
+    # Only launch controller_stopper for real hardware
     controller_stopper_node = Node(
         package="ur_robot_driver",
         executable="controller_stopper_node",
@@ -222,7 +227,7 @@ def launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config_file],
     )
 
-    # Gripper status monitor node
+    # Gripper status monitor node - only for real hardware
     gripper_status_node = Node(
         package="onrobot_driver",
         executable="gripper_status_monitor",
@@ -255,7 +260,6 @@ def launch_setup(context, *args, **kwargs):
         "io_and_status_controller",
         "speed_scaling_state_broadcaster",
         "force_torque_sensor_broadcaster",
-        "tcp_pose_broadcaster",
         "ur_configuration_controller",
         "finger_width_controller",
     ]
@@ -268,30 +272,41 @@ def launch_setup(context, *args, **kwargs):
         "passthrough_trajectory_controller",
         "freedrive_mode_controller",
     ]
+    
+    # Add tcp_pose_broadcaster only for real hardware
+    if use_fake_hardware.perform(context) != "true":
+        controllers_active.append("tcp_pose_broadcaster")
+    
     if activate_joint_controller.perform(context) == "true":
         controllers_active.append(initial_joint_controller.perform(context))
-        controllers_inactive.remove(initial_joint_controller.perform(context))
-
-    if use_fake_hardware.perform(context) == "true":
-        controllers_active.remove("tcp_pose_broadcaster")
+        if initial_joint_controller.perform(context) in controllers_inactive:
+            controllers_inactive.remove(initial_joint_controller.perform(context))
 
     controller_spawners = [
         controller_spawner(controllers_active),
         controller_spawner(controllers_inactive, active=False),
     ]
 
+    # Base nodes that always start
     nodes_to_start = [
         control_node,
         ur_control_node,
-        dashboard_client_node,
-        robot_state_helper_node,
-        tool_communication_node,
-        controller_stopper_node,
-        urscript_interface,
         robot_state_publisher_node,
         rviz_node,
-        gripper_status_node,
-    ] + controller_spawners
+    ]
+
+    # Add nodes based on hardware type
+    if use_fake_hardware.perform(context) == "true":
+        nodes_to_start.extend(controller_spawners)
+    else:
+        nodes_to_start.extend([
+            dashboard_client_node,
+            robot_state_helper_node,
+            tool_communication_node,
+            controller_stopper_node,
+            urscript_interface,
+            gripper_status_node,
+        ] + controller_spawners)
 
     return nodes_to_start
 
