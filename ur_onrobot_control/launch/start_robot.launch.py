@@ -21,6 +21,7 @@ def launch_setup(context, *args, **kwargs):
     onrobot_type = LaunchConfiguration("onrobot_type")
     robot_ip = LaunchConfiguration("robot_ip")
     connection_type = LaunchConfiguration("connection_type")
+    gripper_device = LaunchConfiguration("gripper_device")
     tf_prefix = LaunchConfiguration("tf_prefix")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
 
@@ -32,9 +33,9 @@ def launch_setup(context, *args, **kwargs):
     launch_dashboard_client = LaunchConfiguration("launch_dashboard_client")
 
     # MODBUS parameters for 2FG7 gripper
-    gripper_ip = LaunchConfiguration("gripper_ip", default="192.168.1.1")
-    gripper_port = LaunchConfiguration("gripper_port", default="502")
-    gripper_device_address = LaunchConfiguration("gripper_device_address", default="65")
+    gripper_ip = LaunchConfiguration("gripper_ip")
+    gripper_port = LaunchConfiguration("gripper_port")
+    gripper_device_address = LaunchConfiguration("gripper_device_address")
 
     robot_description_content = Command(
         [
@@ -60,9 +61,12 @@ def launch_setup(context, *args, **kwargs):
             "use_fake_hardware:=",
             use_fake_hardware,
             " ",
-            # MODBUS parameters for 2FG7 - ensure ALL parameters are passed
+            # Gripper parameters
             "connection_type:=",
             connection_type,
+            " ",
+            "gripper_device:=",
+            gripper_device,
             " ",
             "ip_address:=",
             gripper_ip,
@@ -129,7 +133,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
-            {"robot_ip": "192.168.1.105"},
+            {"robot_ip": robot_ip},
         ],
         output="screen",
         condition=UnlessCondition(use_fake_hardware),
@@ -323,6 +327,13 @@ def generate_launch_description():
             "connection_type",
             default_value="tcp",
             description="Connection type for the OnRobot gripper (tcp, modbus, etc.)",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "gripper_device",
+            default_value="2fg7",
+            description="Gripper device type for the OnRobot gripper.",
         )
     )
     declared_arguments.append(
