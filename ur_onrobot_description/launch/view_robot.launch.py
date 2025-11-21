@@ -67,43 +67,8 @@ def generate_launch_description():
             "tf_prefix",
             default_value='""',
             description="Prefix of the joint names, useful for "
-            "multi-robot setup. If changed than also joint names in the controllers' "
-            "configuration have to be updated.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_fake_hardware",
-            default_value="true",
-            description="Use fake hardware for visualization/simulation.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "connection_type",
-            default_value="tcp",
-            description="Connection type for OnRobot gripper (tcp/serial).",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "ip_address",
-            default_value="192.168.1.1",
-            description="IP address for OnRobot gripper TCP connection.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "port",
-            default_value="502",
-            description="Port for OnRobot gripper TCP connection.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "device_address",
-            default_value="65",
-            description="Device address for OnRobot gripper.",
+            "multi-robot setup. If changed than also joint names in the controllers' configuration "
+            "have to be updated.",
         )
     )
 
@@ -117,11 +82,6 @@ def generate_launch_description():
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
     tf_prefix = LaunchConfiguration("tf_prefix")
-    use_fake_hardware = LaunchConfiguration("use_fake_hardware")
-    connection_type = LaunchConfiguration("connection_type")
-    ip_address = LaunchConfiguration("ip_address")
-    port = LaunchConfiguration("port")
-    device_address = LaunchConfiguration("device_address")
 
     robot_description_content = Command(
         [
@@ -149,22 +109,6 @@ def generate_launch_description():
             " ",
             "tf_prefix:=",
             tf_prefix,
-            " ",
-            "use_fake_hardware:=",
-            use_fake_hardware,
-            " ",
-            "connection_type:=",
-            connection_type,
-            " ",
-            "ip_address:=",
-            ip_address,
-            " ",
-            "port:=",
-            port,
-            " ",
-            "device_address:=",
-            device_address,
-            " ",
         ]
     )
     robot_description = {
