@@ -1,7 +1,3 @@
-"""
-NO PRODUCE MOVIMIENTO EXTRAÑO EN EL ROBOT REAL
-"""
-
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -35,11 +31,6 @@ def launch_setup(context, *args, **kwargs):
     headless_mode = LaunchConfiguration("headless_mode")
     launch_dashboard_client = LaunchConfiguration("launch_dashboard_client")
 
-    # MODBUS parameters for 2FG7 gripper
-    gripper_ip = LaunchConfiguration("gripper_ip", default="192.168.1.1")
-    gripper_port = LaunchConfiguration("gripper_port", default="502")
-    gripper_device_address = LaunchConfiguration("gripper_device_address", default="65")
-
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -64,18 +55,6 @@ def launch_setup(context, *args, **kwargs):
             "use_fake_hardware:=",
             use_fake_hardware,
             " ",
-            # MODBUS parameters for 2FG7 - ensure ALL parameters are passed
-            "connection_type:=tcp",
-            " ",
-            "ip_address:=",
-            gripper_ip,
-            " ",
-            "port:=",
-            gripper_port,
-            " ",
-            "device_address:=",
-            gripper_device_address,
-            " ",
         ]
     )
     robot_description = {
@@ -99,19 +78,6 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
-    # Create parameters for initial positions
-    initial_positions_params = {
-        # Set initial positions for fake hardware
-        "initial_shoulder_pan_joint": 1.582956,
-        "initial_shoulder_lift_joint": -1.850573,
-        "initial_elbow_joint":  1.796592,
-        "initial_wrist_1_joint": -1.442179,
-        "initial_wrist_2_joint": -1.519554,
-        "initial_wrist_3_joint":  0.154681,
-
-         
-    }
-
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -119,7 +85,6 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
-            initial_positions_params,
         ],
         output="screen",
         condition=IfCondition(use_fake_hardware),
@@ -132,9 +97,8 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
-            {"robot_ip": "192.168.1.105"},
         ],
-        output="log",
+        output="screen",
         condition=UnlessCondition(use_fake_hardware),
     )
 
@@ -157,7 +121,6 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
         parameters=[
             {"headless_mode": headless_mode},
-            {"robot_ip": robot_ip},
         ],
     )
 
@@ -221,18 +184,6 @@ def launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config_file],
     )
 
-    # Gripper status monitor node
-    gripper_status_node = Node(
-        package="onrobot_driver",
-        executable="gripper_status_monitor",
-        name="gripper_status_monitor",
-        output="screen",
-        parameters=[{
-            "onrobot_type": onrobot_type,
-        }],
-        condition=UnlessCondition(use_fake_hardware),
-    )
-
     # Spawn controllers
     def controller_spawner(controllers, active=True):
         inactive_flags = ["--inactive"] if not active else []
@@ -289,7 +240,6 @@ def launch_setup(context, *args, **kwargs):
         urscript_interface,
         robot_state_publisher_node,
         rviz_node,
-        gripper_status_node,
     ] + controller_spawners
 
     return nodes_to_start
@@ -310,7 +260,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "onrobot_type",
             description="Type/series of used OnRobot gripper.",
-            choices=["rg2", "rg6", "2fg7", "2fg14","3fg15"],
+            choices=["rg2", "rg6", "2fg7", "2fg14", "3fg15"],
             default_value="2fg7",
         )
     )
@@ -318,7 +268,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "robot_ip",
             description="IP address by which the robot can be reached.",
-            default_value="192.168.1.105",  # Uses the Polyscope sim by default
+            default_value="192.168.56.101",  # Uses the Polyscope sim by default
         )
     )
 
@@ -382,28 +332,4 @@ def generate_launch_description():
             "launch_dashboard_client", default_value="true", description="Launch Dashboard Client?"
         )
     )
-    
-    # MODBUS parameters for 2FG7 gripper
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_ip",
-            default_value="192.168.1.1",
-            description="IP address of the OnRobot 2FG7 gripper (Modbus TCP server).",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_port",
-            default_value="502",
-            description="Port number for the OnRobot 2FG7 gripper Modbus TCP connection.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_device_address",
-            default_value="65",
-            description="Modbus device address for the OnRobot 2FG7 gripper.",
-        )
-    )
-    
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
