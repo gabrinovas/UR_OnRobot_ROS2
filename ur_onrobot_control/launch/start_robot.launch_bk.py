@@ -1,7 +1,6 @@
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition, UnlessCondition
@@ -94,16 +93,6 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
-    # # Create parameters for initial positions
-    # initial_positions_params = {
-    #     # Set initial positions for fake hardware
-    #     "initial_shoulder_pan_joint": 0.0,
-    #     "initial_shoulder_lift_joint": -1.57,
-    #     "initial_elbow_joint": 1.57,
-    #     "initial_wrist_1_joint": -1.57,
-    #     "initial_wrist_2_joint": -1.57,
-    #     "initial_wrist_3_joint": 0.0,
-    # }
 
     control_node = Node(
         package="controller_manager",
@@ -112,7 +101,6 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
-            # initial_positions_params,
         ],
         output="screen",
         condition=IfCondition(use_fake_hardware),
@@ -125,6 +113,7 @@ def launch_setup(context, *args, **kwargs):
             robot_description,
             update_rate_config_file,
             ParameterFile(initial_joint_controllers, allow_substs=True),
+            {"robot_ip": "192.168.1.105"},
         ],
         output="screen",
         condition=UnlessCondition(use_fake_hardware),
@@ -147,9 +136,7 @@ def launch_setup(context, *args, **kwargs):
         executable="robot_state_helper",
         name="ur_robot_state_helper",
         output="screen",
-        parameters=[
-            {"headless_mode": headless_mode},
-        ],
+        parameters=[{"headless_mode": headless_mode}],
     )
 
     tool_communication_node = Node(
@@ -219,29 +206,22 @@ def launch_setup(context, *args, **kwargs):
         executable="gripper_status_monitor",
         name="gripper_status_monitor",
         output="screen",
-        parameters=[{
-            "onrobot_type": onrobot_type,
-        }],
+        parameters=[{"onrobot_type": onrobot_type}],
         condition=UnlessCondition(use_fake_hardware),
     )
 
-    # Spawn controllers
+    # ---------------------- Controller spawners ----------------------
     def controller_spawner(controllers, active=True):
         inactive_flags = ["--inactive"] if not active else []
         return Node(
             package="controller_manager",
             executable="spawner",
             arguments=[
-                "--controller-manager",
-                "/controller_manager",
-                "--controller-manager-timeout",
-                controller_spawner_timeout,
-            ]
-            + inactive_flags
-            + controllers,
+                "--controller-manager", "/controller_manager",
+                "--controller-manager-timeout", controller_spawner_timeout,
+            ] + inactive_flags + controllers,
         )
 
-    # Base controllers that should always be active
     controllers_always_active = [
         "joint_state_broadcaster",
         "io_and_status_controller",
@@ -251,7 +231,6 @@ def launch_setup(context, *args, **kwargs):
         "finger_width_controller",
     ]
 
-    # Controllers that depend on conditions
     controllers_conditional = [
         "scaled_joint_trajectory_controller",
         "joint_trajectory_controller",
@@ -262,11 +241,11 @@ def launch_setup(context, *args, **kwargs):
         "freedrive_mode_controller",
     ]
 
-    # TCP pose broadcaster only for real hardware
+    # tcp_pose_broadcaster solo en hardware real
     if use_fake_hardware.perform(context) != "true":
         controllers_always_active.append("tcp_pose_broadcaster")
 
-    # Handle initial joint controller
+    # Activar el controlador inicial si se pide
     if activate_joint_controller.perform(context) == "true":
         initial_controller = initial_joint_controller.perform(context)
         if initial_controller in controllers_conditional:
@@ -296,7 +275,17 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     declared_arguments = []
-    # UR specific arguments
+
+    # ============ SOLO CAMBIO AQUÍ: default_value="192.168.1.105" ============
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "robot_ip",
+            description="IP address by which the robot can be reached.",
+            default_value="192.168.1.105",
+        )
+    )
+    # ========================================================================
+
     declared_arguments.append(
         DeclareLaunchArgument(
             "ur_type",
@@ -315,19 +304,9 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "robot_ip",
-            description="IP address by which the robot can be reached.",
-            default_value="192.168.1.101",
-        )
-    )
-
-    declared_arguments.append(
-        DeclareLaunchArgument(
             "tf_prefix",
             default_value="",
-            description="tf_prefix of the joint names, useful for "
-            "multi-robot setup. If changed, also joint names in the controllers' configuration "
-            "have to be updated.",
+            description="tf_prefix of the joint names, useful for multi-robot setup.",
         )
     )
     declared_arguments.append(
@@ -340,7 +319,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "headless_mode",
-            default_value="false",
+            default_value="true",
             description="Enable headless mode for robot control",
         )
     )
@@ -377,19 +356,17 @@ def generate_launch_description():
         DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?")
     )
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "launch_dashboard_client", default_value="true", description="Launch Dashboard Client?"
-        )
+        DeclareLaunchArgument("launch_dashboard_client", default_value="true", description="Launch Dashboard Client?")
     )
-    
-    # UR description parameters
+
+    # UR description parameters (todos siguen siendo configurables)
     declared_arguments.append(
         DeclareLaunchArgument(
             "joint_limits_parameters_file",
             default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
+                FindPackageShare("ur_description"),
+                "config",
+                LaunchConfiguration("ur_type"),
                 "joint_limits.yaml"
             ]),
             description="Path to joint limits parameters file.",
@@ -399,9 +376,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "kinematics_parameters_file",
             default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
+                FindPackageShare("ur_description"),
+                "config",
+                LaunchConfiguration("ur_type"),
                 "default_kinematics.yaml"
             ]),
             description="Path to kinematics parameters file.",
@@ -411,9 +388,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "physical_parameters_file",
             default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
+                FindPackageShare("ur_description"),
+                "config",
+                LaunchConfiguration("ur_type"),
                 "physical_parameters.yaml"
             ]),
             description="Path to physical parameters file.",
@@ -423,9 +400,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "visual_parameters_file",
             default_value=PathJoinSubstitution([
-                FindPackageShare("ur_description"), 
-                "config", 
-                LaunchConfiguration("ur_type"), 
+                FindPackageShare("ur_description"),
+                "config",
+                LaunchConfiguration("ur_type"),
                 "visual_parameters.yaml"
             ]),
             description="Path to visual parameters file.",
@@ -465,42 +442,26 @@ def generate_launch_description():
         )
     )
 
-    # MODBUS parameters for gripper
+    # Parámetros Modbus del gripper (todos configurables)
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "connection_type",
-            default_value="tcp",
-            description="Connection type for OnRobot gripper (tcp/serial).",
-            choices=["tcp", "serial"],
-        )
+        DeclareLaunchArgument("connection_type", default_value="tcp", choices=["tcp", "serial"],
+                              description="Connection type for OnRobot gripper (tcp/serial).")
     )
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_ip",
-            default_value="192.168.1.1",
-            description="IP address of the OnRobot gripper (Modbus TCP server).",
-        )
+        DeclareLaunchArgument("gripper_ip", default_value="192.168.1.1",
+                              description="IP address of the OnRobot gripper (Modbus TCP server).")
     )
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_port",
-            default_value="502",
-            description="Port number for the OnRobot gripper Modbus TCP connection.",
-        )
+        DeclareLaunchArgument("gripper_port", default_value="502",
+                              description="Port number for the OnRobot gripper Modbus TCP connection.")
     )
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_device_address",
-            default_value="65",
-            description="Modbus device address for the OnRobot gripper.",
-        )
+        DeclareLaunchArgument("gripper_device_address", default_value="65",
+                              description="Modbus device address for the OnRobot gripper.")
     )
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "gripper_device",
-            default_value="/tmp/ttyUR",
-            description="Serial device for the OnRobot gripper (for serial connection).",
-        )
+        DeclareLaunchArgument("gripper_device", default_value="/tmp/ttyUR",
+                              description="Serial device for the OnRobot gripper (for serial connection).")
     )
-    
+
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
