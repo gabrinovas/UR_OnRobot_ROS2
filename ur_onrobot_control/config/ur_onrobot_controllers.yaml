@@ -1,5 +1,7 @@
 controller_manager:
   ros__parameters:
+    update_rate: 100  # Hz
+
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
@@ -46,6 +48,20 @@ finger_width_controller:
   ros__parameters:
     joints:
       - $(var tf_prefix)finger_width
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+    state_publish_rate: 50.0
+    action_monitor_rate: 10.0
+    # Add gripper-specific parameters
+    allow_partial_joints_goal: true
+    constraints:
+      goal_time: 5.0
+      stopped_velocity_tolerance: 0.01
+      finger_width:
+        goal: 0.001
+        trajectory: 0.001
 
 speed_scaling_state_broadcaster:
   ros__parameters:
@@ -178,3 +194,17 @@ tcp_pose_broadcaster:
     pose_name: $(var tf_prefix)tcp_pose
     tf:
       child_frame_id: $(var tf_prefix)tool0_controller
+
+# 2FG7 specific hardware parameters
+onrobot_2fg7_hardware:
+  ros__parameters:
+    onrobot_type: "2fg7"
+    connection_type: "tcp"
+    ip_address: "192.168.1.1"  # Default from documentation
+    port: 502
+    device_address: 65  # Default from documentation
+    prefix: "$(var tf_prefix)"
+    # Add these missing parameters
+    use_fake_hardware: false
+    device: "/tmp/ttyUR"  # fallback for serial
+

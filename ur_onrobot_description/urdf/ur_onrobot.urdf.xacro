@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot name="ur_onrobot" xmlns:xacro="http://ros.org/wiki/xacro">
     <!-- Arguments -->
-    <xacro:arg name="robot_ip" default="192.168.56.101"/>
+    <xacro:arg name="robot_ip" default="192.168.1.105"/>
     <xacro:arg name="ur_type" default="ur5e"/>
     <xacro:arg name="onrobot_type" default="2fg7"/>
     <xacro:arg name="tf_prefix" default=""/>
@@ -14,6 +14,12 @@
     <xacro:arg name="script_filename" default="$(find ur_client_library)/resources/external_control.urscript"/>
     <xacro:arg name="input_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_input_recipe.txt"/>
     <xacro:arg name="output_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_output_recipe.txt"/>
+    
+    <!-- MODBUS parameters -->
+    <xacro:arg name="connection_type" default="tcp"/>
+    <xacro:arg name="ip_address" default="192.168.1.1"/>
+    <xacro:arg name="port" default="502"/>
+    <xacro:arg name="device_address" default="65"/>
 
     <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot_macro.xacro"/>
 
@@ -34,6 +40,10 @@
         script_filename="$(arg script_filename)"
         output_recipe_filename="$(arg output_recipe_filename)"
         input_recipe_filename="$(arg input_recipe_filename)"
+        connection_type="$(arg connection_type)"
+        ip_address="$(arg ip_address)"
+        port="$(arg port)"
+        device_address="$(arg device_address)"
         >
         <origin xyz="0 0 1" rpy="0 0 0" />
     </xacro:ur_onrobot>
