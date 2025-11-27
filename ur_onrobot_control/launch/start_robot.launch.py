@@ -1,97 +1,150 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription
-from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, LogInfo, Shutdown
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 
 import subprocess
+import sys
 
-def detect_robot_only_when_needed(context):
+def detect_robot_and_configure(context):
     use_fake = LaunchConfiguration('use_fake_hardware').perform(context)
     robot_side = LaunchConfiguration('robot_side').perform(context)
     
     # Si se fuerza simulación, retornar inmediatamente
     if use_fake == "true":
-        print(f"\nModo simulación forzado → MODO SIMULACIÓN ({robot_side})\n")
+        print("\n🔄 Modo simulación forzado → MODO SIMULACIÓN")
         return [SetLaunchConfiguration('use_fake_hardware', 'true'),
                 SetLaunchConfiguration('robot_ip', '127.0.0.1'),
-                SetLaunchConfiguration('robot_detected', 'true')]
+                SetLaunchConfiguration('robot_detected', 'true'),
+                SetLaunchConfiguration('simulation_mode', 'true')]
 
-    # Determinar IPs objetivo según el lado del robot (CORREGIDO)
-    if robot_side == "left":
-        target_ips = ["192.168.1.105"]  # Robot izquierdo
-    elif robot_side == "right":
-        target_ips = ["192.168.1.101"]  # Robot derecho
-    else:  # both o cualquier otro valor
-        target_ips = ["192.168.1.101", "192.168.1.105"]  # IPs para ambos robots
-
-    # Verificar conectividad con las IPs
-    for ip in target_ips:
+    # Definir IPs para cada robot
+    ips_by_side = {
+        'left': '192.168.1.105',
+        'right': '192.168.1.101'
+    }
+    
+    detected_robots = []
+    
+    # Detectar qué robots están disponibles
+    for side, ip in ips_by_side.items():
         result = subprocess.run(['ping', '-c', '1', '-W', '1', ip],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if result.returncode == 0:
-            print(f"\nRobot físico detectado en {ip} → MODO REAL ({robot_side})\n")
-            return [SetLaunchConfiguration('use_fake_hardware', 'false'),
-                    SetLaunchConfiguration('robot_ip', ip),
-                    SetLaunchConfiguration('robot_detected', 'true')]
+            detected_robots.append((side, ip))
+            print(f"✅ Robot {side} detectado en {ip}")
 
-    print(f"\nNo se detectó robot físico en {target_ips} → NO SE INICIA EL SISTEMA ({robot_side})\n")
-    return [SetLaunchConfiguration('use_fake_hardware', 'true'),
-            SetLaunchConfiguration('robot_ip', '127.0.0.1'),
-            SetLaunchConfiguration('robot_detected', 'false')]
+    # Lógica de decisión
+    if len(detected_robots) == 0:
+        print("\n❌ No se detectó ningún robot físico → MODO SIMULACIÓN")
+        return [SetLaunchConfiguration('use_fake_hardware', 'true'),
+                SetLaunchConfiguration('robot_ip', '127.0.0.1'),
+                SetLaunchConfiguration('robot_detected', 'true'),
+                SetLaunchConfiguration('simulation_mode', 'true')]
+    
+    elif len(detected_robots) == 1:
+        detected_side, detected_ip = detected_robots[0]
+        print(f"\n✅ Robot {detected_side} detectado → MODO REAL")
+        
+        # Si el usuario especificó un lado diferente al detectado, usar simulación
+        if robot_side != 'auto' and robot_side != detected_side:
+            print(f"⚠️  Usuario solicitó robot '{robot_side}' pero solo está disponible '{detected_side}'")
+            print("🔁 Cambiando a modo simulación para el escenario solicitado")
+            return [SetLaunchConfiguration('use_fake_hardware', 'true'),
+                    SetLaunchConfiguration('robot_ip', '127.0.0.1'),
+                    SetLaunchConfiguration('robot_detected', 'true'),
+                    SetLaunchConfiguration('simulation_mode', 'true')]
+        
+        return [SetLaunchConfiguration('use_fake_hardware', 'false'),
+                SetLaunchConfiguration('robot_ip', detected_ip),
+                SetLaunchConfiguration('robot_detected', 'true'),
+                SetLaunchConfiguration('simulation_mode', 'false'),
+                SetLaunchConfiguration('detected_side', detected_side)]
+    
+    else:  # Ambos robots detectados
+        print("\n❌ AMBOS ROBOTS DETECTADOS - CONFLICTO")
+        print("Se detectaron ambos robots físicos:")
+        for side, ip in detected_robots:
+            print(f"  - Robot {side}: {ip}")
+        print("\n💡 SOLUCIÓN: Especifica qué robot usar con el argumento:")
+        print("   'robot_side:=left' o 'robot_side:=right'")
+        print("\n🚫 Cerrando ejecución...")
+        
+        # Retornar acciones que terminen la ejecución
+        return [LogInfo(msg="Conflicto: ambos robots detectados"),
+                SetLaunchConfiguration('robot_detected', 'false'),
+                Shutdown(reason='Conflicto de robots detectados')]
 
 def generate_launch_description():
     declared_arguments = [
         DeclareLaunchArgument('ur_type', default_value='ur5e',
-                            description='Tipo de robot UR (ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e, ur20)'),
+                            description='Tipo de robot UR (ur5, ur5e, ur10, etc.)'),
         DeclareLaunchArgument('robot_ip', default_value='192.168.1.101',
-                            description='Dirección IP del robot físico'),
+                            description='IP del robot (se autodetecta)'),
         DeclareLaunchArgument('use_fake_hardware', default_value='false',
-                            description='Si es true, fuerza simulación'),
+                            description='Forzar modo simulación (true/false)'),
         DeclareLaunchArgument('onrobot_type', default_value='2fg7',
-                            description='Tipo de gripper OnRobot (2fg7, rg2, etc.)'),
+                            description='Tipo de gripper OnRobot'),
         DeclareLaunchArgument('launch_onrobot', default_value='true',
-                            description='Si se lanza el controlador del gripper'),
+                            description='Lanzar control del gripper'),
         DeclareLaunchArgument('rviz_config', default_value='view_robot.rviz',
-                            description='Archivo de configuración de RViz'),
+                            description='Configuración de RVIZ'),
         DeclareLaunchArgument('robot_detected', default_value='false',
-                            description='Indica si se detectó el robot físico'),
-        DeclareLaunchArgument('robot_side', default_value='both',
-                            choices=['left', 'right', 'both'],
-                            description='Lado del robot a lanzar: left, right o both'),
-        DeclareLaunchArgument('namespace', default_value='',
-                            description='Namespace para múltiples robots')
+                            description='Indica si se detectó robot físico'),
+        DeclareLaunchArgument('simulation_mode', default_value='false',
+                            description='Indica si estamos en modo simulación'),
+        DeclareLaunchArgument('robot_side', default_value='auto',
+                            choices=['auto', 'left', 'right', 'base'],
+                            description='Lado del robot (auto=autodetectar, base=escenario base)'),
+        DeclareLaunchArgument('environment', default_value='with_environment',
+                            choices=['with_environment', 'basic'],
+                            description='Tipo de entorno a visualizar'),
+        DeclareLaunchArgument('detected_side', default_value='none',
+                            description='Lado detectado automáticamente'),
     ]
 
-    detection_action = OpaqueFunction(function=detect_robot_only_when_needed)
+    detection_action = OpaqueFunction(function=detect_robot_and_configure)
 
-    # ====== CONFIGURACIÓN DE ARCHIVOS SEGÚN LADO DEL ROBOT ======
-    def get_urdf_filename(robot_side):
-        if robot_side == "left":
-            return "left_robot_with_environment.urdf.xacro"
-        elif robot_side == "right":
-            return "right_robot_with_environment.urdf.xacro"
-        else:  # both
-            return "ur_onrobot.urdf.xacro"
-
-    def get_rviz_config(robot_side):
-        if robot_side == "left":
-            return "view_left_robot.rviz"
-        elif robot_side == "right":
-            return "view_right_robot.rviz"
-        else:  # both
-            return "view_robot.rviz"
+    # ====== SELECCIÓN DE ARCHIVOS URDF SEGÚN CONFIGURACIÓN ======
+    def get_urdf_filename(context):
+        robot_side = LaunchConfiguration('robot_side').perform(context)
+        environment = LaunchConfiguration('environment').perform(context)
+        simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
+        detected_side = LaunchConfiguration('detected_side').perform(context)
+        
+        # Determinar el lado real a usar
+        actual_side = detected_side if detected_side != 'none' else robot_side
+        if actual_side == 'auto' and simulation_mode == 'false':
+            actual_side = detected_side
+        
+        print(f"\n🎯 Configuración:")
+        print(f"   - Lado solicitado: {robot_side}")
+        print(f"   - Lado detectado: {detected_side}")
+        print(f"   - Lado real: {actual_side}")
+        print(f"   - Entorno: {environment}")
+        print(f"   - Modo simulación: {simulation_mode}")
+        
+        # Seleccionar archivo URDF
+        if environment == 'basic':
+            return 'ur_onrobot.urdf.xacro'
+        elif actual_side == 'left':
+            return 'left_robot_with_environment.urdf.xacro'
+        elif actual_side == 'right':
+            return 'right_robot_with_environment.urdf.xacro'
+        else:  # base o cualquier otro caso
+            return 'ur_onrobot.urdf.xacro'
 
     # ====== ROBOT DESCRIPTION ======
     robot_description_content = Command([
         'xacro ', PathJoinSubstitution([
-            FindPackageShare('ur_onrobot_control' if LaunchConfiguration('robot_side') != 'both' else 'ur_onrobot_description'),
+            FindPackageShare('ur_onrobot_control' if LaunchConfiguration('environment').perform != 'basic' else 'ur_onrobot_description'),
             'urdf',
-            get_urdf_filename(LaunchConfiguration('robot_side').perform)
+            PythonExpression(['"', get_urdf_filename, '"'])
         ]),
         ' ur_type:=', LaunchConfiguration('ur_type'),
         ' robot_ip:=', LaunchConfiguration('robot_ip'),
@@ -139,19 +192,10 @@ def generate_launch_description():
             'launch_rviz': 'false',
             'headless_mode': 'false',
             'launch_robot_state_publisher': 'false',
-            'description_package': 'ur_onrobot_control' if LaunchConfiguration('robot_side') != 'both' else 'ur_onrobot_description',
-            'description_file': get_urdf_filename(LaunchConfiguration('robot_side').perform),
-            'runtime_config_package': 'ur_robot_driver',
-            'controllers_file': 'ur_controllers.yaml',
-            'kinematics_params_file': PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_description'),
-                'config',
-                LaunchConfiguration('ur_type'),
-                'default_kinematics.yaml'
-            ]) if LaunchConfiguration('robot_side') == 'both' else '',
-            'initial_joint_controller': 'scaled_joint_trajectory_controller',
-            'activate_joint_controller': 'true',
-            'launch_dashboard_client': 'false',
+            'description_package': 'ur_onrobot_control' if PythonExpression([
+                LaunchConfiguration('environment'), ' != "basic"'
+            ]) else 'ur_onrobot_description',
+            'description_file': PythonExpression(['"', get_urdf_filename, '"']),
         }.items(),
         condition=IfCondition(LaunchConfiguration('robot_detected'))
     )
@@ -178,7 +222,7 @@ def generate_launch_description():
     rviz_config_path = PathJoinSubstitution([
         FindPackageShare('ur_onrobot_description'),
         'rviz',
-        get_rviz_config(LaunchConfiguration('robot_side').perform)
+        LaunchConfiguration('rviz_config')
     ])
 
     rviz_node = Node(
