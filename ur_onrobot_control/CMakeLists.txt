@@ -8,4 +8,10 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+# Instalar scripts Python como EJECUTABLES
+install(PROGRAMS
+  scripts/joint_state_merger.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

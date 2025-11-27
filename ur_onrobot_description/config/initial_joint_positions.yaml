@@ -1,9 +1,12 @@
 controller_manager:
   ros__parameters:
-    # Set initial positions for fake hardware
-    initial_shoulder_pan_joint: 0.0
+    # Posiciones iniciales del brazo UR
+    initial_shoulder_pan_joint:   1.57
     initial_shoulder_lift_joint: -1.57
-    initial_elbow_joint: 1.57
-    initial_wrist_1_joint: -1.57
-    initial_wrist_2_joint: -1.57
-    initial_wrist_3_joint: 0.0
+    initial_elbow_joint:          1.57
+    initial_wrist_1_joint:       -1.57
+    initial_wrist_2_joint:       -1.57
+    initial_wrist_3_joint:        0.0
+
+    # Posición inicial del gripper OnRobot
+    initial_finger_joint:         0.060
