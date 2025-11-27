@@ -54,7 +54,7 @@ def generate_launch_description():
         'xacro ', PathJoinSubstitution([
             FindPackageShare('ur_onrobot_control'),
             'urdf',
-            'right_robot_with_environment.urdf.xacro'
+            'left_robot_with_environment.urdf.xacro'
         ]),
         ' ur_type:=', LaunchConfiguration('ur_type'),
         ' robot_ip:=', LaunchConfiguration('robot_ip'),
@@ -103,7 +103,7 @@ def generate_launch_description():
             'headless_mode': 'false',
             'launch_robot_state_publisher': 'false',
             'description_package': 'ur_onrobot_control',
-            'description_file': 'right_robot_with_environment.urdf.xacro',
+            'description_file': 'left_robot_with_environment.urdf.xacro',
         }.items(),
         condition=IfCondition(LaunchConfiguration('robot_detected'))
     )
@@ -139,7 +139,6 @@ def generate_launch_description():
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_path],
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
     )
 
     return LaunchDescription([

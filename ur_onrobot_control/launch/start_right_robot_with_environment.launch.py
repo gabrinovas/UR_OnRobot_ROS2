@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.substitutions import FindPackageShare
@@ -12,22 +12,29 @@ import subprocess
 
 def detect_robot_only_when_needed(context):
     use_fake = LaunchConfiguration('use_fake_hardware').perform(context)
+    
+    # Si se fuerza simulación, retornar inmediatamente
     if use_fake == "true":
+        print("\nModo simulación forzado → MODO SIMULACIÓN\n")
         return [SetLaunchConfiguration('use_fake_hardware', 'true'),
-                SetLaunchConfiguration('robot_ip', '127.0.0.1')]
+                SetLaunchConfiguration('robot_ip', '127.0.0.1'),
+                SetLaunchConfiguration('robot_detected', 'true')]
 
-    ips = ["192.168.1.101", "192.168.1.105"]
-    for ip in ips:
-        result = subprocess.run(['ping', '-c', '1', '-W', '1', ip],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if result.returncode == 0:
-            print(f"\nRobot físico detectado en {ip} → MODO REAL\n")
-            return [SetLaunchConfiguration('use_fake_hardware', 'false'),
-                    SetLaunchConfiguration('robot_ip', ip)]
+    # Verificar solo la IP específica
+    target_ip = "192.168.1.101"
+    result = subprocess.run(['ping', '-c', '1', '-W', '1', target_ip],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    if result.returncode == 0:
+        print(f"\nRobot físico detectado en {target_ip} → MODO REAL\n")
+        return [SetLaunchConfiguration('use_fake_hardware', 'false'),
+                SetLaunchConfiguration('robot_ip', target_ip),
+                SetLaunchConfiguration('robot_detected', 'true')]
 
-    print("\nNo se detectó robot físico → MODO SIMULACIÓN\n")
+    print(f"\nNo se detectó robot físico en {target_ip} → NO SE INICIA EL SISTEMA\n")
     return [SetLaunchConfiguration('use_fake_hardware', 'true'),
-            SetLaunchConfiguration('robot_ip', '127.0.0.1')]
+            SetLaunchConfiguration('robot_ip', '127.0.0.1'),
+            SetLaunchConfiguration('robot_detected', 'false')]
 
 def generate_launch_description():
     declared_arguments = []
@@ -38,6 +45,7 @@ def generate_launch_description():
     declared_arguments.append(DeclareLaunchArgument('onrobot_type', default_value='2fg7'))
     declared_arguments.append(DeclareLaunchArgument('launch_onrobot', default_value='true'))
     declared_arguments.append(DeclareLaunchArgument('rviz_config', default_value='view_robot.rviz'))
+    declared_arguments.append(DeclareLaunchArgument('robot_detected', default_value='false'))
 
     detection_action = OpaqueFunction(function=detect_robot_only_when_needed)
 
@@ -46,7 +54,7 @@ def generate_launch_description():
         'xacro ', PathJoinSubstitution([
             FindPackageShare('ur_onrobot_control'),
             'urdf',
-            'left_robot_with_environment.urdf.xacro'
+            'right_robot_with_environment.urdf.xacro'
         ]),
         ' ur_type:=', LaunchConfiguration('ur_type'),
         ' robot_ip:=', LaunchConfiguration('robot_ip'),
@@ -65,7 +73,8 @@ def generate_launch_description():
         parameters=[robot_description],
         remappings=[
             ('/joint_states', '/merged_joint_states'),
-        ]
+        ],
+        condition=IfCondition(LaunchConfiguration('robot_detected'))
     )
 
     # ====== JOINT STATE MERGER ======
@@ -73,7 +82,8 @@ def generate_launch_description():
         package='ur_onrobot_control',
         executable='joint_state_merger.py',
         name='joint_state_merger',
-        output='screen'
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('robot_detected'))
     )
 
     # ====== DRIVER UR MODIFICADO ======
@@ -93,8 +103,9 @@ def generate_launch_description():
             'headless_mode': 'false',
             'launch_robot_state_publisher': 'false',
             'description_package': 'ur_onrobot_control',
-            'description_file': 'left_robot_with_environment.urdf.xacro',
-        }.items()
+            'description_file': 'right_robot_with_environment.urdf.xacro',
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('robot_detected'))
     )
 
     # ====== DRIVER ONROBOT ======
