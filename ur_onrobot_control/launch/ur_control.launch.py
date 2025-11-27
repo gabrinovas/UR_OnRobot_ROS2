@@ -287,11 +287,13 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
+    # MODIFICADO: urscript_interface solo se lanza en modo físico
     urscript_interface = Node(
         package="ur_robot_driver",
         executable="urscript_interface",
         parameters=[{"robot_ip": robot_ip}],
         output="screen",
+        condition=UnlessCondition(use_fake_hardware)  # ← NUEVA CONDICIÓN
     )
 
     controller_stopper_node = Node(
@@ -401,8 +403,8 @@ def launch_setup(context, *args, **kwargs):
         robot_state_helper_node,
         tool_communication_node,
         controller_stopper_node,
-        urscript_interface,
-        robot_state_publisher_node,  # ← Ahora es condicional
+        urscript_interface,  # ← Ahora es condicional
+        robot_state_publisher_node,
         rviz_node,
         trajectory_until_node,
     ] + controller_spawners
