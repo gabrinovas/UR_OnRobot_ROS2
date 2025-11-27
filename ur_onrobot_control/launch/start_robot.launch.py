@@ -3,7 +3,7 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, LogInfo, Shutdown
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression, TextSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
@@ -99,32 +99,6 @@ def detect_robot_and_configure(context):
                 SetLaunchConfiguration('robot_detected', 'false'),
                 Shutdown(reason='Conflicto de robots detectados')]
 
-# Función para determinar el archivo URDF basado en la configuración
-def get_urdf_filename_expression():
-    """Retorna una expresión Python que determina el archivo URDF"""
-    return PythonExpression([
-        "'ur_onrobot.urdf.xacro' if ",
-        "('", LaunchConfiguration('environment'), "' == 'basic') or ",
-        "('", LaunchConfiguration('environment'), "' == 'auto' and '", LaunchConfiguration('simulation_mode'), "' == 'true') ",
-        "else ",
-        "'left_robot_with_environment.urdf.xacro' if '", LaunchConfiguration('environment'), "' == 'left' ",
-        "else ",
-        "'right_robot_with_environment.urdf.xacro' if '", LaunchConfiguration('environment'), "' == 'right' ",
-        "else ",
-        "'left_robot_with_environment.urdf.xacro' if '", LaunchConfiguration('robot_side'), "' == 'left' ",
-        "else ",
-        "'right_robot_with_environment.urdf.xacro' if '", LaunchConfiguration('robot_side'), "' == 'right' ",
-        "else ",
-        "'ur_onrobot.urdf.xacro'"
-    ])
-
-def get_description_package_expression():
-    """Retorna una expresión Python que determina el package de descripción"""
-    return PythonExpression([
-        "'ur_onrobot_description' if '", LaunchConfiguration('environment'), "' == 'basic' ",
-        "else 'ur_onrobot_control'"
-    ])
-
 def generate_launch_description():
     declared_arguments = [
         DeclareLaunchArgument('ur_type', default_value='ur5e',
@@ -152,12 +126,57 @@ def generate_launch_description():
 
     detection_action = OpaqueFunction(function=detect_robot_and_configure)
 
+    # ====== CONFIGURACIÓN DINÁMICA DE URDF ======
+    def configure_urdf_settings(context):
+        environment = LaunchConfiguration('environment').perform(context)
+        simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
+        robot_side = LaunchConfiguration('robot_side').perform(context)
+        
+        # Determinar el entorno real a usar
+        if environment == 'auto' and simulation_mode == 'false' and robot_side != 'none':
+            actual_environment = robot_side
+        elif environment == 'auto' and simulation_mode == 'true':
+            actual_environment = 'basic'
+        else:
+            actual_environment = environment
+        
+        print(f"\n🎯 Configuración final:")
+        print(f"   - Robot detectado: {robot_side}")
+        print(f"   - Entorno solicitado: {environment}")
+        print(f"   - Entorno real: {actual_environment}")
+        print(f"   - Modo simulación: {simulation_mode}")
+        
+        # Determinar package y archivo URDF
+        if actual_environment == 'basic':
+            description_package = 'ur_onrobot_description'
+            description_file = 'ur_onrobot.urdf.xacro'
+        elif actual_environment == 'left':
+            description_package = 'ur_onrobot_control'
+            description_file = 'left_robot_with_environment.urdf.xacro'
+        elif actual_environment == 'right':
+            description_package = 'ur_onrobot_control'
+            description_file = 'right_robot_with_environment.urdf.xacro'
+        else:
+            # Por defecto
+            description_package = 'ur_onrobot_description'
+            description_file = 'ur_onrobot.urdf.xacro'
+        
+        print(f"   - Package URDF: {description_package}")
+        print(f"   - Archivo URDF: {description_file}")
+        
+        return [
+            SetLaunchConfiguration('description_package', description_package),
+            SetLaunchConfiguration('description_file', description_file)
+        ]
+
+    urdf_config_action = OpaqueFunction(function=configure_urdf_settings)
+
     # ====== ROBOT DESCRIPTION ======
     robot_description_content = Command([
         'xacro ', PathJoinSubstitution([
-            get_description_package_expression(),
+            FindPackageShare(LaunchConfiguration('description_package')),
             'urdf',
-            get_urdf_filename_expression()
+            LaunchConfiguration('description_file')
         ]),
         ' ur_type:=', LaunchConfiguration('ur_type'),
         ' robot_ip:=', LaunchConfiguration('robot_ip'),
@@ -205,8 +224,8 @@ def generate_launch_description():
             'launch_rviz': 'false',
             'headless_mode': 'false',
             'launch_robot_state_publisher': 'false',
-            'description_package': get_description_package_expression(),
-            'description_file': get_urdf_filename_expression(),
+            'description_package': LaunchConfiguration('description_package'),
+            'description_file': LaunchConfiguration('description_file'),
         }.items(),
         condition=IfCondition(LaunchConfiguration('robot_detected'))
     )
@@ -247,6 +266,7 @@ def generate_launch_description():
     return LaunchDescription([
         *declared_arguments,
         detection_action,
+        urdf_config_action,
         joint_state_merger,
         main_robot_state_publisher,
         ur_launch,
