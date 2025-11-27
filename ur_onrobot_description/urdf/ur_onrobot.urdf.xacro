@@ -45,7 +45,7 @@
         port="$(arg port)"
         device_address="$(arg device_address)"
         >
-        <origin xyz="0 0 1" rpy="0 0 0" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
     </xacro:ur_onrobot>
 
 </robot>
