@@ -43,6 +43,18 @@ def detect_robot_and_configure(context):
     # Lógica de decisión
     if len(detected_robots) == 0:
         print("\n❌ No se detectó ningún robot físico → MODO SIMULACIÓN")
+        
+        # Logs específicos por tipo de environment
+        if environment == 'left':
+            print("\n⚠️  AVISO: Se solicitó environment=left con simulation_mode=false,")
+            print("   pero no se detectó el robot left (192.168.1.105).")
+            print("   Cambiando automáticamente a MODO SIMULACIÓN")
+            
+        elif environment == 'right':
+            print("\n⚠️  AVISO: Se solicitó environment=right con simulation_mode=false,")
+            print("   pero no se detectó el robot right (192.168.1.101).")
+            print("   Cambiando automáticamente a MODO SIMULACIÓN")
+        
         return [SetLaunchConfiguration('use_fake_hardware', 'true'),
                 SetLaunchConfiguration('robot_ip', '127.0.0.1'),
                 SetLaunchConfiguration('robot_detected', 'true'),
@@ -59,6 +71,13 @@ def detect_robot_and_configure(context):
             print(f"\n❌ CONFLICTO DE ENTORNO")
             print(f"Robot físico detectado: '{detected_side}'")
             print(f"Entorno solicitado: '{environment}'")
+            
+            # Log específico del conflicto
+            if environment == 'left':
+                print(f"   - Se solicitó entorno LEFT pero solo está disponible robot {detected_side.upper()}")
+            elif environment == 'right':
+                print(f"   - Se solicitó entorno RIGHT pero solo está disponible robot {detected_side.upper()}")
+                
             print("\n💡 SOLUCIÓN: Ejecuta con uno de los siguientes comandos:")
             print(f"   - Para usar el entorno del robot disponible: 'environment:={detected_side}'")
             print(f"   - Para entorno básico: 'environment:=basic'")
@@ -72,6 +91,7 @@ def detect_robot_and_configure(context):
         # Si environment es básico, usar robot físico normalmente
         if environment == 'basic':
             print("🎯 Entorno básico seleccionado → Usando robot físico detectado")
+            print(f"   - Robot físico {detected_side} disponible, usando entorno básico")
             return [SetLaunchConfiguration('use_fake_hardware', 'false'),
                     SetLaunchConfiguration('robot_ip', detected_ip),
                     SetLaunchConfiguration('robot_detected', 'true'),
@@ -79,6 +99,7 @@ def detect_robot_and_configure(context):
                     SetLaunchConfiguration('robot_side', detected_side)]
         
         # Caso normal: usar el robot detectado con entorno correspondiente
+        print(f"🎯 Entorno {environment} seleccionado → Usando robot físico {detected_side}")
         return [SetLaunchConfiguration('use_fake_hardware', 'false'),
                 SetLaunchConfiguration('robot_ip', detected_ip),
                 SetLaunchConfiguration('robot_detected', 'true'),
@@ -90,14 +111,81 @@ def detect_robot_and_configure(context):
         print("Se detectaron ambos robots físicos:")
         for side, ip in detected_robots:
             print(f"  - Robot {side}: {ip}")
-        print("\n💡 SOLUCIÓN: Desconecta uno de los robots o usa simulación:")
-        print("   'use_fake_hardware:=true'")
+        
+        # Log específico según el environment solicitado
+        if environment == 'auto':
+            print("\n💡 SOLUCIÓN: Para usar modo automático, desconecta uno de los robots")
+        elif environment == 'left':
+            print(f"\n💡 SOLUCIÓN: Desconecta el robot RIGHT o usa: 'use_fake_hardware:=true'")
+        elif environment == 'right':
+            print(f"\n💡 SOLUCIÓN: Desconecta el robot LEFT o usa: 'use_fake_hardware:=true'")
+        elif environment == 'basic':
+            print(f"\n💡 SOLUCIÓN: Desconecta uno de los robots o usa: 'use_fake_hardware:=true'")
+            
         print("\n🚫 Cerrando ejecución...")
         
         # Retornar acciones que terminen la ejecución
         return [LogInfo(msg="Conflicto: ambos robots detectados"),
                 SetLaunchConfiguration('robot_detected', 'false'),
                 Shutdown(reason='Conflicto de robots detectados')]
+
+def configure_urdf_settings(context):
+    environment = LaunchConfiguration('environment').perform(context)
+    simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
+    robot_side = LaunchConfiguration('robot_side').perform(context)
+    
+    # Determinar el entorno real a usar
+    if environment == 'auto' and simulation_mode == 'false' and robot_side != 'none':
+        actual_environment = robot_side
+    elif environment == 'auto' and simulation_mode == 'true':
+        actual_environment = 'basic'
+    else:
+        actual_environment = environment
+    
+    print(f"\n🎯 Configuración final:")
+    print(f"   - Robot detectado: {robot_side}")
+    print(f"   - Entorno solicitado: {environment}")
+    print(f"   - Entorno real: {actual_environment}")
+    print(f"   - Modo simulación: {simulation_mode}")
+    
+    # Log específico del entorno final
+    if simulation_mode == 'true':
+        if actual_environment == 'left':
+            print("   - 🎮 SIMULACIÓN: Entorno LEFT")
+        elif actual_environment == 'right':
+            print("   - 🎮 SIMULACIÓN: Entorno RIGHT")
+        elif actual_environment == 'basic':
+            print("   - 🎮 SIMULACIÓN: Entorno BÁSICO")
+    else:
+        if actual_environment == 'left':
+            print("   - 🤖 MODO REAL: Robot LEFT físico")
+        elif actual_environment == 'right':
+            print("   - 🤖 MODO REAL: Robot RIGHT físico")
+        elif actual_environment == 'basic':
+            print("   - 🤖 MODO REAL: Robot físico con entorno básico")
+    
+    # Determinar package y archivo URDF
+    if actual_environment == 'basic':
+        description_package = 'ur_onrobot_description'
+        description_file = 'ur_onrobot.urdf.xacro'
+    elif actual_environment == 'left':
+        description_package = 'ur_onrobot_control'
+        description_file = 'left_robot_with_environment.urdf.xacro'
+    elif actual_environment == 'right':
+        description_package = 'ur_onrobot_control'
+        description_file = 'right_robot_with_environment.urdf.xacro'
+    else:
+        # Por defecto
+        description_package = 'ur_onrobot_description'
+        description_file = 'ur_onrobot.urdf.xacro'
+    
+    print(f"   - Package URDF: {description_package}")
+    print(f"   - Archivo URDF: {description_file}")
+    
+    return [
+        SetLaunchConfiguration('description_package', description_package),
+        SetLaunchConfiguration('description_file', description_file)
+    ]
 
 def generate_launch_description():
     declared_arguments = [
@@ -125,50 +213,6 @@ def generate_launch_description():
     ]
 
     detection_action = OpaqueFunction(function=detect_robot_and_configure)
-
-    # ====== CONFIGURACIÓN DINÁMICA DE URDF ======
-    def configure_urdf_settings(context):
-        environment = LaunchConfiguration('environment').perform(context)
-        simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
-        robot_side = LaunchConfiguration('robot_side').perform(context)
-        
-        # Determinar el entorno real a usar
-        if environment == 'auto' and simulation_mode == 'false' and robot_side != 'none':
-            actual_environment = robot_side
-        elif environment == 'auto' and simulation_mode == 'true':
-            actual_environment = 'basic'
-        else:
-            actual_environment = environment
-        
-        print(f"\n🎯 Configuración final:")
-        print(f"   - Robot detectado: {robot_side}")
-        print(f"   - Entorno solicitado: {environment}")
-        print(f"   - Entorno real: {actual_environment}")
-        print(f"   - Modo simulación: {simulation_mode}")
-        
-        # Determinar package y archivo URDF
-        if actual_environment == 'basic':
-            description_package = 'ur_onrobot_description'
-            description_file = 'ur_onrobot.urdf.xacro'
-        elif actual_environment == 'left':
-            description_package = 'ur_onrobot_control'
-            description_file = 'left_robot_with_environment.urdf.xacro'
-        elif actual_environment == 'right':
-            description_package = 'ur_onrobot_control'
-            description_file = 'right_robot_with_environment.urdf.xacro'
-        else:
-            # Por defecto
-            description_package = 'ur_onrobot_description'
-            description_file = 'ur_onrobot.urdf.xacro'
-        
-        print(f"   - Package URDF: {description_package}")
-        print(f"   - Archivo URDF: {description_file}")
-        
-        return [
-            SetLaunchConfiguration('description_package', description_package),
-            SetLaunchConfiguration('description_file', description_file)
-        ]
-
     urdf_config_action = OpaqueFunction(function=configure_urdf_settings)
 
     # ====== ROBOT DESCRIPTION ======
