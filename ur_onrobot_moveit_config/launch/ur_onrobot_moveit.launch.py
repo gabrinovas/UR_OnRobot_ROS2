@@ -331,7 +331,7 @@ def generate_launch_description():
         ]),
         launch_arguments={
             'robot_description': robot_description_content,
-            'robot_description_semantic': robot_description_semantic_content,  # CORREGIDO
+            'robot_description_semantic': robot_description_semantic_content,
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'publish_monitored_planning_scene': 'true',
             'publish_static_transform': 'false',
