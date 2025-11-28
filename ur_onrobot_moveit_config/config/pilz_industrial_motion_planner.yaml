@@ -1,0 +1,15 @@
+# Pilz industrial motion planner configuration
+pilz_industrial_motion_planner:
+  plan_request_adapters: 
+    - default_planning_request_adapters/FixWorkspaceBounds
+    - default_planning_request_adapters/FixStartStateBounds
+    - default_planning_request_adapters/FixStartStateCollision
+    - default_planning_request_adapters/FixStartStatePathConstraints
+    - default_planning_request_adapters/ResolveConstraintFrames
+  start_state_max_bounds_error: 0.1
+  max_velocity_scaling_factor: 0.5
+  max_acceleration_scaling_factor: 0.5
+  max_cartesian_velocity: 0.5
+  max_cartesian_acceleration: 0.5
+  planning_time_seconds: 5.0
+  planning_attempts: 5

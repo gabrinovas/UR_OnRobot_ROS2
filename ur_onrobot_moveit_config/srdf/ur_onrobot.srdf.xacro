@@ -8,6 +8,7 @@
   <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/ur_onrobot_macro.srdf.xacro"/>
   <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/ur_onrobot_rg.srdf.xacro"/>
   <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/ur_onrobot_2fg7.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/ur_onrobot_3fg15.srdf.xacro"/>
 
   <!-- Common robot configuration -->
   <xacro:ur_onrobot_srdf name="$(arg name)" prefix="$(arg prefix)"/>
@@ -21,6 +22,10 @@
   
   <xacro:if value="${gripper == '2fg7' or gripper == '2fg14'}">
     <xacro:ur_onrobot_2fg7_srdf name="$(arg name)" prefix="$(arg prefix)"/>
+  </xacro:if>
+
+  <xacro:if value="${gripper == '3fg15'}">
+    <xacro:ur_onrobot_3fg15_srdf name="$(arg name)" prefix="$(arg prefix)"/>
   </xacro:if>
 
 </robot>

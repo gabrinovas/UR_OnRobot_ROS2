@@ -1,3 +1,4 @@
+# 3D sensor configuration for MoveIt
 sensors:
   - realsense_depth
 
@@ -9,5 +10,25 @@ realsense_depth:
   far_clipping_plane_distance: 3.0
   max_update_rate: 2.0
   padding_offset: 0.03
-  padding_scale: 1.0
+  padding_scale: 1.5
   filtered_cloud_topic: realsense_octomap_cloud
+  point_cloud_topic: /camera/depth/color/points
+  max_range: 3.0
+  point_subsample: 1
+  shadow_threshold: 0.2
+
+# Optional: Configuration for multiple sensors
+# - sensor2_name:
+#     sensor_plugin: occupancy_map_monitor/DepthImageOctomapUpdater
+#     image_topic: /another_camera/depth/image_raw
+#     queue_size: 5
+#     near_clipping_plane_distance: 0.2
+#     far_clipping_plane_distance: 3.0
+#     max_update_rate: 2.0
+#     padding_offset: 0.03
+#     padding_scale: 1.5
+#     filtered_cloud_topic: sensor2_octomap_cloud
+#     point_cloud_topic: /another_camera/depth/points
+#     max_range: 3.0
+#     point_subsample: 1
+#     shadow_threshold: 0.2

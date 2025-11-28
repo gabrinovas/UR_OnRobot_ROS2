@@ -1,0 +1,51 @@
+# Unified gripper controller configuration for all OnRobot grippers
+gripper_controller:
+  type: joint_trajectory_controller/JointTrajectoryController
+  joints:
+    - finger_width
+  state_interfaces:
+    - position
+    - velocity
+  command_interfaces:
+    - position
+  gains:
+    finger_width:
+      p: 500.0
+      d: 10.0
+      i: 0.0
+      i_clamp: 1.0
+  constraints:
+    stopped_velocity_tolerance: 0.01
+    goal_time: 2.0
+    finger_width: { goal: 0.001, trajectory: 0.001 }
+
+# Legacy configurations for backward compatibility
+gripper_2fg7:
+  type: joint_trajectory_controller/JointTrajectoryController
+  joints:
+    - finger_width
+  state_interfaces:
+    - position
+    - velocity
+  command_interfaces:
+    - position
+
+gripper_rg2:
+  type: joint_trajectory_controller/JointTrajectoryController
+  joints:
+    - finger_width
+  state_interfaces:
+    - position
+    - velocity
+  command_interfaces:
+    - position
+
+gripper_3fg15:
+  type: joint_trajectory_controller/JointTrajectoryController
+  joints:
+    - finger_width
+  state_interfaces:
+    - position
+    - velocity
+  command_interfaces:
+    - position

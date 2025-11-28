@@ -22,16 +22,16 @@ controller_manager:
       state_publish_rate: 100
       action_monitor_rate: 20
       allow_partial_joints_goal: true
-      open_loop_control: true
+      open_loop_control: false
       constraints:
         stopped_velocity_tolerance: 0.05
         goal_time: 10.0
         shoulder_pan_joint: { goal: 0.01, trajectory: 0.01 }
         shoulder_lift_joint: { goal: 0.01, trajectory: 0.01 }
-        elbow_joint:         { goal: 0.01, trajectory: 0.01 }
-        wrist_1_joint:       { goal: 0.01, trajectory: 0.01 }
-        wrist_2_joint:       { goal: 0.01, trajectory: 0.01 }
-        wrist_3_joint:       { goal: 0.01, trajectory: 0.01 }
+        elbow_joint: { goal: 0.01, trajectory: 0.01 }
+        wrist_1_joint: { goal: 0.01, trajectory: 0.01 }
+        wrist_2_joint: { goal: 0.01, trajectory: 0.01 }
+        wrist_3_joint: { goal: 0.01, trajectory: 0.01 }
 
     # -----------------------------------------------------------------
     # 2. Un-scaled joint trajectory controller (used in sim / fake mode)
@@ -53,19 +53,19 @@ controller_manager:
       state_publish_rate: 100
       action_monitor_rate: 20
       allow_partial_joints_goal: true
-      open_loop_control: true
+      open_loop_control: false
       constraints:
         stopped_velocity_tolerance: 0.05
         goal_time: 10.0
         shoulder_pan_joint: { goal: 0.01, trajectory: 0.01 }
         shoulder_lift_joint: { goal: 0.01, trajectory: 0.01 }
-        elbow_joint:         { goal: 0.01, trajectory: 0.01 }
-        wrist_1_joint:       { goal: 0.01, trajectory: 0.01 }
-        wrist_2_joint:       { goal: 0.01, trajectory: 0.01 }
-        wrist_3_joint:       { goal: 0.01, trajectory: 0.01 }
+        elbow_joint: { goal: 0.01, trajectory: 0.01 }
+        wrist_1_joint: { goal: 0.01, trajectory: 0.01 }
+        wrist_2_joint: { goal: 0.01, trajectory: 0.01 }
+        wrist_3_joint: { goal: 0.01, trajectory: 0.01 }
 
     # -----------------------------------------------------------------
-    # 3. Gripper controller (2FG7 – single joint)
+    # 3. Gripper controller (unified for all OnRobot grippers)
     # -----------------------------------------------------------------
     finger_width_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
@@ -79,6 +79,7 @@ controller_manager:
       state_publish_rate: 50
       action_monitor_rate: 10
       allow_partial_joints_goal: true
+      open_loop_control: false
       constraints:
         stopped_velocity_tolerance: 0.01
         goal_time: 5.0
