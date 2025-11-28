@@ -1,6 +1,5 @@
-# Pilz industrial motion planner configuration
-/ros__parameters:
-  pilz_industrial_motion_planner:
+pilz_industrial_motion_planner:
+  ros__parameters:
     plan_request_adapters: 
       - default_planning_request_adapters/FixWorkspaceBounds
       - default_planning_request_adapters/FixStartStateBounds

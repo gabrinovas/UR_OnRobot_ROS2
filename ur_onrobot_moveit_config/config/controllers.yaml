@@ -1,11 +1,7 @@
-# Controller configuration
-/ros__parameters:
-  controller_manager:
+controller_manager:
+  ros__parameters:
     update_rate: 500  # Hz
 
-    # -----------------------------------------------------------------
-    # 1. Scaled joint trajectory controller (used by MoveIt in real mode)
-    # -----------------------------------------------------------------
     scaled_joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
       joints:
@@ -34,9 +30,6 @@
         wrist_2_joint: { goal: 0.01, trajectory: 0.01 }
         wrist_3_joint: { goal: 0.01, trajectory: 0.01 }
 
-    # -----------------------------------------------------------------
-    # 2. Un-scaled joint trajectory controller (used in sim / fake mode)
-    # -----------------------------------------------------------------
     joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
       joints:
@@ -65,9 +58,6 @@
         wrist_2_joint: { goal: 0.01, trajectory: 0.01 }
         wrist_3_joint: { goal: 0.01, trajectory: 0.01 }
 
-    # -----------------------------------------------------------------
-    # 3. Gripper controller (unified for all OnRobot grippers)
-    # -----------------------------------------------------------------
     finger_width_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
       joints:

@@ -1,5 +1,4 @@
-# Kinematics solver configuration for UR5e with OnRobot gripper
-/ros__parameters:
+kinematics:
   ur_onrobot_manipulator:
     kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
     kinematics_solver_search_resolution: 0.005
@@ -9,7 +8,6 @@
     optimize_iterations: 200
     solve_type: Speed
 
-  # For specific planning groups
   manipulator:
     kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
     kinematics_solver_search_resolution: 0.005

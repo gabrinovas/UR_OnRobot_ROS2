@@ -1,6 +1,5 @@
-# Planning pipelines configuration for MoveIt
-/ros__parameters:
-  planning_pipelines:
+planning_pipelines:
+  ros__parameters:
     ompl:
       pipeline_id: ompl
       planning_plugins:

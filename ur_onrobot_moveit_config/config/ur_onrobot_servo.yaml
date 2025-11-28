@@ -1,10 +1,8 @@
-# MoveIt Servo configuration for UR5e with OnRobot gripper
-/ros__parameters:
-  moveit_servo:
+moveit_servo:
+  ros__parameters:
     use_intra_process_comms: true
     use_gazebo: false
 
-    # Command input properties
     command_in_type: "speed_units"
     scale:
       linear: 0.3
@@ -12,7 +10,6 @@
       joint: 0.1
     system_latency_compensation: 0.04
 
-    # Output properties
     publish_period: 0.004
     low_latency_mode: false
     command_out_type: "trajectory_msgs/JointTrajectory"
@@ -20,39 +17,30 @@
     publish_joint_velocities: false
     publish_joint_accelerations: false
 
-    # Smoothing filter
     smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
 
-    # Planning scene
     is_primary_planning_scene_monitor: false
 
-    # Joint state properties
     low_pass_filter_coeff: 20.0
 
-    # MoveIt properties
     planning_frame: base_link
 
-    # Frame names
     ee_frame_name: gripper_tcp
     robot_link_command_frame: base_link
 
-    # Stopping behavior
     incoming_command_timeout: 0.1
     num_outgoing_halt_msgs_to_publish: 4
 
-    # Singularity and joint limits handling
     lower_singularity_threshold: 100.0
     hard_stop_singularity_threshold: 200.0
     joint_limit_margin: 0.2
 
-    # Topic names
     cartesian_command_in_topic: /delta_twist_cmds
     joint_command_in_topic: /delta_joint_cmds
     joint_topic: /merged_joint_states
     status_topic: /servo_node/status
     command_out_topic: /scaled_joint_trajectory_controller/joint_trajectory
 
-    # Collision checking
     check_collisions: true
     collision_check_rate: 50.0
     collision_check_type: stop_distance

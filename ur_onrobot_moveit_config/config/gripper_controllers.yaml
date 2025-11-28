@@ -1,6 +1,5 @@
-# Unified gripper controller configuration for all OnRobot grippers
-/ros__parameters:
-  gripper_controller:
+gripper_controller:
+  ros__parameters:
     type: joint_trajectory_controller/JointTrajectoryController
     joints:
       - finger_width
@@ -20,8 +19,8 @@
       goal_time: 2.0
       finger_width: { goal: 0.001, trajectory: 0.001 }
 
-  # Legacy configurations for backward compatibility
-  gripper_2fg7:
+gripper_2fg7:
+  ros__parameters:
     type: joint_trajectory_controller/JointTrajectoryController
     joints:
       - finger_width
@@ -31,7 +30,8 @@
     command_interfaces:
       - position
 
-  gripper_rg2:
+gripper_rg2:
+  ros__parameters:
     type: joint_trajectory_controller/JointTrajectoryController
     joints:
       - finger_width
@@ -41,7 +41,8 @@
     command_interfaces:
       - position
 
-  gripper_3fg15:
+gripper_3fg15:
+  ros__parameters:
     type: joint_trajectory_controller/JointTrajectoryController
     joints:
       - finger_width

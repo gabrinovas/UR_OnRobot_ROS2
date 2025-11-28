@@ -4,8 +4,8 @@
 # MoveIt needs them for time parametrization. They were chosen conservatively to work in most use
 # cases. For specific applications, higher values might lead to better execution performance.
 
-/ros__parameters:
-  joint_limits:
+joint_limits:
+  ros__parameters:
     shoulder_pan_joint:
       has_velocity_limits: true
       max_velocity: 3.15

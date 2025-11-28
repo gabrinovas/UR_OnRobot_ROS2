@@ -1,6 +1,5 @@
-# OMPL planning configuration
-/ros__parameters:
-  planner_configs:
+planner_configs:
+  ros__parameters:
     SBLkConfigDefault:
       type: geometric::SBL
       range: 0.0
@@ -55,8 +54,8 @@
     PRMstarkConfigDefault:
       type: geometric::PRMstar
 
-  # Planning configuration for the main manipulator group
-  ur_onrobot_manipulator:
+ur_onrobot_manipulator:
+  ros__parameters:
     planner_configs:
       - SBLkConfigDefault
       - ESTkConfigDefault
@@ -76,8 +75,8 @@
     max_state_sampling_attempts: 4
     default_planner_config: RRTConnectkConfigDefault
 
-  # Planning configuration for the gripper group
-  ur_onrobot_gripper:
+ur_onrobot_gripper:
+  ros__parameters:
     planner_configs:
       - ESTkConfigDefault
       - RRTConnectkConfigDefault

@@ -1,9 +1,9 @@
-# 3D sensor configuration for MoveIt
-/ros__parameters:
-  sensors:
+sensors:
+  ros__parameters:
     - realsense_depth
 
-  realsense_depth:
+realsense_depth:
+  ros__parameters:
     sensor_plugin: occupancy_map_monitor/DepthImageOctomapUpdater
     image_topic: /camera/depth/image_rect_raw
     queue_size: 5

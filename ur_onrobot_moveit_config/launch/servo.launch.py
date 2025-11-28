@@ -2,7 +2,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
 from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch_ros.substitutions import FindPackageShare
@@ -19,12 +19,23 @@ def generate_launch_description():
     launch_joy = LaunchConfiguration('launch_joy', default='false')
     servo_yaml = os.path.join(moveit_config_dir, 'config', 'ur_onrobot_servo.yaml')
     
+    # Robot description para standalone
+    robot_description_content = Command([
+        'xacro ', PathJoinSubstitution([
+            FindPackageShare('ur_onrobot_description'),
+            'urdf',
+            'ur_onrobot.urdf.xacro'
+        ]),
+        ' use_fake_hardware:=true',
+        ' onrobot_type:=2fg7'
+    ])
+    
     # Parámetros para servo
     servo_params = [
         servo_yaml,
         {
             'use_sim_time': use_sim_time,
-            'robot_description': LaunchConfiguration('robot_description'),
+            'robot_description': robot_description_content,
         },
     ]
     
@@ -47,7 +58,7 @@ def generate_launch_description():
         executable='joy_node',
         name='joy_node',
         output='screen',
-        condition=IfCondition(PythonExpression(["'", launch_joy, "' == 'true'"]))
+        condition=IfCondition(launch_joy)
     )
     
     # Node para convertir joystick a comandos twist
@@ -62,7 +73,7 @@ def generate_launch_description():
             'scale_angular': 0.2,
             'scale_joint': 0.1,
         }],
-        condition=IfCondition(PythonExpression(["'", launch_joy, "' == 'true'"]))
+        condition=IfCondition(launch_joy)
     )
     
     return LaunchDescription([

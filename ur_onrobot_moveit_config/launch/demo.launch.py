@@ -2,7 +2,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch_ros.substitutions import FindPackageShare
@@ -17,8 +17,9 @@ def generate_launch_description():
     
     # Parámetros
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    launch_rviz = LaunchConfiguration('launch_rviz', default='true')
     
-    # Incluir el launch principal
+    # Incluir el launch principal de MoveIt
     main_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([
@@ -29,12 +30,14 @@ def generate_launch_description():
         ]),
         launch_arguments={
             'use_sim_time': use_sim_time,
-            'launch_rviz': 'false',  # No lanzar RViz aquí, lo hacemos después
-            'launch_moveit': 'true',
+            'launch_rviz': 'false',
+            'launch_onrobot': 'true',
+            'use_fake_hardware': 'true',
+            'environment': 'basic',
         }.items()
     )
     
-    # Node para RViz con MoveIt
+    # Node para RViz con MoveIt (configuración específica para demo)
     rviz_config_path = os.path.join(moveit_config_dir, 'rviz', 'view_robot.rviz')
     
     rviz_node = Node(
@@ -44,19 +47,30 @@ def generate_launch_description():
         output='screen',
         arguments=['-d', rviz_config_path],
         parameters=[{'use_sim_time': use_sim_time}],
+        condition=IfCondition(launch_rviz)
+    )
+    
+    # Node para Joint State Publisher GUI (opcional para demo)
+    joint_state_publisher_gui_node = Node(
+        package='joint_state_publisher_gui',
+        executable='joint_state_publisher_gui',
+        name='joint_state_publisher_gui',
+        output='screen',
+        condition=IfCondition(use_sim_time)
     )
     
     return LaunchDescription([
         DeclareLaunchArgument(
             'use_sim_time',
-            default_value='false',
+            default_value='true',
             description='Use simulation clock if true'
         ),
         DeclareLaunchArgument(
-            'launch_rviz',
+            'launch_rviz', 
             default_value='true',
-            description='Launch RViz2'
+            description='Launch RViz2 for demo'
         ),
         main_launch,
         rviz_node,
+        joint_state_publisher_gui_node,
     ])

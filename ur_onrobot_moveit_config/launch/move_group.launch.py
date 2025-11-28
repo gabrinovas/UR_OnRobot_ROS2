@@ -2,8 +2,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
-from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
@@ -18,7 +17,6 @@ def generate_launch_description():
     # Parámetros
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     publish_monitored_planning_scene = LaunchConfiguration('publish_monitored_planning_scene', default='true')
-    publish_static_transform = LaunchConfiguration('publish_static_transform', default='true')
     
     # Archivos de configuración
     kinematics_yaml = os.path.join(moveit_config_dir, 'config', 'kinematics.yaml')
@@ -27,8 +25,37 @@ def generate_launch_description():
     moveit_controllers_yaml = os.path.join(moveit_config_dir, 'config', 'moveit_controllers.yaml')
     sensors_yaml = os.path.join(moveit_config_dir, 'config', 'sensors_3d.yaml')
     
+    # Robot description para standalone
+    robot_description_content = Command([
+        'xacro ', PathJoinSubstitution([
+            FindPackageShare('ur_onrobot_description'),
+            'urdf',
+            'ur_onrobot.urdf.xacro'
+        ]),
+        ' use_fake_hardware:=true',
+        ' onrobot_type:=2fg7'
+    ])
+    
+    robot_description = {'robot_description': robot_description_content}
+    
+    # Robot description semantic
+    robot_description_semantic_content = Command([
+        'xacro ', PathJoinSubstitution([
+            FindPackageShare(moveit_config_package),
+            'srdf',
+            'ur_onrobot.srdf.xacro'
+        ]),
+        ' name:=ur_onrobot',
+        ' prefix:=',
+        ' onrobot_type:=2fg7'
+    ])
+    
+    robot_description_semantic = {'robot_description_semantic': robot_description_semantic_content}
+    
     # Parámetros para move_group
     move_group_params = [
+        robot_description,
+        robot_description_semantic,
         {
             'use_sim_time': use_sim_time,
             'publish_monitored_planning_scene': publish_monitored_planning_scene,
@@ -41,15 +68,11 @@ def generate_launch_description():
             'publish_transforms_updates': True,
             'monitor_dynamics': False,
         },
-        # Cargar configuraciones YAML
         kinematics_yaml,
         joint_limits_yaml, 
         ompl_planning_yaml,
         moveit_controllers_yaml,
         sensors_yaml,
-        # Descripciones del robot
-        {'robot_description': LaunchConfiguration('robot_description')},
-        {'robot_description_semantic': LaunchConfiguration('robot_description_semantic')},
     ]
     
     # Node de MoveGroup
@@ -63,7 +86,7 @@ def generate_launch_description():
         ]
     )
     
-    # Node de servidor de estado del robot (Robot State Publisher)
+    # Node de servidor de estado del robot
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -71,7 +94,7 @@ def generate_launch_description():
         output='screen',
         parameters=[
             {'use_sim_time': use_sim_time},
-            {'robot_description': LaunchConfiguration('robot_description')}
+            robot_description
         ],
         remappings=[
             ('/joint_states', '/merged_joint_states'),
@@ -84,8 +107,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_transform_publisher',
         output='log',
-        arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'world', 'base_link'],
-        condition=IfCondition(PythonExpression(["'", publish_static_transform, "' == 'true'"]))
+        arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'world', 'base_link']
     )
     
     return LaunchDescription([
@@ -98,11 +120,6 @@ def generate_launch_description():
             'publish_monitored_planning_scene',
             default_value='true',
             description='Publish monitored planning scene'
-        ),
-        DeclareLaunchArgument(
-            'publish_static_transform',
-            default_value='true',
-            description='Publish static transform from world to base_link'
         ),
         move_group_node,
         robot_state_publisher_node,
