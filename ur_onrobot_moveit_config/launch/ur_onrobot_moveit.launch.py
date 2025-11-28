@@ -268,7 +268,7 @@ def generate_launch_description():
         remappings=[
             ('/joint_states', '/merged_joint_states'),
         ],
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
+        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
     )
 
     # ====== JOINT STATE MERGER ======
@@ -277,7 +277,7 @@ def generate_launch_description():
         executable='joint_state_merger.py',
         name='joint_state_merger',
         output='screen',
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
+        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
     )
 
     # ====== STATIC TRANSFORM PUBLISHER ======
@@ -287,7 +287,7 @@ def generate_launch_description():
         name='static_transform_publisher',
         arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'world', 'base_link'],
         output='screen',
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
+        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
     )
 
     # ====== DRIVER UR MODIFICADO ======
@@ -309,7 +309,7 @@ def generate_launch_description():
             'description_package': LaunchConfiguration('description_package'),
             'description_file': LaunchConfiguration('description_file'),
         }.items(),
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
+        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
     )
 
     # ====== DRIVER ONROBOT ======
@@ -327,7 +327,7 @@ def generate_launch_description():
             'launch_rviz': 'false',
             'launch_rsp': 'false',
         }.items(),
-        condition=IfCondition(LaunchConfiguration('launch_onrobot'))
+        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('launch_onrobot'), "' == 'true'"]))
     )
 
     # ====== MOVEIT LAUNCH ======
@@ -347,9 +347,8 @@ def generate_launch_description():
             'publish_static_transform': 'false',  # Ya lo publicamos arriba
         }.items(),
         condition=IfCondition(PythonExpression([
-            LaunchConfiguration('launch_moveit'),
-            " and ",
-            LaunchConfiguration('robot_detected')
+            "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
+            "'", LaunchConfiguration('robot_detected'), "' == 'true'"
         ]))
     )
 
@@ -368,12 +367,9 @@ def generate_launch_description():
             'launch_joy': 'false',
         }.items(),
         condition=IfCondition(PythonExpression([
-            LaunchConfiguration('launch_moveit'),
-            " and ",
-            LaunchConfiguration('launch_servo'),
-            " and ",
-            "not ",
-            LaunchConfiguration('simulation_mode')
+            "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
+            "'", LaunchConfiguration('launch_servo'), "' == 'true' and ",
+            "'", LaunchConfiguration('simulation_mode'), "' == 'false'"
         ]))
     )
 
@@ -396,11 +392,9 @@ def generate_launch_description():
             {'use_sim_time': LaunchConfiguration('use_sim_time')},
         ],
         condition=IfCondition(PythonExpression([
-            LaunchConfiguration('launch_rviz'),
-            " and ",
-            LaunchConfiguration('launch_moveit'),
-            " and ",
-            LaunchConfiguration('robot_detected')
+            "'", LaunchConfiguration('launch_rviz'), "' == 'true' and ",
+            "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
+            "'", LaunchConfiguration('robot_detected'), "' == 'true'"
         ]))
     )
 
@@ -419,11 +413,9 @@ def generate_launch_description():
         arguments=['-d', rviz_fallback_config_path],
         parameters=[robot_description],
         condition=IfCondition(PythonExpression([
-            LaunchConfiguration('launch_rviz'),
-            " and not ",
-            LaunchConfiguration('launch_moveit'),
-            " and ",
-            LaunchConfiguration('robot_detected')
+            "'", LaunchConfiguration('launch_rviz'), "' == 'true' and ",
+            "'", LaunchConfiguration('launch_moveit'), "' != 'true' and ",
+            "'", LaunchConfiguration('robot_detected'), "' == 'true'"
         ]))
     )
 

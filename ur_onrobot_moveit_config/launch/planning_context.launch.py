@@ -31,20 +31,6 @@ def generate_launch_description():
     
     robot_description = {'robot_description': robot_description_content}
     
-    # Descripción semántica
-    robot_description_semantic_content = Command([
-        'xacro ', PathJoinSubstitution([
-            FindPackageShare(moveit_config_package),
-            'srdf',
-            'ur_onrobot.srdf.xacro'
-        ]),
-        ' onrobot_type:=2fg7'  # Valor por defecto
-    ])
-    
-    robot_description_semantic = {
-        'robot_description_semantic': robot_description_semantic_content
-    }
-    
     # Node de Robot State Publisher
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
@@ -63,7 +49,7 @@ def generate_launch_description():
         executable='joint_state_publisher_gui',
         name='joint_state_publisher_gui',
         output='screen',
-        condition=IfCondition(use_gui)
+        condition=IfCondition(PythonExpression(["'", use_gui, "' == 'true'"]))
     )
     
     # Node de Joint State Publisher (sin GUI)
@@ -72,7 +58,7 @@ def generate_launch_description():
         executable='joint_state_publisher',
         name='joint_state_publisher',
         output='screen',
-        condition=IfCondition(PythonExpression(['not ', use_gui]))
+        condition=IfCondition(PythonExpression(["'", use_gui, "' != 'true'"]))
     )
     
     return LaunchDescription([

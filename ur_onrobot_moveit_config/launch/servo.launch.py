@@ -2,7 +2,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch_ros.substitutions import FindPackageShare
@@ -47,7 +47,7 @@ def generate_launch_description():
         executable='joy_node',
         name='joy_node',
         output='screen',
-        condition=IfCondition(launch_joy)
+        condition=IfCondition(PythonExpression(["'", launch_joy, "' == 'true'"]))
     )
     
     # Node para convertir joystick a comandos twist
@@ -62,7 +62,7 @@ def generate_launch_description():
             'scale_angular': 0.2,
             'scale_joint': 0.1,
         }],
-        condition=IfCondition(launch_joy)
+        condition=IfCondition(PythonExpression(["'", launch_joy, "' == 'true'"]))
     )
     
     return LaunchDescription([

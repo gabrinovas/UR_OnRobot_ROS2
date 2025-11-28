@@ -2,7 +2,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -18,6 +18,7 @@ def generate_launch_description():
     # Parámetros
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     publish_monitored_planning_scene = LaunchConfiguration('publish_monitored_planning_scene', default='true')
+    publish_static_transform = LaunchConfiguration('publish_static_transform', default='true')
     
     # Archivos de configuración
     kinematics_yaml = os.path.join(moveit_config_dir, 'config', 'kinematics.yaml')
@@ -84,7 +85,7 @@ def generate_launch_description():
         name='static_transform_publisher',
         output='log',
         arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'world', 'base_link'],
-        condition=IfCondition(LaunchConfiguration('publish_static_transform'))
+        condition=IfCondition(PythonExpression(["'", publish_static_transform, "' == 'true'"]))
     )
     
     return LaunchDescription([

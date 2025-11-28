@@ -2,7 +2,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch.conditions import IfCondition
 from launch_ros.substitutions import FindPackageShare
@@ -45,7 +45,7 @@ def generate_launch_description():
         output='screen',
         arguments=['-d', rviz_config_path],
         parameters=[{'use_sim_time': use_sim_time}],
-        condition=IfCondition(launch_rviz)
+        condition=IfCondition(PythonExpression(["'", launch_rviz, "' == 'true'"]))
     )
     
     return LaunchDescription([
