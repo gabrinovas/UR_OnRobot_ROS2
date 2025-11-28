@@ -54,7 +54,7 @@ finger_width_controller:
       - position
     state_publish_rate: 50.0
     action_monitor_rate: 10.0
-    # Add gripper-specific parameters
+    # Gripper-agnostic parameters
     allow_partial_joints_goal: true
     constraints:
       goal_time: 5.0
@@ -195,16 +195,21 @@ tcp_pose_broadcaster:
     tf:
       child_frame_id: $(var tf_prefix)tool0_controller
 
-# 2FG7 specific hardware parameters
-onrobot_2fg7_hardware:
+# Generic hardware parameters for all gripper types
+onrobot_hardware:
   ros__parameters:
-    onrobot_type: "2fg7"
-    connection_type: "tcp"
-    ip_address: "192.168.1.1"  # Default from documentation
-    port: 502
-    device_address: 65  # Default from documentation
+    onrobot_type: "$(var onrobot_type)"  # Will be set from launch file
+    connection_type: "$(var connection_type)"
+    ip_address: "$(var gripper_ip)"
+    port: $(var gripper_port)
+    device_address: $(var gripper_device_address)
     prefix: "$(var tf_prefix)"
-    # Add these missing parameters
-    use_fake_hardware: false
-    device: "/tmp/ttyUR"  # fallback for serial
-
+    use_fake_hardware: $(var use_fake_hardware)
+    device: "$(var gripper_device)"
+    # Gripper-specific parameters with defaults
+    max_width: "$(var max_width)"
+    min_width: "$(var min_width)"
+    max_force: "$(var max_force)"
+    # Timeout parameters
+    timeout: 5.0
+    response_timeout: 2.0
