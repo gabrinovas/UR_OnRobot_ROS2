@@ -17,7 +17,6 @@ def generate_launch_description():
     
     # Parámetros
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
-    launch_rviz = LaunchConfiguration('launch_rviz', default='true')
     
     # Incluir el launch principal
     main_launch = IncludeLaunchDescription(
@@ -45,7 +44,6 @@ def generate_launch_description():
         output='screen',
         arguments=['-d', rviz_config_path],
         parameters=[{'use_sim_time': use_sim_time}],
-        condition=IfCondition(PythonExpression(["'", launch_rviz, "' == 'true'"]))
     )
     
     return LaunchDescription([

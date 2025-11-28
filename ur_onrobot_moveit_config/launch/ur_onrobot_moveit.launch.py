@@ -210,16 +210,14 @@ def generate_launch_description():
                             description='Entorno a visualizar (auto=usar robot detectado)'),
         DeclareLaunchArgument('robot_side', default_value='none',
                             description='Lado del robot detectado automáticamente (solo lectura)'),
-        DeclareLaunchArgument('launch_moveit', default_value='true',
-                            description='Lanzar MoveIt2'),
+        # DeclareLaunchArgument('launch_moveit', default_value='true',
+        #                     description='Lanzar MoveIt2'),
         DeclareLaunchArgument('moveit_config_package', default_value='ur_onrobot_moveit_config',
                             description='Paquete de configuración de MoveIt'),
         DeclareLaunchArgument('use_sim_time', default_value='false',
                             description='Usar tiempo de simulación'),
-        DeclareLaunchArgument('launch_rviz', default_value='true',
-                            description='Lanzar RViz2'),
-        DeclareLaunchArgument('launch_servo', default_value='true',
-                            description='Lanzar MoveIt Servo'),
+        # DeclareLaunchArgument('launch_servo', default_value='true',
+        #                     description='Lanzar MoveIt Servo'),
     ]
 
     detection_action = OpaqueFunction(function=detect_robot_and_configure)
@@ -347,7 +345,7 @@ def generate_launch_description():
             'publish_static_transform': 'false',  # Ya lo publicamos arriba
         }.items(),
         condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
+            # "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
             "'", LaunchConfiguration('robot_detected'), "' == 'true'"
         ]))
     )
@@ -367,8 +365,8 @@ def generate_launch_description():
             'launch_joy': 'false',
         }.items(),
         condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
-            "'", LaunchConfiguration('launch_servo'), "' == 'true' and ",
+            # "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
+            # "'", LaunchConfiguration('launch_servo'), "' == 'true' and ",
             "'", LaunchConfiguration('simulation_mode'), "' == 'false'"
         ]))
     )
@@ -392,8 +390,7 @@ def generate_launch_description():
             {'use_sim_time': LaunchConfiguration('use_sim_time')},
         ],
         condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('launch_rviz'), "' == 'true' and ",
-            "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
+            # "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
             "'", LaunchConfiguration('robot_detected'), "' == 'true'"
         ]))
     )
@@ -413,8 +410,7 @@ def generate_launch_description():
         arguments=['-d', rviz_fallback_config_path],
         parameters=[robot_description],
         condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('launch_rviz'), "' == 'true' and ",
-            "'", LaunchConfiguration('launch_moveit'), "' != 'true' and ",
+            # "'", LaunchConfiguration('launch_moveit'), "' != 'true' and ",
             "'", LaunchConfiguration('robot_detected'), "' == 'true'"
         ]))
     )
