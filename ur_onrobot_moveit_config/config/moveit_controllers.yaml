@@ -1,10 +1,9 @@
 # MoveIt Simple Controller Manager configuration
-controller_manager:
-  ros__parameters:
+/ros__parameters:
+  controller_manager:
     update_rate: 500
 
-moveit_simple_controller_manager:
-  ros__parameters:
+  moveit_simple_controller_manager:
     controller_names:
       - scaled_joint_trajectory_controller
       - joint_trajectory_controller
@@ -38,36 +37,36 @@ moveit_simple_controller_manager:
       joints:
         - finger_width
 
-# Default controller lists for MoveIt
-moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
-controller_list:
-  - name: scaled_joint_trajectory_controller
-    action_ns: follow_joint_trajectory
-    type: FollowJointTrajectory
-    joints:
-      - shoulder_pan_joint
-      - shoulder_lift_joint
-      - elbow_joint
-      - wrist_1_joint
-      - wrist_2_joint
-      - wrist_3_joint
-    default: true
+  # Default controller lists for MoveIt
+  moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+  controller_list:
+    - name: scaled_joint_trajectory_controller
+      action_ns: follow_joint_trajectory
+      type: FollowJointTrajectory
+      joints:
+        - shoulder_pan_joint
+        - shoulder_lift_joint
+        - elbow_joint
+        - wrist_1_joint
+        - wrist_2_joint
+        - wrist_3_joint
+      default: true
 
-  - name: joint_trajectory_controller
-    action_ns: follow_joint_trajectory
-    type: FollowJointTrajectory
-    joints:
-      - shoulder_pan_joint
-      - shoulder_lift_joint
-      - elbow_joint
-      - wrist_1_joint
-      - wrist_2_joint
-      - wrist_3_joint
-    default: false
+    - name: joint_trajectory_controller
+      action_ns: follow_joint_trajectory
+      type: FollowJointTrajectory
+      joints:
+        - shoulder_pan_joint
+        - shoulder_lift_joint
+        - elbow_joint
+        - wrist_1_joint
+        - wrist_2_joint
+        - wrist_3_joint
+      default: false
 
-  - name: finger_width_trajectory_controller
-    action_ns: follow_joint_trajectory
-    type: FollowJointTrajectory
-    joints:
-      - finger_width
-    default: false
+    - name: finger_width_trajectory_controller
+      action_ns: follow_joint_trajectory
+      type: FollowJointTrajectory
+      joints:
+        - finger_width
+      default: false

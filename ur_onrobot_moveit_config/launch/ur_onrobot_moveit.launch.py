@@ -389,30 +389,6 @@ def generate_launch_description():
             {'robot_description_semantic': LaunchConfiguration('robot_description_semantic')},
             {'use_sim_time': LaunchConfiguration('use_sim_time')},
         ],
-        condition=IfCondition(PythonExpression([
-            # "'", LaunchConfiguration('launch_moveit'), "' == 'true' and ",
-            "'", LaunchConfiguration('robot_detected'), "' == 'true'"
-        ]))
-    )
-
-    # ====== RVIZ SIN MOVEIT (fallback) ======
-    rviz_fallback_config_path = PathJoinSubstitution([
-        FindPackageShare('ur_onrobot_description'),
-        'rviz',
-        LaunchConfiguration('rviz_config')
-    ])
-
-    rviz_fallback_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        output='screen',
-        arguments=['-d', rviz_fallback_config_path],
-        parameters=[robot_description],
-        condition=IfCondition(PythonExpression([
-            # "'", LaunchConfiguration('launch_moveit'), "' != 'true' and ",
-            "'", LaunchConfiguration('robot_detected'), "' == 'true'"
-        ]))
     )
 
     return LaunchDescription([
@@ -428,5 +404,4 @@ def generate_launch_description():
         moveit_launch,
         moveit_servo_launch,
         rviz_node,
-        rviz_fallback_node
     ])
