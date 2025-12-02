@@ -1,319 +1,266 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+robot_master_selector.launch.py - Launch principal simplificado y optimizado
+"""
+
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, LogInfo, Shutdown
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription, LogInfo
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.substitutions import FindPackageShare
-from launch_ros.actions import Node
 
 import subprocess
 import sys
 
-def detect_robot_and_configure(context):
-    use_fake = LaunchConfiguration('use_fake_hardware').perform(context)
-    environment = LaunchConfiguration('environment').perform(context)
+def interactive_selector(context):
+    """
+    Función interactiva que detecta robots y pregunta al usuario
+    """
+    print("\n" + "="*60)
+    print("🤖 SELECTOR PRINCIPAL - ROBOT/SIMULACIÓN".center(60))
+    print("="*60)
     
-    # Si se fuerza simulación, retornar inmediatamente
-    if use_fake == "true":
-        print("\n🔄 Modo simulación forzado → MODO SIMULACIÓN")
-        return [SetLaunchConfiguration('use_fake_hardware', 'true'),
-                SetLaunchConfiguration('robot_ip', '127.0.0.1'),
-                SetLaunchConfiguration('robot_detected', 'true'),
-                SetLaunchConfiguration('simulation_mode', 'true'),
-                SetLaunchConfiguration('robot_side', 'none')]
-
+    # Parámetros del usuario
+    ur_type = LaunchConfiguration('ur_type').perform(context)
+    onrobot_type = LaunchConfiguration('onrobot_type').perform(context)
+    
+    print(f"\n📋 Configuración base:")
+    print(f"   - Robot UR: {ur_type}")
+    print(f"   - Gripper: {onrobot_type}")
+    
     # Definir IPs para cada robot
     ips_by_side = {
         'left': '192.168.1.105',
         'right': '192.168.1.101'
     }
     
-    detected_robots = []
+    detected_robots = {}
     
-    # Detectar qué robots están disponibles
+    print("\n🔍 Escaneando red...")
+    
+    # Detectar robots
     for side, ip in ips_by_side.items():
         result = subprocess.run(['ping', '-c', '1', '-W', '1', ip],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if result.returncode == 0:
-            detected_robots.append((side, ip))
-            print(f"✅ Robot {side} detectado en {ip}")
-
-    # Lógica de decisión
-    if len(detected_robots) == 0:
-        print("\n❌ No se detectó ningún robot físico → MODO SIMULACIÓN")
-        
-        # Logs específicos por tipo de environment
-        if environment == 'left':
-            print("\n⚠️  AVISO: Se solicitó environment=left con simulation_mode=false,")
-            print("   pero no se detectó el robot left (192.168.1.105).")
-            print("   Cambiando automáticamente a MODO SIMULACIÓN")
-            
-        elif environment == 'right':
-            print("\n⚠️  AVISO: Se solicitó environment=right con simulation_mode=false,")
-            print("   pero no se detectó el robot right (192.168.1.101).")
-            print("   Cambiando automáticamente a MODO SIMULACIÓN")
-        
-        return [SetLaunchConfiguration('use_fake_hardware', 'true'),
-                SetLaunchConfiguration('robot_ip', '127.0.0.1'),
-                SetLaunchConfiguration('robot_detected', 'true'),
-                SetLaunchConfiguration('simulation_mode', 'true'),
-                SetLaunchConfiguration('robot_side', 'none')]
+            detected_robots[side] = ip
+            print(f"   ✅ Robot {side.upper()} en {ip}")
+        else:
+            print(f"   ❌ Robot {side.upper()} no disponible")
     
-    elif len(detected_robots) == 1:
-        detected_side, detected_ip = detected_robots[0]
-        print(f"\n✅ Robot {detected_side} detectado → MODO REAL")
+    print("\n" + "-"*60)
+    
+    actions = []
+    
+    # Si no hay robots detectados -> Solo simulación disponible
+    if not detected_robots:
+        print("\n⚠️  No se detectaron robots físicos.")
+        print("\nOpciones:")
+        print("   1. Usar SIMULACIÓN")
+        print("   2. Salir")
         
-        # Si environment no es básico ni auto y no coincide con el robot detectado
-        if (environment != 'basic' and environment != 'auto' and 
-            environment != detected_side):
-            print(f"\n❌ CONFLICTO DE ENTORNO")
-            print(f"Robot físico detectado: '{detected_side}'")
-            print(f"Entorno solicitado: '{environment}'")
+        try:
+            choice = input("\nSelecciona (1-2): ").strip()
+        except KeyboardInterrupt:
+            print("\n\n🚫 Cancelado por el usuario")
+            sys.exit(0)
+        
+        if choice == "1":
+            print("\n🎮 Activando SIMULACIÓN...")
             
-            # Log específico del conflicto
-            if environment == 'left':
-                print(f"   - Se solicitó entorno LEFT pero solo está disponible robot {detected_side.upper()}")
-            elif environment == 'right':
-                print(f"   - Se solicitó entorno RIGHT pero solo está disponible robot {detected_side.upper()}")
+            # Preguntar entorno de simulación
+            print("\n🎯 Selecciona entorno de simulación:")
+            print("   1. Básico (robot solo)")
+            print("   2. LEFT (robot con entorno izquierdo)")
+            print("   3. RIGHT (robot con entorno derecho)")
+            
+            try:
+                sim_choice = input("\nSelecciona entorno (1-3): ").strip()
+            except KeyboardInterrupt:
+                print("\n\n🚫 Cancelado por el usuario")
+                sys.exit(0)
+            
+            if sim_choice == "1":
+                sim_env = 'basic'
+            elif sim_choice == "2":
+                sim_env = 'left'
+            elif sim_choice == "3":
+                sim_env = 'right'
+            else:
+                print("⚠️  Opción no válida, usando BÁSICO")
+                sim_env = 'basic'
+            
+            print(f"\n🎮 Configurando simulación: entorno {sim_env.upper()}")
+            
+            # Configurar para simulación
+            context.launch_configurations['use_simulation'] = 'true'
+            context.launch_configurations['robot_ip'] = '127.0.0.1'
+            context.launch_configurations['sim_env'] = sim_env
+            
+            actions.append(LogInfo(msg=f"Simulación activada - entorno {sim_env}"))
+            
+        else:
+            print("\n🚫 Saliendo...")
+            sys.exit(0)
+    
+    # Si hay robots detectados
+    else:
+        print("\n🤖 ROBOTS DISPONIBLES:")
+        for i, (side, ip) in enumerate(detected_robots.items(), 1):
+            print(f"   {i}. Robot {side.upper()} ({ip})")
+        print(f"   {len(detected_robots) + 1}. Usar SIMULACIÓN")
+        print(f"   {len(detected_robots) + 2}. Salir")
+        
+        while True:
+            try:
+                choice = input(f"\nSelecciona (1-{len(detected_robots) + 2}): ").strip()
+                choice_num = int(choice)
                 
-            print("\n💡 SOLUCIÓN: Ejecuta con uno de los siguientes comandos:")
-            print(f"   - Para usar el entorno del robot disponible: 'environment:={detected_side}'")
-            print(f"   - Para entorno básico: 'environment:=basic'")
-            print(f"   - Para simulación del entorno solicitado: 'use_fake_hardware:=true'")
-            print("\n🚫 Cerrando ejecución...")
-            
-            return [LogInfo(msg=f"Conflicto: entorno '{environment}' no compatible con robot '{detected_side}'"),
-                    SetLaunchConfiguration('robot_detected', 'false'),
-                    Shutdown(reason='Entorno no compatible con robot físico')]
-        
-        # Si environment es básico, usar robot físico normalmente
-        if environment == 'basic':
-            print("🎯 Entorno básico seleccionado → Usando robot físico detectado")
-            print(f"   - Robot físico {detected_side} disponible, usando entorno básico")
-            return [SetLaunchConfiguration('use_fake_hardware', 'false'),
-                    SetLaunchConfiguration('robot_ip', detected_ip),
-                    SetLaunchConfiguration('robot_detected', 'true'),
-                    SetLaunchConfiguration('simulation_mode', 'false'),
-                    SetLaunchConfiguration('robot_side', detected_side)]
-        
-        # Caso normal: usar el robot detectado con entorno correspondiente
-        print(f"🎯 Entorno {environment} seleccionado → Usando robot físico {detected_side}")
-        return [SetLaunchConfiguration('use_fake_hardware', 'false'),
-                SetLaunchConfiguration('robot_ip', detected_ip),
-                SetLaunchConfiguration('robot_detected', 'true'),
-                SetLaunchConfiguration('simulation_mode', 'false'),
-                SetLaunchConfiguration('robot_side', detected_side)]
+                if 1 <= choice_num <= len(detected_robots):
+                    # Robot físico seleccionado
+                    selected_side = list(detected_robots.keys())[choice_num - 1]
+                    selected_ip = detected_robots[selected_side]
+                    
+                    print(f"\n🤖 Robot {selected_side.upper()} seleccionado")
+                    print("   Activando modo REAL...")
+                    
+                    # Configurar para robot real
+                    context.launch_configurations['use_simulation'] = 'false'
+                    context.launch_configurations['robot_ip'] = selected_ip
+                    context.launch_configurations['sim_env'] = selected_side  # left o right
+                    
+                    actions.append(LogInfo(msg=f"Robot físico {selected_side} activado"))
+                    break
+                
+                elif choice_num == len(detected_robots) + 1:
+                    # Simulación seleccionada
+                    print("\n🎮 SIMULACIÓN seleccionada")
+                    
+                    # Preguntar entorno de simulación
+                    print("\n🎯 Selecciona entorno de simulación:")
+                    print("   1. Básico (robot solo)")
+                    print("   2. LEFT (robot con entorno izquierdo)")
+                    print("   3. RIGHT (robot con entorno derecho)")
+                    
+                    try:
+                        sim_choice = input("\nSelecciona entorno (1-3): ").strip()
+                    except KeyboardInterrupt:
+                        print("\n\n🚫 Cancelado por el usuario")
+                        sys.exit(0)
+                    
+                    if sim_choice == "1":
+                        sim_env = 'basic'
+                    elif sim_choice == "2":
+                        sim_env = 'left'
+                    elif sim_choice == "3":
+                        sim_env = 'right'
+                    else:
+                        print("⚠️  Opción no válida, usando BÁSICO")
+                        sim_env = 'basic'
+                    
+                    print(f"\n🎮 Configurando simulación: entorno {sim_env.upper()}")
+                    
+                    # Configurar para simulación
+                    context.launch_configurations['use_simulation'] = 'true'
+                    context.launch_configurations['robot_ip'] = '127.0.0.1'
+                    context.launch_configurations['sim_env'] = sim_env
+                    
+                    actions.append(LogInfo(msg=f"Simulación activada - entorno {sim_env}"))
+                    break
+                
+                elif choice_num == len(detected_robots) + 2:
+                    # Salir
+                    print("\n🚫 Saliendo...")
+                    sys.exit(0)
+                else:
+                    print(f"❌ Opción inválida")
+                    
+            except ValueError:
+                print("❌ Entrada inválida")
+            except KeyboardInterrupt:
+                print("\n\n🚫 Cancelado por el usuario")
+                sys.exit(0)
     
-    else:  # Ambos robots detectados
-        print("\n❌ AMBOS ROBOTS DETECTADOS - CONFLICTO")
-        print("Se detectaron ambos robots físicos:")
-        for side, ip in detected_robots:
-            print(f"  - Robot {side}: {ip}")
-        
-        # Log específico según el environment solicitado
-        if environment == 'auto':
-            print("\n💡 SOLUCIÓN: Para usar modo automático, desconecta uno de los robots")
-        elif environment == 'left':
-            print(f"\n💡 SOLUCIÓN: Desconecta el robot RIGHT o usa: 'use_fake_hardware:=true'")
-        elif environment == 'right':
-            print(f"\n💡 SOLUCIÓN: Desconecta el robot LEFT o usa: 'use_fake_hardware:=true'")
-        elif environment == 'basic':
-            print(f"\n💡 SOLUCIÓN: Desconecta uno de los robots o usa: 'use_fake_hardware:=true'")
-            
-        print("\n🚫 Cerrando ejecución...")
-        
-        # Retornar acciones que terminen la ejecución
-        return [LogInfo(msg="Conflicto: ambos robots detectados"),
-                SetLaunchConfiguration('robot_detected', 'false'),
-                Shutdown(reason='Conflicto de robots detectados')]
-
-def configure_urdf_settings(context):
-    environment = LaunchConfiguration('environment').perform(context)
-    simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
-    robot_side = LaunchConfiguration('robot_side').perform(context)
+    # Mostrar resumen final
+    use_simulation = context.launch_configurations.get('use_simulation', 'true')
+    sim_env = context.launch_configurations.get('sim_env', 'basic')
+    robot_ip = context.launch_configurations.get('robot_ip', '127.0.0.1')
     
-    # Determinar el entorno real a usar
-    if environment == 'auto' and simulation_mode == 'false' and robot_side != 'none':
-        actual_environment = robot_side
-    elif environment == 'auto' and simulation_mode == 'true':
-        actual_environment = 'basic'
+    print("\n" + "="*60)
+    if use_simulation == 'true':
+        print(f"🎮 MODO SIMULACIÓN: entorno {sim_env.upper()}")
     else:
-        actual_environment = environment
+        print(f"🤖 MODO REAL: Robot {sim_env.upper()} en {robot_ip}")
+    print("="*60)
     
-    print(f"\n🎯 Configuración final:")
-    print(f"   - Robot detectado: {robot_side}")
-    print(f"   - Entorno solicitado: {environment}")
-    print(f"   - Entorno real: {actual_environment}")
-    print(f"   - Modo simulación: {simulation_mode}")
-    
-    # Log específico del entorno final
-    if simulation_mode == 'true':
-        if actual_environment == 'left':
-            print("   - 🎮 SIMULACIÓN: Entorno LEFT")
-        elif actual_environment == 'right':
-            print("   - 🎮 SIMULACIÓN: Entorno RIGHT")
-        elif actual_environment == 'basic':
-            print("   - 🎮 SIMULACIÓN: Entorno BÁSICO")
-    else:
-        if actual_environment == 'left':
-            print("   - 🤖 MODO REAL: Robot LEFT físico")
-        elif actual_environment == 'right':
-            print("   - 🤖 MODO REAL: Robot RIGHT físico")
-        elif actual_environment == 'basic':
-            print("   - 🤖 MODO REAL: Robot físico con entorno básico")
-    
-    # Determinar package y archivo URDF
-    if actual_environment == 'basic':
-        description_package = 'ur_onrobot_description'
-        description_file = 'ur_onrobot.urdf.xacro'
-    elif actual_environment == 'left':
-        description_package = 'ur_onrobot_control'
-        description_file = 'left_robot_with_environment.urdf.xacro'
-    elif actual_environment == 'right':
-        description_package = 'ur_onrobot_control'
-        description_file = 'right_robot_with_environment.urdf.xacro'
-    else:
-        # Por defecto
-        description_package = 'ur_onrobot_description'
-        description_file = 'ur_onrobot.urdf.xacro'
-    
-    print(f"   - Package URDF: {description_package}")
-    print(f"   - Archivo URDF: {description_file}")
-    
-    return [
-        SetLaunchConfiguration('description_package', description_package),
-        SetLaunchConfiguration('description_file', description_file)
-    ]
+    return actions
 
 def generate_launch_description():
+    # Argumentos configurables por el usuario
     declared_arguments = [
         DeclareLaunchArgument('ur_type', default_value='ur5e',
                             description='Tipo de robot UR (ur5, ur5e, ur10, etc.)'),
-        DeclareLaunchArgument('robot_ip', default_value='192.168.1.101',
-                            description='IP del robot (se autodetecta)'),
-        DeclareLaunchArgument('use_fake_hardware', default_value='false',
-                            description='Forzar modo simulación (true/false)'),
         DeclareLaunchArgument('onrobot_type', default_value='2fg7',
                             description='Tipo de gripper OnRobot'),
         DeclareLaunchArgument('launch_onrobot', default_value='true',
                             description='Lanzar control del gripper'),
         DeclareLaunchArgument('rviz_config', default_value='view_robot.rviz',
                             description='Configuración de RVIZ'),
-        DeclareLaunchArgument('robot_detected', default_value='false',
-                            description='Indica si se detectó robot físico'),
-        DeclareLaunchArgument('simulation_mode', default_value='false',
-                            description='Indica si estamos en modo simulación'),
-        DeclareLaunchArgument('environment', default_value='auto',
-                            choices=['auto', 'left', 'right', 'basic'],
-                            description='Entorno a visualizar (auto=usar robot detectado)'),
-        DeclareLaunchArgument('robot_side', default_value='none',
-                            description='Lado del robot detectado automáticamente (solo lectura)'),
+        
+        # Parámetros internos (se establecen en interactive_selector)
+        DeclareLaunchArgument('use_simulation', default_value='true',
+                            description='true=simulación, false=robot real'),
+        DeclareLaunchArgument('robot_ip', default_value='127.0.0.1',
+                            description='IP del robot (127.0.0.1 para simulación)'),
+        DeclareLaunchArgument('sim_env', default_value='basic',
+                            description='Entorno: basic, left, right'),
     ]
-
-    detection_action = OpaqueFunction(function=detect_robot_and_configure)
-    urdf_config_action = OpaqueFunction(function=configure_urdf_settings)
-
-    # ====== ROBOT DESCRIPTION ======
-    robot_description_content = Command([
-        'xacro ', PathJoinSubstitution([
-            FindPackageShare(LaunchConfiguration('description_package')),
-            'urdf',
-            LaunchConfiguration('description_file')
-        ]),
-        ' ur_type:=', LaunchConfiguration('ur_type'),
-        ' robot_ip:=', LaunchConfiguration('robot_ip'),
-        ' onrobot_type:=', LaunchConfiguration('onrobot_type'),
-        ' use_fake_hardware:=', LaunchConfiguration('use_fake_hardware')
-    ])
-
-    robot_description = {"robot_description": robot_description_content}
-
-    # ====== MAIN ROBOT STATE PUBLISHER ======
-    main_robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='main_robot_state_publisher',
-        output='both',
-        parameters=[robot_description],
-        remappings=[
-            ('/joint_states', '/merged_joint_states'),
-        ],
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
-    )
-
-    # ====== JOINT STATE MERGER ======
-    joint_state_merger = Node(
-        package='ur_onrobot_control',
-        executable='joint_state_merger.py',
-        name='joint_state_merger',
-        output='screen',
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
-    )
-
-    # ====== DRIVER UR MODIFICADO ======
-    ur_launch = IncludeLaunchDescription(
+    
+    # Selector interactivo
+    selector_action = OpaqueFunction(function=interactive_selector)
+    
+    # ========== LAUNCH DE SIMULACIÓN ==========
+    simulation_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([
                 FindPackageShare('ur_onrobot_control'),
                 'launch',
-                'ur_control.launch.py'
+                'start_simulation.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'ur_type': LaunchConfiguration('ur_type'),
+            'onrobot_type': LaunchConfiguration('onrobot_type'),
+            'launch_onrobot': LaunchConfiguration('launch_onrobot'),
+            'rviz_config': LaunchConfiguration('rviz_config'),
+            'sim_env': LaunchConfiguration('sim_env'),  # basic, left, right
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('use_simulation'))
+    )
+    
+    # ========== LAUNCH DE ROBOT REAL ==========
+    real_robot_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('ur_onrobot_control'),
+                'launch',
+                'start_real_robot.launch.py'
             ])
         ]),
         launch_arguments={
             'ur_type': LaunchConfiguration('ur_type'),
             'robot_ip': LaunchConfiguration('robot_ip'),
-            'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
-            'launch_rviz': 'false',
-            'headless_mode': 'false',
-            'launch_robot_state_publisher': 'false',
-            'description_package': LaunchConfiguration('description_package'),
-            'description_file': LaunchConfiguration('description_file'),
-        }.items(),
-        condition=IfCondition(LaunchConfiguration('robot_detected'))
-    )
-
-    # ====== DRIVER ONROBOT ======
-    onrobot_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('onrobot_driver'),
-                'launch',
-                'onrobot_control.launch.py'
-            ])
-        ]),
-        launch_arguments={
             'onrobot_type': LaunchConfiguration('onrobot_type'),
-            'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
-            'launch_rviz': 'false',
-            'launch_rsp': 'false',
+            'launch_onrobot': LaunchConfiguration('launch_onrobot'),
         }.items(),
-        condition=IfCondition(LaunchConfiguration('launch_onrobot'))
+        condition=UnlessCondition(LaunchConfiguration('use_simulation'))
     )
-
-    # ====== RVIZ ======
-    rviz_config_path = PathJoinSubstitution([
-        FindPackageShare('ur_onrobot_description'),
-        'rviz',
-        LaunchConfiguration('rviz_config')
-    ])
-
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        output='screen',
-        arguments=['-d', rviz_config_path],
-    )
-
+    
     return LaunchDescription([
         *declared_arguments,
-        detection_action,
-        urdf_config_action,
-        joint_state_merger,
-        main_robot_state_publisher,
-        ur_launch,
-        onrobot_launch,
-        rviz_node
+        selector_action,
+        simulation_launch,
+        real_robot_launch,
     ])
