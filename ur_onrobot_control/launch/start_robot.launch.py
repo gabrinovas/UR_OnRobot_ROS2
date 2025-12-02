@@ -254,6 +254,7 @@ def generate_launch_description():
             'robot_ip': LaunchConfiguration('robot_ip'),
             'onrobot_type': LaunchConfiguration('onrobot_type'),
             'launch_onrobot': LaunchConfiguration('launch_onrobot'),
+            'use_fake_hardware': 'false',
         }.items(),
         condition=UnlessCondition(LaunchConfiguration('use_simulation'))
     )

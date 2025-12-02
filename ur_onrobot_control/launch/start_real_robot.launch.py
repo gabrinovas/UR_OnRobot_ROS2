@@ -22,6 +22,8 @@ def generate_launch_description():
                             description='Tipo de gripper OnRobot'),
         DeclareLaunchArgument('launch_onrobot', default_value='true',
                             description='Lanzar control del gripper'),
+        DeclareLaunchArgument('use_fake_hardware', default_value='false',
+                            description='true=simulación, false=robot real'),
     ]
 
     ur_launch = IncludeLaunchDescription(
@@ -35,7 +37,7 @@ def generate_launch_description():
         launch_arguments={
             'ur_type': LaunchConfiguration('ur_type'),
             'robot_ip': LaunchConfiguration('robot_ip'),
-            'use_fake_hardware': 'false',
+            'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
         }.items()
     )
 
@@ -49,7 +51,7 @@ def generate_launch_description():
         ]),
         launch_arguments={
             'onrobot_type': LaunchConfiguration('onrobot_type'),
-            'use_fake_hardware': 'false',
+            'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
         }.items(),
         condition=IfCondition(LaunchConfiguration('launch_onrobot'))
     )
