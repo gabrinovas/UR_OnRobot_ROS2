@@ -1,4 +1,4 @@
-/**:
+moveit_servo:
   ros__parameters:
     ###############################################
     # Modify all parameters related to servoing here
