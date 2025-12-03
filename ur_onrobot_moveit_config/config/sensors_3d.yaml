@@ -1,19 +1,17 @@
 sensors:
-  ros__parameters:
-    - realsense_depth
-
-realsense_depth:
-  ros__parameters:
-    sensor_plugin: occupancy_map_monitor/DepthImageOctomapUpdater
-    image_topic: /camera/depth/image_rect_raw
-    queue_size: 5
-    near_clipping_plane_distance: 0.2
-    far_clipping_plane_distance: 3.0
-    max_update_rate: 2.0
-    padding_offset: 0.03
-    padding_scale: 1.5
-    filtered_cloud_topic: realsense_octomap_cloud
-    point_cloud_topic: /camera/depth/color/points
-    max_range: 3.0
-    point_subsample: 1
-    shadow_threshold: 0.2
+  octomap:
+    sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+    point_cloud_topic: /camera/depth/points
+    max_range: 5.0
+    padding_offset: 0.1
+    padding_scale: 1.0
+    filtered_cloud_topic: filtered_cloud
+    ns: ""
+    parameters:
+      sensor_max_range: 5.0
+      frame_subsample: 10
+      point_subsample: 10
+      padding_scale: 1.0
+      padding_offset: 0.1
+      max_update_rate: 1.0
+      filtered_cloud_topic: filtered_cloud

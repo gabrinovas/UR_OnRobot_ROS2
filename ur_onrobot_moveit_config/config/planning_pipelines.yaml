@@ -1,32 +1,26 @@
 planning_pipelines:
-  ros__parameters:
-    ompl:
-      pipeline_id: ompl
-      planning_plugins:
-        - ompl_interface/OMPLPlanner
-      request_adapters:
-        - default_planning_request_adapters/FixWorkspaceBounds
-        - default_planning_request_adapters/FixStartStateBounds
-        - default_planning_request_adapters/FixStartStateCollision
-        - default_planning_request_adapters/FixStartStatePathConstraints
-        - default_planning_request_adapters/ResolveConstraintFrames
-      response_adapters:
-        - default_planning_response_adapters/AddTimeOptimalParameterization
-        - default_planning_response_adapters/ValidateSolution
-        - default_planning_response_adapters/DisplayTrajectory
-      start_state_max_bounds_error: 0.1
-
-    pilz:
-      pipeline_id: pilz
-      planning_plugins:
-        - pilz_industrial_motion_planner/CommandPlanner
-      request_adapters:
-        - default_planning_request_adapters/FixWorkspaceBounds
-        - default_planning_request_adapters/FixStartStateBounds
-        - default_planning_request_adapters/FixStartStateCollision
-        - default_planning_request_adapters/FixStartStatePathConstraints
-      response_adapters:
-        - default_planning_response_adapters/AddTimeOptimalParameterization
-        - default_planning_response_adapters/ValidateSolution
-        - default_planning_response_adapters/DisplayTrajectory
-      start_state_max_bounds_error: 0.1
+  ompl:
+    pipeline_name: ompl
+    planner_configs:
+      - SBL
+      - EST
+      - LBKPIECE1
+      - BKPIECE1
+      - KPIECE1
+      - RRT
+      - RRTConnect
+      - RRTstar
+      - TRRT
+      - PRM
+      - PRMstar
+    planning_plugin: ompl_interface/OMPLPlanner
+    request_adapters: >
+      default_planner_request_adapters/AddTimeOptimalParameterization
+      default_planner_request_adapters/FixWorkspaceBounds
+      default_planner_request_adapters/FixStartStateBounds
+      default_planner_request_adapters/FixStartStateCollision
+      default_planner_request_adapters/FixStartStatePathConstraints
+    response_adapters: >
+      default_planning_response_adapters/AddTimeOptimalParameterization
+      default_planning_response_adapters/ValidateSolution
+    start_state_max_bounds_error: 0.1

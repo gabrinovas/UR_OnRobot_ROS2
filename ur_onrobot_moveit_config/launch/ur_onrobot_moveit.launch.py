@@ -1,395 +1,434 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, LogInfo, Shutdown
-from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.substitutions import FindPackageShare
+# Copyright (c) 2021 PickNik, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the {copyright_holder} nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+#
+# Author: Denis Stogl
+
+import os
+import yaml
+
+from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
-import subprocess
-import sys
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.conditions import IfCondition
+from launch.substitutions import (
+    Command,
+    FindExecutable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+)
 
-def detect_robot_and_configure(context):
-    use_fake = LaunchConfiguration('use_fake_hardware').perform(context)
-    environment = LaunchConfiguration('environment').perform(context)
+
+def load_yaml(package_name, file_path):
+    """Load yaml file from package."""
+    package_path = get_package_share_directory(package_name)
+    absolute_file_path = os.path.join(package_path, file_path)
     
-    # Si se fuerza simulación, retornar inmediatamente
-    if use_fake == "true":
-        print("\n🔄 Modo simulación forzado → MODO SIMULACIÓN")
-        return [SetLaunchConfiguration('use_fake_hardware', 'true'),
-                SetLaunchConfiguration('robot_ip', '127.0.0.1'),
-                SetLaunchConfiguration('robot_detected', 'true'),
-                SetLaunchConfiguration('simulation_mode', 'true'),
-                SetLaunchConfiguration('robot_side', 'none')]
+    try:
+        with open(absolute_file_path, 'r') as file:
+            return yaml.safe_load(file)
+    except EnvironmentError:  # parent of IOError, OSError *and* WindowsError where available
+        return None
 
-    # Definir IPs para cada robot
-    ips_by_side = {
-        'left': '192.168.1.105',
-        'right': '192.168.1.101'
-    }
-    
-    detected_robots = []
-    
-    # Detectar qué robots están disponibles
-    for side, ip in ips_by_side.items():
-        result = subprocess.run(['ping', '-c', '1', '-W', '1', ip],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if result.returncode == 0:
-            detected_robots.append((side, ip))
-            print(f"✅ Robot {side} detectado en {ip}")
 
-    # Lógica de decisión
-    if len(detected_robots) == 0:
-        print("\n❌ No se detectó ningún robot físico → MODO SIMULACIÓN")
+def load_gripper_joint_limits(onrobot_type_str, prefix_str):
+    """Load joint limits for specific gripper type."""
+    try:
+        all_limits = load_yaml("ur_onrobot_moveit_config", "config/joint_limits_grippers.yaml")
         
-        # Logs específicos por tipo de environment
-        if environment == 'left':
-            print("\n⚠️  AVISO: Se solicitó environment=left con simulation_mode=false,")
-            print("   pero no se detectó el robot left (192.168.1.105).")
-            print("   Cambiando automáticamente a MODO SIMULACIÓN")
+        if not all_limits:
+            print(f"Warning: Could not load gripper joint limits file")
+            return {}
+        
+        # Select the appropriate gripper limits
+        gripper_key = f"joint_limits_{onrobot_type_str}"
+        if gripper_key in all_limits:
+            gripper_limits = all_limits[gripper_key].copy()
             
-        elif environment == 'right':
-            print("\n⚠️  AVISO: Se solicitó environment=right con simulation_mode=false,")
-            print("   pero no se detectó el robot right (192.168.1.101).")
-            print("   Cambiando automáticamente a MODO SIMULACIÓN")
+            # Add prefix to joint names if needed
+            if prefix_str and prefix_str != '""':
+                prefixed_limits = {}
+                for joint_name, limits in gripper_limits.items():
+                    prefixed_joint_name = f"{prefix_str}{joint_name}"
+                    prefixed_limits[prefixed_joint_name] = limits
+                return prefixed_limits
+            return gripper_limits
         
-        return [SetLaunchConfiguration('use_fake_hardware', 'true'),
-                SetLaunchConfiguration('robot_ip', '127.0.0.1'),
-                SetLaunchConfiguration('robot_detected', 'true'),
-                SetLaunchConfiguration('simulation_mode', 'true'),
-                SetLaunchConfiguration('robot_side', 'none')]
-    
-    elif len(detected_robots) == 1:
-        detected_side, detected_ip = detected_robots[0]
-        print(f"\n✅ Robot {detected_side} detectado → MODO REAL")
-        
-        # Si environment no es básico ni auto y no coincide con el robot detectado
-        if (environment != 'basic' and environment != 'auto' and 
-            environment != detected_side):
-            print(f"\n❌ CONFLICTO DE ENTORNO")
-            print(f"Robot físico detectado: '{detected_side}'")
-            print(f"Entorno solicitado: '{environment}'")
-            
-            # Log específico del conflicto
-            if environment == 'left':
-                print(f"   - Se solicitó entorno LEFT pero solo está disponible robot {detected_side.upper()}")
-            elif environment == 'right':
-                print(f"   - Se solicitó entorno RIGHT pero solo está disponible robot {detected_side.upper()}")
-                
-            print("\n💡 SOLUCIÓN: Ejecuta con uno de los siguientes comandos:")
-            print(f"   - Para usar el entorno del robot disponible: 'environment:={detected_side}'")
-            print(f"   - Para entorno básico: 'environment:=basic'")
-            print(f"   - Para simulación del entorno solicitado: 'use_fake_hardware:=true'")
-            print("\n🚫 Cerrando ejecución...")
-            
-            return [LogInfo(msg=f"Conflicto: entorno '{environment}' no compatible con robot '{detected_side}'"),
-                    SetLaunchConfiguration('robot_detected', 'false'),
-                    Shutdown(reason='Entorno no compatible con robot físico')]
-        
-        # Si environment es básico, usar robot físico normalmente
-        if environment == 'basic':
-            print("🎯 Entorno básico seleccionado → Usando robot físico detectado")
-            print(f"   - Robot físico {detected_side} disponible, usando entorno básico")
-            return [SetLaunchConfiguration('use_fake_hardware', 'false'),
-                    SetLaunchConfiguration('robot_ip', detected_ip),
-                    SetLaunchConfiguration('robot_detected', 'true'),
-                    SetLaunchConfiguration('simulation_mode', 'false'),
-                    SetLaunchConfiguration('robot_side', detected_side)]
-        
-        # Caso normal: usar el robot detectado con entorno correspondiente
-        print(f"🎯 Entorno {environment} seleccionado → Usando robot físico {detected_side}")
-        return [SetLaunchConfiguration('use_fake_hardware', 'false'),
-                SetLaunchConfiguration('robot_ip', detected_ip),
-                SetLaunchConfiguration('robot_detected', 'true'),
-                SetLaunchConfiguration('simulation_mode', 'false'),
-                SetLaunchConfiguration('robot_side', detected_side)]
-    
-    else:  # Ambos robots detectados
-        print("\n❌ AMBOS ROBOTS DETECTADOS - CONFLICTO")
-        print("Se detectaron ambos robots físicos:")
-        for side, ip in detected_robots:
-            print(f"  - Robot {side}: {ip}")
-        
-        # Log específico según el environment solicitado
-        if environment == 'auto':
-            print("\n💡 SOLUCIÓN: Para usar modo automático, desconecta uno de los robots")
-        elif environment == 'left':
-            print(f"\n💡 SOLUCIÓN: Desconecta el robot RIGHT o usa: 'use_fake_hardware:=true'")
-        elif environment == 'right':
-            print(f"\n💡 SOLUCIÓN: Desconecta el robot LEFT o usa: 'use_fake_hardware:=true'")
-        elif environment == 'basic':
-            print(f"\n💡 SOLUCIÓN: Desconecta uno de los robots o usa: 'use_fake_hardware:=true'")
-            
-        print("\n🚫 Cerrando ejecución...")
-        
-        # Retornar acciones que terminen la ejecución
-        return [LogInfo(msg="Conflicto: ambos robots detectados"),
-                SetLaunchConfiguration('robot_detected', 'false'),
-                Shutdown(reason='Conflicto de robots detectados')]
+        print(f"Warning: No joint limits found for gripper type '{onrobot_type_str}'")
+        return {}
+    except Exception as e:
+        print(f"Warning: Could not load gripper joint limits: {e}")
+        return {}
 
-def configure_urdf_settings(context):
-    environment = LaunchConfiguration('environment').perform(context)
-    simulation_mode = LaunchConfiguration('simulation_mode').perform(context)
-    robot_side = LaunchConfiguration('robot_side').perform(context)
-    
-    # Determinar el entorno real a usar
-    if environment == 'auto' and simulation_mode == 'false' and robot_side != 'none':
-        actual_environment = robot_side
-    elif environment == 'auto' and simulation_mode == 'true':
-        actual_environment = 'basic'
-    else:
-        actual_environment = environment
-    
-    print(f"\n🎯 Configuración final:")
-    print(f"   - Robot detectado: {robot_side}")
-    print(f"   - Entorno solicitado: {environment}")
-    print(f"   - Entorno real: {actual_environment}")
-    print(f"   - Modo simulación: {simulation_mode}")
-    
-    # Log específico del entorno final
-    if simulation_mode == 'true':
-        if actual_environment == 'left':
-            print("   - 🎮 SIMULACIÓN: Entorno LEFT")
-        elif actual_environment == 'right':
-            print("   - 🎮 SIMULACIÓN: Entorno RIGHT")
-        elif actual_environment == 'basic':
-            print("   - 🎮 SIMULACIÓN: Entorno BÁSICO")
-    else:
-        if actual_environment == 'left':
-            print("   - 🤖 MODO REAL: Robot LEFT físico")
-        elif actual_environment == 'right':
-            print("   - 🤖 MODO REAL: Robot RIGHT físico")
-        elif actual_environment == 'basic':
-            print("   - 🤖 MODO REAL: Robot físico con entorno básico")
-    
-    # Determinar package y archivo URDF
-    if actual_environment == 'basic':
-        description_package = 'ur_onrobot_description'
-        description_file = 'ur_onrobot.urdf.xacro'
-    elif actual_environment == 'left':
-        description_package = 'ur_onrobot_control'
-        description_file = 'left_robot_with_environment.urdf.xacro'
-    elif actual_environment == 'right':
-        description_package = 'ur_onrobot_control'
-        description_file = 'right_robot_with_environment.urdf.xacro'
-    else:
-        # Por defecto
-        description_package = 'ur_onrobot_description'
-        description_file = 'ur_onrobot.urdf.xacro'
-    
-    print(f"   - Package URDF: {description_package}")
-    print(f"   - Archivo URDF: {description_file}")
-    
-    return [
-        SetLaunchConfiguration('description_package', description_package),
-        SetLaunchConfiguration('description_file', description_file)
-    ]
 
-def generate_launch_description():
-    declared_arguments = [
-        DeclareLaunchArgument('ur_type', default_value='ur5e',
-                            description='Tipo de robot UR (ur5, ur5e, ur10, etc.)'),
-        DeclareLaunchArgument('robot_ip', default_value='192.168.1.101',
-                            description='IP del robot (se autodetecta)'),
-        DeclareLaunchArgument('use_fake_hardware', default_value='false',
-                            description='Forzar modo simulación (true/false)'),
-        DeclareLaunchArgument('onrobot_type', default_value='2fg7',
-                            description='Tipo de gripper OnRobot'),
-        DeclareLaunchArgument('launch_onrobot', default_value='true',
-                            description='Lanzar control del gripper'),
-        DeclareLaunchArgument('rviz_config', default_value='view_robot.rviz',
-                            description='Configuración de RVIZ'),
-        DeclareLaunchArgument('robot_detected', default_value='false',
-                            description='Indica si se detectó robot físico'),
-        DeclareLaunchArgument('simulation_mode', default_value='false',
-                            description='Indica si estamos en modo simulación'),
-        DeclareLaunchArgument('environment', default_value='auto',
-                            choices=['auto', 'left', 'right', 'basic'],
-                            description='Entorno a visualizar (auto=usar robot detectado)'),
-        DeclareLaunchArgument('robot_side', default_value='none',
-                            description='Lado del robot detectado automáticamente (solo lectura)'),
-        DeclareLaunchArgument('moveit_config_package', default_value='ur_onrobot_moveit_config',
-                            description='Paquete de configuración de MoveIt'),
-        DeclareLaunchArgument('use_sim_time', default_value='false',
-                            description='Usar tiempo de simulación'),
-    ]
+def launch_setup(context, *args, **kwargs):
 
-    detection_action = OpaqueFunction(function=detect_robot_and_configure)
-    urdf_config_action = OpaqueFunction(function=configure_urdf_settings)
+    # Initialize Arguments
+    ur_type = LaunchConfiguration("ur_type")
+    onrobot_type = LaunchConfiguration("onrobot_type")
+    safety_limits = LaunchConfiguration("safety_limits")
+    safety_pos_margin = LaunchConfiguration("safety_pos_margin")
+    safety_k_position = LaunchConfiguration("safety_k_position")
 
-    # ====== ROBOT DESCRIPTION ======
-    robot_description_content = Command([
-        'xacro ', PathJoinSubstitution([
-            FindPackageShare(LaunchConfiguration('description_package')),
-            'urdf',
-            LaunchConfiguration('description_file')
-        ]),
-        ' ur_type:=', LaunchConfiguration('ur_type'),
-        ' robot_ip:=', LaunchConfiguration('robot_ip'),
-        ' onrobot_type:=', LaunchConfiguration('onrobot_type'),
-        ' use_fake_hardware:=', LaunchConfiguration('use_fake_hardware')
-    ])
+    # General arguments
+    ur_description_package = LaunchConfiguration("ur_description_package")
+    description_file = LaunchConfiguration("description_file")
+    moveit_config_package = LaunchConfiguration("moveit_config_package")
+    moveit_joint_limits_file = LaunchConfiguration("moveit_joint_limits_file")
+    moveit_config_file = LaunchConfiguration("moveit_config_file")
+    warehouse_sqlite_path = LaunchConfiguration("warehouse_sqlite_path")
+    prefix = LaunchConfiguration("prefix")
+    use_sim_time = LaunchConfiguration("use_sim_time")
+    launch_rviz = LaunchConfiguration("launch_rviz")
+    launch_servo = LaunchConfiguration("launch_servo")
 
+    # Get actual values from context
+    onrobot_type_str = onrobot_type.perform(context)
+    prefix_str = prefix.perform(context)
+    
+    # Load gripper-specific joint limits
+    gripper_limits = load_gripper_joint_limits(onrobot_type_str, prefix_str)
+
+    joint_limit_params = PathJoinSubstitution(
+        [FindPackageShare(ur_description_package), "config", ur_type, "joint_limits.yaml"]
+    )
+    kinematics_params = PathJoinSubstitution(
+        [FindPackageShare(ur_description_package), "config", ur_type, "default_kinematics.yaml"]
+    )
+    physical_params = PathJoinSubstitution(
+        [FindPackageShare(ur_description_package), "config", ur_type, "physical_parameters.yaml"]
+    )
+    visual_params = PathJoinSubstitution(
+        [FindPackageShare(ur_description_package), "config", ur_type, "visual_parameters.yaml"]
+    )
+
+    robot_description_content = Command(
+        [
+            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            " ",
+            PathJoinSubstitution([FindPackageShare("ur_onrobot_description"), "urdf", description_file]),
+            " ",
+            "robot_ip:=xxx.yyy.zzz.www",
+            " ",
+            "joint_limit_params:=",
+            joint_limit_params,
+            " ",
+            "kinematics_params:=",
+            kinematics_params,
+            " ",
+            "physical_params:=",
+            physical_params,
+            " ",
+            "visual_params:=",
+            visual_params,
+            " ",
+            "safety_limits:=",
+            safety_limits,
+            " ",
+            "safety_pos_margin:=",
+            safety_pos_margin,
+            " ",
+            "safety_k_position:=",
+            safety_k_position,
+            " ",
+            "name:=",
+            "ur_onrobot",
+            " ",
+            "ur_type:=",
+            ur_type,
+            " ",
+            "onrobot_type:=",
+            onrobot_type,
+            " ",
+            "script_filename:=ros_control.urscript",
+            " ",
+            "input_recipe_filename:=rtde_input_recipe.txt",
+            " ",
+            "output_recipe_filename:=rtde_output_recipe.txt",
+            " ",
+            "prefix:=",
+            prefix,
+            " ",
+        ]
+    )
     robot_description = {"robot_description": robot_description_content}
 
-    # ====== ROBOT DESCRIPTION SEMANTIC ======
-    robot_description_semantic_content = Command([
-        'xacro ', PathJoinSubstitution([
-            FindPackageShare(LaunchConfiguration('moveit_config_package')),
-            'srdf',
-            'ur_onrobot.srdf.xacro'
-        ]),
-        ' name:=ur_onrobot',
-        ' prefix:=',
-        ' onrobot_type:=', LaunchConfiguration('onrobot_type')
-    ])
+    # MoveIt Configuration
+    robot_description_semantic_content = Command(
+        [
+            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            " ",
+            PathJoinSubstitution(
+                [FindPackageShare(moveit_config_package), "srdf", moveit_config_file]
+            ),
+            " ",
+            "name:=",
+            "ur_onrobot",
+            " ",
+            "prefix:=",
+            prefix,
+            " ",
+            "onrobot_type:=",
+            onrobot_type,
+            " ",
+        ]
+    )
+    robot_description_semantic = {"robot_description_semantic": robot_description_semantic_content}
 
-    robot_description_semantic = {'robot_description_semantic': robot_description_semantic_content}
-
-    # ====== MAIN ROBOT STATE PUBLISHER ======
-    main_robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='main_robot_state_publisher',
-        output='both',
-        parameters=[robot_description],
-        remappings=[
-            ('/joint_states', '/merged_joint_states'),
-        ],
-        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
+    robot_description_kinematics = PathJoinSubstitution(
+        [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
     )
 
-    # ====== JOINT STATE MERGER ======
-    joint_state_merger = Node(
-        package='ur_onrobot_control',
-        executable='joint_state_merger.py',
-        name='joint_state_merger',
-        output='screen',
-        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
-    )
+    # Load base joint limits
+    robot_description_planning = {
+        "robot_description_planning": load_yaml(
+            moveit_config_package.perform(context),
+            os.path.join("config", moveit_joint_limits_file.perform(context))
+        )
+    }
+    
+    # Merge gripper-specific limits with base limits
+    if gripper_limits and "robot_description_planning" in robot_description_planning:
+        if robot_description_planning["robot_description_planning"] is None:
+            robot_description_planning["robot_description_planning"] = {}
+        
+        if "joint_limits" not in robot_description_planning["robot_description_planning"]:
+            robot_description_planning["robot_description_planning"]["joint_limits"] = {}
+        
+        robot_description_planning["robot_description_planning"]["joint_limits"].update(gripper_limits)
 
-    # ====== STATIC TRANSFORM PUBLISHER ======
-    static_transform_publisher = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_transform_publisher',
-        arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'world', 'base_link'],
-        output='screen',
-        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
-    )
+    # Planning Configuration
+    ompl_planning_pipeline_config = {
+        "ompl": {
+            "planning_plugin": "ompl_interface/OMPLPlanner",
+            "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
+            "start_state_max_bounds_error": 0.1,
+        }
+    }
+    ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
+    if ompl_planning_yaml:
+        ompl_planning_pipeline_config["ompl"].update(ompl_planning_yaml)
 
-    # ====== DRIVER UR MODIFICADO ======
-    ur_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'launch',
-                'ur_control.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'ur_type': LaunchConfiguration('ur_type'),
-            'robot_ip': LaunchConfiguration('robot_ip'),
-            'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
-            'launch_rviz': 'false',
-            'headless_mode': 'false',
-            'launch_robot_state_publisher': 'false',
-            'description_package': LaunchConfiguration('description_package'),
-            'description_file': LaunchConfiguration('description_file'),
-        }.items(),
-        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot_detected'), "' == 'true'"]))
-    )
+    # Trajectory Execution Configuration
+    controllers_yaml = load_yaml("ur_onrobot_moveit_config", "config/moveit_controllers.yaml")
+    if not controllers_yaml:
+        controllers_yaml = {}
+    
+    moveit_controllers = {
+        "moveit_simple_controller_manager": controllers_yaml,
+        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
+    }
 
-    # ====== DRIVER ONROBOT ======
-    onrobot_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('onrobot_driver'),
-                'launch',
-                'onrobot_control.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'onrobot_type': LaunchConfiguration('onrobot_type'),
-            'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
-            'launch_rviz': 'false',
-            'launch_rsp': 'false',
-        }.items(),
-        condition=IfCondition(PythonExpression(["'", LaunchConfiguration('launch_onrobot'), "' == 'true'"]))
-    )
+    trajectory_execution = {
+        "moveit_manage_controllers": True,
+        "trajectory_execution.allowed_execution_duration_scaling": 1.2,
+        "trajectory_execution.allowed_goal_duration_margin": 0.5,
+        "trajectory_execution.allowed_start_tolerance": 0.01,
+        # Execution time monitoring can be incompatible with the scaled JTC
+        "trajectory_execution.execution_duration_monitoring": False,
+    }
 
-    # ====== MOVEIT LAUNCH ======
-    moveit_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare(LaunchConfiguration('moveit_config_package')),
-                'launch',
-                'move_group.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'robot_description': robot_description_content,
-            'robot_description_semantic': robot_description_semantic_content,
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
-            'publish_monitored_planning_scene': 'true',
-            'publish_static_transform': 'false',
-        }.items(),
-        condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('robot_detected'), "' == 'true'"
-        ]))
-    )
+    planning_scene_monitor_parameters = {
+        "publish_planning_scene": True,
+        "publish_geometry_updates": True,
+        "publish_state_updates": True,
+        "publish_transforms_updates": True,
+    }
 
-    # ====== MOVEIT SERVO ======
-    moveit_servo_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare(LaunchConfiguration('moveit_config_package')),
-                'launch',
-                'servo.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
-            'robot_description': robot_description_content,
-            'launch_joy': 'false',
-        }.items(),
-        condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('simulation_mode'), "' == 'false'"
-        ]))
-    )
-
-    # ====== RVIZ CON MOVEIT ======
-    rviz_config_path = PathJoinSubstitution([
-        FindPackageShare('ur_onrobot_moveit_config'),
-        'rviz',
-        'view_robot.rviz'
-    ])
-
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        output='screen',
-        arguments=['-d', rviz_config_path],
+    # Start the actual move_group node/action server
+    move_group_node = Node(
+        package="moveit_ros_move_group",
+        executable="move_group",
+        output="screen",
         parameters=[
             robot_description,
             robot_description_semantic,
-            {'use_sim_time': LaunchConfiguration('use_sim_time')},
+            robot_description_kinematics,
+            robot_description_planning,
+            ompl_planning_pipeline_config,
+            trajectory_execution,
+            moveit_controllers,
+            planning_scene_monitor_parameters,
+            {"use_sim_time": use_sim_time},
+            {"publish_robot_description_semantic": True},
+            {"publish_robot_description": True},
         ],
     )
 
-    return LaunchDescription([
-        *declared_arguments,
-        detection_action,
-        urdf_config_action,
-        joint_state_merger,
-        main_robot_state_publisher,
-        static_transform_publisher,
-        ur_launch,
-        onrobot_launch,
-        moveit_launch,
-        moveit_servo_launch,
-        rviz_node,
-    ])
+    # rviz with moveit configuration
+    rviz_config_file = PathJoinSubstitution(
+        [FindPackageShare(moveit_config_package), "rviz", "view_robot.rviz"]
+    )
+    rviz_node = Node(
+        package="rviz2",
+        condition=IfCondition(launch_rviz),
+        executable="rviz2",
+        name="rviz2_moveit",
+        output="log",
+        arguments=["-d", rviz_config_file],
+        parameters=[
+            robot_description,
+            robot_description_semantic,
+            robot_description_kinematics,
+            {"use_sim_time": use_sim_time},
+        ],
+    )
+
+    # Servo node for realtime control
+    servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
+    servo_params = {"moveit_servo": servo_yaml}
+    servo_node = Node(
+        package="moveit_servo",
+        condition=IfCondition(launch_servo),
+        executable="servo_node_main",
+        parameters=[
+            servo_params,
+            robot_description,
+            robot_description_semantic,
+            {"use_sim_time": use_sim_time},
+        ],
+        output="screen",
+    )
+
+    nodes_to_start = [move_group_node, rviz_node, servo_node]
+
+    return nodes_to_start
+
+
+def generate_launch_description():
+
+    declared_arguments = []
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "ur_type",
+            description="Type/series of used UR robot.",
+            choices=["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e", "ur20", "ur30"],
+            default_value="ur5e",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "onrobot_type",
+            description="Type of the OnRobot gripper.",
+            choices=["2fg7", "3fg15", "rg2", "rg6"],
+            default_value="2fg7",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "safety_limits",
+            default_value="true",
+            description="Enables the safety limits controller if true.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "safety_pos_margin",
+            default_value="0.15",
+            description="The margin to lower and upper limits in the safety controller.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "safety_k_position",
+            default_value="20",
+            description="k-position factor in the safety controller.",
+        )
+    )
+    # General arguments
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "ur_description_package",
+            default_value="ur_description",
+            description="Description package with robot URDF/XACRO files. Usually the argument "
+            "is not set, it enables use of a custom description.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "description_file",
+            default_value="ur_onrobot.urdf.xacro",
+            description="URDF/XACRO description file with the robot.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "moveit_config_package",
+            default_value="ur_onrobot_moveit_config",
+            description="MoveIt config package with robot SRDF/XACRO files. Usually the argument "
+            "is not set, it enables use of a custom moveit config.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "moveit_config_file",
+            default_value="ur_onrobot.srdf.xacro",
+            description="MoveIt SRDF/XACRO description file with the robot.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "moveit_joint_limits_file",
+            default_value="joint_limits.yaml",
+            description="MoveIt joint limits that augment or override the values from the URDF robot_description.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "warehouse_sqlite_path",
+            default_value=os.path.expanduser("~/.ros/warehouse_ros.sqlite"),
+            description="Path where the warehouse database should be stored",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_sim_time",
+            default_value="false",
+            description="Make MoveIt to use simulation time. This is needed for the trajectory planing in simulation.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "prefix",
+            default_value='""',
+            description="Prefix of the joint names, useful for "
+            "multi-robot setup. If changed than also joint names in the controllers' configuration "
+            "have to be updated.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?")
+    )
+
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])

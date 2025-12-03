@@ -4,55 +4,80 @@
   <name>ur_onrobot_moveit_config</name>
   <version>0.0.1</version>
   <description>
-     MoveIt2 configuration for UR robots with OnRobot grippers
+    MoveIt2 configuration package for UR robots with various OnRobot grippers.
+    Supports UR3, UR5, UR10 robots with 2FG7, 3FG15, RG2, and RG6 grippers.
   </description>
 
-  <maintainer email="your-email@example.com">Your Name</maintainer>
+  <maintainer email="feex@universal-robots.com">Felix Exner</maintainer>
+  <maintainer email="rsk@universal-robots.com">Rune Søe-Knudsen</maintainer>
+  <maintainer email="ros@universal-robots.com">Universal Robots A/S</maintainer>
+
   <license>Apache2.0</license>
 
-  <author email="your-email@example.com">Your Name</author>
+  <author email="lovro.ivanov@gmail.com">Lovro Ivanov</author>
+  <author email="zelenak@picknik.ai">Andy Zelenak</author>
+  <author email="dipentima@fzi.de">Vincenzo Di Pentima</author>
+  <author email="denis@stoglrobotics.de">Denis Stogl</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <!-- Core ROS2 dependencies -->
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
-  <exec_depend>launch_pal</exec_depend>
+  <exec_depend>rclpy</exec_depend>
   
-  <!-- MoveIt dependencies -->
+  <!-- MoveIt2 core dependencies -->
   <exec_depend>moveit_ros_move_group</exec_depend>
   <exec_depend>moveit_kinematics</exec_depend>
   <exec_depend>moveit_planners_ompl</exec_depend>
   <exec_depend>moveit_ros_visualization</exec_depend>
-  <exec_depend>moveit_servo</exec_depend>
   <exec_depend>moveit_simple_controller_manager</exec_depend>
-  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_common</exec_depend>
   
-  <!-- Controller dependencies -->
-  <exec_depend>joint_trajectory_controller</exec_depend>
-  <exec_depend>joint_state_broadcaster</exec_depend>
-  <exec_depend>controller_manager</exec_depend>
+  <!-- MoveIt2 optional components -->
+  <exec_depend>moveit_servo</exec_depend>
+  <exec_depend>moveit_ros_warehouse</exec_depend>
+  <exec_depend>warehouse_ros_sqlite</exec_depend>
   
-  <!-- Robot dependencies -->
+  <!-- Visualization -->
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
+  
+  <!-- UR robot dependencies -->
   <exec_depend>ur_onrobot_control</exec_depend>
   <exec_depend>ur_onrobot_description</exec_depend>
+  <exec_depend>ur_onrobot_gazebo</exec_depend>
   <exec_depend>ur_description</exec_depend>
-  <exec_depend>onrobot_description</exec_depend>
+  <exec_depend>ur_controllers</exec_depend>
+  <exec_depend>ur_robot_driver</exec_depend>
   
-  <!-- Other dependencies -->
-  <exec_depend>rviz2</exec_depend>
+  <!-- Gripper dependencies -->
+  <exec_depend>onrobot_description</exec_depend>
+  <exec_depend>onrobot_control</exec_depend>
+  
+  <!-- ROS Control -->
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>joint_trajectory_controller</exec_depend>
+  
+  <!-- URDF/XACRO support -->
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
-  <exec_depend>warehouse_ros_sqlite</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
-  <exec_depend>robot_state_publisher</exec_depend>
-  <exec_depend>joint_state_publisher</exec_depend>
-  <exec_depend>joint_state_publisher_gui</exec_depend>
-
+  
+  <!-- Python dependencies -->
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-lxml</exec_depend>
+  
+  <!-- Testing dependencies -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_clang_format</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
+    <moveit_config package="${name}" />
   </export>
+
 </package>
