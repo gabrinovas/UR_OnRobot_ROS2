@@ -1,40 +1,10 @@
-# Copyright (c) 2021 PickNik, Inc.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-#    * Redistributions of source code must retain the above copyright
-#      notice, this list of conditions and the following disclaimer.
-#
-#    * Redistributions in binary form must reproduce the above copyright
-#      notice, this list of conditions and the following disclaimer in the
-#      documentation and/or other materials provided with the distribution.
-#
-#    * Neither the name of the {copyright_holder} nor the names of its
-#      contributors may be used to endorse or promote products derived from
-#      this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSECUTIONAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-
-#
-# Author: Denis Stogl
+#!/usr/bin/env python3
 
 import os
-
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition
@@ -46,8 +16,20 @@ from launch.substitutions import (
 )
 
 
-def launch_setup(context, *args, **kwargs):
+def load_yaml(package_name, file_path):
+    """Load YAML file from package."""
+    package_path = get_package_share_directory(package_name)
+    absolute_file_path = os.path.join(package_path, file_path)
+    
+    try:
+        with open(absolute_file_path, 'r') as file:
+            return yaml.safe_load(file)
+    except Exception as e:
+        print(f"Failed to load YAML file {absolute_file_path}: {e}")
+        return None
 
+
+def launch_setup(context, *args, **kwargs):
     # Initialize Arguments
     ur_type = LaunchConfiguration("ur_type")
     onrobot_type = LaunchConfiguration("onrobot_type")
@@ -64,7 +46,6 @@ def launch_setup(context, *args, **kwargs):
     use_sim_time = LaunchConfiguration("use_sim_time")
     launch_rviz = LaunchConfiguration("launch_rviz")
     launch_servo = LaunchConfiguration("launch_servo")
-    launch_controllers = LaunchConfiguration("launch_controllers")
 
     # Get actual values from context
     onrobot_type_str = onrobot_type.perform(context)
@@ -158,45 +139,76 @@ def launch_setup(context, *args, **kwargs):
         "robot_description_semantic": robot_description_semantic_content
     }
 
+    # Load MoveIt config YAML files as dictionaries
+    moveit_config_dir = get_package_share_directory(moveit_config_package.perform(context))
+    
+    kinematics_yaml = load_yaml(moveit_config_package.perform(context), "config/kinematics.yaml")
+    joint_limits_yaml = load_yaml(moveit_config_package.perform(context), "config/joint_limits.yaml")
+    moveit_controllers_yaml = load_yaml(moveit_config_package.perform(context), "config/moveit_controllers.yaml")
+    ompl_yaml = load_yaml(moveit_config_package.perform(context), "config/ompl_planning.yaml")
+    planning_pipelines_yaml = load_yaml(moveit_config_package.perform(context), "config/planning_pipelines.yaml")
+
+    # Debug output
+    print("\n" + "="*60)
+    print("DEBUG: YAML Files Loading Status")
+    print("="*60)
+    print(f"kinematics.yaml: {'LOADED' if kinematics_yaml else 'FAILED'}")
+    print(f"joint_limits.yaml: {'LOADED' if joint_limits_yaml else 'FAILED'}")
+    print(f"moveit_controllers.yaml: {'LOADED' if moveit_controllers_yaml else 'FAILED'}")
+    print(f"ompl_planning.yaml: {'LOADED' if ompl_yaml else 'FAILED'}")
+    
+    if moveit_controllers_yaml:
+        controllers = moveit_controllers_yaml.get('ros__parameters', {}).get('moveit_simple_controller_manager', {})
+        if 'ros__parameters' in controllers:
+            controller_names = controllers['ros__parameters'].get('controller_names', [])
+            print(f"Controllers found: {controller_names}")
+            if not controller_names:
+                print("WARNING: controller_names is empty!")
+        else:
+            print("ERROR: No ros__parameters in moveit_simple_controller_manager")
+    print("="*60 + "\n")
+
+    # Combine all parameters
+    move_group_params = []
+    
+    # Add robot description and semantic
+    move_group_params.append(robot_description)
+    move_group_params.append(robot_description_semantic)
+    
+    # Add YAML configurations if they exist
+    if kinematics_yaml:
+        move_group_params.append(kinematics_yaml)
+    if joint_limits_yaml:
+        move_group_params.append(joint_limits_yaml)
+    if moveit_controllers_yaml:
+        move_group_params.append(moveit_controllers_yaml)
+    if ompl_yaml:
+        move_group_params.append(ompl_yaml)
+    if planning_pipelines_yaml:
+        move_group_params.append(planning_pipelines_yaml)
+    
+    # Add essential MoveIt parameters
+    move_group_params.append({
+        "use_sim_time": use_sim_time,
+        "publish_robot_description_semantic": True,
+        "publish_robot_description": True,
+        "moveit_manage_controllers": True,
+        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
+        "planning_plugin": "ompl_interface/OMPLPlanner",
+        "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
+        "start_state_max_bounds_error": 0.1,
+        "trajectory_execution.allowed_execution_duration_scaling": 1.2,
+        "trajectory_execution.allowed_goal_duration_margin": 0.5,
+        "trajectory_execution.allowed_start_tolerance": 0.01,
+        "trajectory_execution.execution_duration_monitoring": False,
+    })
+
     # Start the actual move_group node/action server
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
-        parameters=[
-            robot_description,
-            robot_description_semantic,
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
-            ),
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "config", "joint_limits.yaml"]
-            ),
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "config", "ompl_planning.yaml"]
-            ),
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "config", "moveit_controllers.yaml"]
-            ),
-            {
-                "use_sim_time": use_sim_time,
-                "publish_robot_description_semantic": True,
-                "publish_robot_description": True,
-                "moveit_manage_controllers": True,
-                "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
-                "trajectory_execution.allowed_execution_duration_scaling": 1.2,
-                "trajectory_execution.allowed_goal_duration_margin": 0.5,
-                "trajectory_execution.allowed_start_tolerance": 0.01,
-                "trajectory_execution.execution_duration_monitoring": False,
-                "publish_planning_scene": True,
-                "publish_geometry_updates": True,
-                "publish_state_updates": True,
-                "publish_transforms_updates": True,
-                "octomap_frame": "",
-                "octomap_resolution": 0.05,
-                "max_safe_path_cost": 1,
-            }
-        ],
+        parameters=move_group_params,
     )
 
     # rviz with moveit configuration
@@ -217,87 +229,42 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
-    # Servo node for realtime control
-    servo_yaml_path = os.path.join(
-        get_package_share_directory('ur_onrobot_moveit_config'),
-        'config',
-        'servo.yaml'
-    )
-    
+    # Servo node - DISABLED BY DEFAULT
+    # Note: MoveIt Servo has known issues with default parameters
     servo_node = Node(
         package="moveit_servo",
         condition=IfCondition(launch_servo),
         executable="servo_node_main",
         parameters=[
-            servo_yaml_path,
+            {
+                "move_group_name": "ur_onrobot_manipulator",
+                "planning_frame": "base_link",
+                "ee_frame_name": "gripper_tcp",
+                "robot_link_command_frame": "base_link",
+                "command_in_type": "speed_units",
+                "command_out_type": "std_msgs/Float64MultiArray",
+                "publish_joint_positions": True,
+                "publish_joint_velocities": False,
+                "check_collisions": True,
+                "collision_check_rate": 5.0,
+                "scale.linear": 0.6,
+                "scale.rotational": 0.3,
+                "scale.joint": 0.01,
+                "low_pass_filter_coeff": 10.0,
+                "joint_topic": "/joint_states",
+                "command_out_topic": "/scaled_joint_trajectory_controller/joint_trajectory",
+                "status_topic": "/servo_node/status",
+                "cartesian_command_in_topic": "/servo_node/delta_twist_cmds",
+                "joint_command_in_topic": "/servo_node/delta_joint_cmds",
+                "use_sim_time": use_sim_time,
+            },
             robot_description,
             robot_description_semantic,
-            {"use_sim_time": use_sim_time},
         ],
         output="screen",
     )
 
-    # Nodo principal de controladores ROS2
-    controller_manager_node = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        parameters=[
-            robot_description,
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "config", "ros2_controllers.yaml"]
-            ),
-            {"use_sim_time": use_sim_time},
-        ],
-        output="screen",
-        condition=IfCondition(launch_controllers),
-    )
-
-    # Nodos para spawnear controladores
-    joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "joint_state_broadcaster",
-            "--controller-manager",
-            "/controller_manager",
-        ],
-        output="screen",
-        condition=IfCondition(launch_controllers),
-    )
-
-    arm_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "scaled_joint_trajectory_controller",
-            "--controller-manager",
-            "/controller_manager",
-        ],
-        output="screen",
-        condition=IfCondition(launch_controllers),
-    )
-
-    gripper_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "finger_width_trajectory_controller",
-            "--controller-manager",
-            "/controller_manager",
-        ],
-        output="screen",
-        condition=IfCondition(launch_controllers),
-    )
-
-    nodes_to_start = [
-        move_group_node, 
-        rviz_node, 
-        servo_node,
-        controller_manager_node,
-        joint_state_broadcaster_spawner,
-        arm_controller_spawner,
-        gripper_controller_spawner,
-    ]
+    nodes_to_start = [move_group_node, rviz_node, servo_node]
 
     return nodes_to_start
 
@@ -393,14 +360,7 @@ def generate_launch_description():
         DeclareLaunchArgument("launch_rviz", default_value="true", description="Launch RViz?")
     )
     declared_arguments.append(
-        DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?")
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "launch_controllers",
-            default_value="false",
-            description="Launch ROS2 controllers?",
-        )
+        DeclareLaunchArgument("launch_servo", default_value="false", description="Launch Servo?")
     )
 
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
