@@ -218,8 +218,10 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # Servo node for realtime control
-    servo_yaml_path = PathJoinSubstitution(
-        [FindPackageShare(moveit_config_package), "config", "servo.yaml"]
+    servo_yaml_path = os.path.join(
+        get_package_share_directory('ur_onrobot_moveit_config'),
+        'config',
+        'servo.yaml'
     )
     
     servo_node = Node(
