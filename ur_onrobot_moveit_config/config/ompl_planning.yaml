@@ -1,65 +1,66 @@
-ros__parameters:
-  planner_configs:
-    SBL:
-      type: ompl_interface/SBL
-      range: 0.0
-    EST:
-      type: ompl_interface/EST
-      range: 0.0
-      goal_bias: 0.05
-    LBKPIECE1:
-      type: ompl_interface/LBKPIECE1
-      range: 0.0
-      border_fraction: 0.9
-    BKPIECE1:
-      type: ompl_interface/BKPIECE1
-      range: 0.0
-      border_fraction: 0.9
-    KPIECE1:
-      type: ompl_interface/KPIECE1
-      range: 0.0
-      goal_bias: 0.05
-    RRT:
-      type: ompl_interface/RRT
-      range: 0.0
-      goal_bias: 0.05
-    RRTConnect:
-      type: ompl_interface/RRTConnect
-      range: 0.0
-    RRTstar:
-      type: ompl_interface/RRTstar
-      range: 0.0
-      goal_bias: 0.05
-      delay_collision_checking: 1
-    TRRT:
-      type: ompl_interface/TRRT
-      range: 0.0
-      goal_bias: 0.05
-      max_states_failed: 10
-      temp_change_factor: 2.0
-      min_temperature: 10e-10
-      init_temperature: 10e-6
-    PRM:
-      type: ompl_interface/PRM
-      max_nearest_neighbors: 10
-    PRMstar:
-      type: ompl_interface/PRMstar
-
-  ur_onrobot_manipulator:
+/**:
+  ros__parameters:
     planner_configs:
-      - SBL
-      - EST
-      - LBKPIECE1
-      - BKPIECE1
-      - KPIECE1
-      - RRT
-      - RRTConnect
-      - RRTstar
-      - TRRT
-      - PRM
-      - PRMstar
-    default_planner_config: RRTConnect
-    longest_valid_segment_fraction: 0.01
-    projection_evaluator: joints(shoulder_pan_joint,shoulder_lift_joint)
-    enforce_constraints: false
-    max_planning_threads: 4
+      SBL:
+        type: ompl_interface/SBL
+        range: 0.0
+      EST:
+        type: ompl_interface/EST
+        range: 0.0
+        goal_bias: 0.05
+      LBKPIECE1:
+        type: ompl_interface/LBKPIECE1
+        range: 0.0
+        border_fraction: 0.9
+      BKPIECE1:
+        type: ompl_interface/BKPIECE1
+        range: 0.0
+        border_fraction: 0.9
+      KPIECE1:
+        type: ompl_interface/KPIECE1
+        range: 0.0
+        goal_bias: 0.05
+      RRT:
+        type: ompl_interface/RRT
+        range: 0.0
+        goal_bias: 0.05
+      RRTConnect:
+        type: ompl_interface/RRTConnect
+        range: 0.0
+      RRTstar:
+        type: ompl_interface/RRTstar
+        range: 0.0
+        goal_bias: 0.05
+        delay_collision_checking: 1
+      TRRT:
+        type: ompl_interface/TRRT
+        range: 0.0
+        goal_bias: 0.05
+        max_states_failed: 10
+        temp_change_factor: 2.0
+        min_temperature: 10e-10
+        init_temperature: 10e-6
+      PRM:
+        type: ompl_interface/PRM
+        max_nearest_neighbors: 10
+      PRMstar:
+        type: ompl_interface/PRMstar
+
+    ur_onrobot_manipulator:
+      planner_configs:
+        - SBL
+        - EST
+        - LBKPIECE1
+        - BKPIECE1
+        - KPIECE1
+        - RRT
+        - RRTConnect
+        - RRTstar
+        - TRRT
+        - PRM
+        - PRMstar
+      default_planner_config: RRTConnect
+      longest_valid_segment_fraction: 0.01
+      projection_evaluator: joints(shoulder_pan_joint,shoulder_lift_joint)
+      enforce_constraints: false
+      max_planning_threads: 4

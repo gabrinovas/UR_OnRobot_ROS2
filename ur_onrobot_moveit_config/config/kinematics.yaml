@@ -1,9 +1,10 @@
-ros__parameters:
-  robot_description_kinematics:
-    ur_onrobot_manipulator:
-      kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
-      kinematics_solver_search_resolution: 0.005
-      kinematics_solver_timeout: 0.05
-      kinematics_solver_attempts: 3
-      position_only_ik: false
-      enforce_joint_model_state_space: false
+/**:
+  ros__parameters:
+    robot_description_kinematics:
+      ur_onrobot_manipulator:
+        kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+        kinematics_solver_search_resolution: 0.005
+        kinematics_solver_timeout: 0.05
+        kinematics_solver_attempts: 3
+        position_only_ik: false
+        enforce_joint_model_state_space: false
