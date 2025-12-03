@@ -206,28 +206,50 @@ def launch_setup(context, *args, **kwargs):
         "robot_description_semantic": robot_description_semantic_content
     }
 
-    robot_description_kinematics = PathJoinSubstitution(
-        [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
-    )
+    # Cargar kinematics.yaml correctamente
+    kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
+    if kinematics_yaml and "ros__parameters" in kinematics_yaml:
+        robot_description_kinematics = kinematics_yaml["ros__parameters"]
+    else:
+        # Fallback si no está bien formateado
+        robot_description_kinematics = {
+            "robot_description_kinematics": {
+                "ur_onrobot_manipulator": {
+                    "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
+                    "kinematics_solver_search_resolution": 0.005,
+                    "kinematics_solver_timeout": 0.05,
+                    "kinematics_solver_attempts": 3,
+                    "position_only_ik": False,
+                    "enforce_joint_model_state_space": False
+                }
+            }
+        }
 
     # Load base joint limits
-    robot_description_planning = {
-        "robot_description_planning": load_yaml(
-            moveit_config_package.perform(context),
-            os.path.join("config", moveit_joint_limits_file.perform(context))
-        )
-    }
+    joint_limits_yaml = load_yaml(
+        moveit_config_package.perform(context),
+        os.path.join("config", moveit_joint_limits_file.perform(context))
+    )
+    
+    if joint_limits_yaml and "ros__parameters" in joint_limits_yaml:
+        robot_description_planning = joint_limits_yaml["ros__parameters"]
+    else:
+        robot_description_planning = {"robot_description_planning": {}}
     
     # Merge gripper-specific limits with base limits
-    if gripper_limits and robot_description_planning["robot_description_planning"]:
+    if gripper_limits and "robot_description_planning" in robot_description_planning:
         if "joint_limits" not in robot_description_planning["robot_description_planning"]:
             robot_description_planning["robot_description_planning"]["joint_limits"] = {}
         
         robot_description_planning["robot_description_planning"]["joint_limits"].update(gripper_limits)
 
-    # Planning Configuration
-    ompl_planning_pipeline_config = {
-        "ompl": {
+    # Cargar OMPL planning configuration
+    ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
+    if ompl_planning_yaml and "ros__parameters" in ompl_planning_yaml:
+        ompl_planning_pipeline_config = ompl_planning_yaml["ros__parameters"]
+    else:
+        # Configuración por defecto
+        ompl_planning_pipeline_config = {
             "planning_plugin": "ompl_interface/OMPLPlanner",
             "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization
                 default_planner_request_adapters/FixWorkspaceBounds
@@ -235,65 +257,54 @@ def launch_setup(context, *args, **kwargs):
                 default_planner_request_adapters/FixStartStateCollision
                 default_planner_request_adapters/FixStartStatePathConstraints""",
             "start_state_max_bounds_error": 0.1,
+            "planning_pipelines": ["ompl"]
         }
-    }
-    
-    # Load OMPL planning configuration
-    ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
-    if ompl_planning_yaml:
-        ompl_planning_pipeline_config["ompl"].update(ompl_planning_yaml)
 
     # MoveIt Controllers Configuration
     moveit_controllers_config = load_yaml("ur_onrobot_moveit_config", "config/moveit_controllers.yaml")
     
-    if not moveit_controllers_config:
+    if moveit_controllers_config and "ros__parameters" in moveit_controllers_config:
+        moveit_controllers = moveit_controllers_config["ros__parameters"]
+    else:
         # Configuración por defecto si no se puede cargar el archivo
-        moveit_controllers_config = {
+        moveit_controllers = {
             "moveit_simple_controller_manager": {
-                "ros__parameters": {
-                    "controller_names": [
-                        "scaled_joint_trajectory_controller",
-                        "joint_trajectory_controller",
-                        "finger_width_trajectory_controller"
-                    ],
-                    "scaled_joint_trajectory_controller": {
-                        "type": "follow_joint_trajectory/FollowJointTrajectory",
-                        "joints": [
-                            "shoulder_pan_joint",
-                            "shoulder_lift_joint",
-                            "elbow_joint",
-                            "wrist_1_joint",
-                            "wrist_2_joint",
-                            "wrist_3_joint"
-                        ]
-                    },
-                    "joint_trajectory_controller": {
-                        "type": "follow_joint_trajectory/FollowJointTrajectory",
-                        "joints": [
-                            "shoulder_pan_joint",
-                            "shoulder_lift_joint",
-                            "elbow_joint",
-                            "wrist_1_joint",
-                            "wrist_2_joint",
-                            "wrist_3_joint"
-                        ]
-                    },
-                    "finger_width_trajectory_controller": {
-                        "type": "follow_joint_trajectory/FollowJointTrajectory",
-                        "joints": ["finger_width"]
-                    }
+                "controller_names": [
+                    "scaled_joint_trajectory_controller",
+                    "joint_trajectory_controller",
+                    "finger_width_trajectory_controller"
+                ],
+                "scaled_joint_trajectory_controller": {
+                    "type": "follow_joint_trajectory/FollowJointTrajectory",
+                    "joints": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ]
+                },
+                "joint_trajectory_controller": {
+                    "type": "follow_joint_trajectory/FollowJointTrajectory",
+                    "joints": [
+                        "shoulder_pan_joint",
+                        "shoulder_lift_joint",
+                        "elbow_joint",
+                        "wrist_1_joint",
+                        "wrist_2_joint",
+                        "wrist_3_joint"
+                    ]
+                },
+                "finger_width_trajectory_controller": {
+                    "type": "follow_joint_trajectory/FollowJointTrajectory",
+                    "joints": ["finger_width"]
                 }
             }
         }
 
-    # Configuración de controladores de MoveIt
-    moveit_controllers = {
-        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager"
-    }
-    
-    # Agregar la configuración específica
-    if "moveit_simple_controller_manager" in moveit_controllers_config:
-        moveit_controllers.update(moveit_controllers_config)
+    # Agregar el manager de controladores
+    moveit_controllers["moveit_controller_manager"] = "moveit_simple_controller_manager/MoveItSimpleControllerManager"
 
     # Configuración de ejecución de trayectorias
     trajectory_execution = {
@@ -344,14 +355,17 @@ def launch_setup(context, *args, **kwargs):
         parameters=[
             robot_description,
             robot_description_semantic,
-            robot_description_kinematics,
             {"use_sim_time": use_sim_time},
         ],
     )
 
     # Servo node for realtime control
     servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
-    servo_params = {"moveit_servo": servo_yaml}
+    if servo_yaml and "ros__parameters" in servo_yaml:
+        servo_params = servo_yaml["ros__parameters"]
+    else:
+        servo_params = {}
+    
     servo_node = Node(
         package="moveit_servo",
         condition=IfCondition(launch_servo),
