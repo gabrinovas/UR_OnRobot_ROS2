@@ -55,7 +55,8 @@ def load_yaml(package_name, file_path):
     try:
         with open(absolute_file_path, 'r') as file:
             return yaml.safe_load(file)
-    except EnvironmentError:  # parent of IOError, OSError *and* WindowsError where available
+    except EnvironmentError:
+        print(f"Warning: Could not load YAML file: {absolute_file_path}")
         return None
 
 
@@ -201,7 +202,9 @@ def launch_setup(context, *args, **kwargs):
             " ",
         ]
     )
-    robot_description_semantic = {"robot_description_semantic": robot_description_semantic_content}
+    robot_description_semantic = {
+        "robot_description_semantic": robot_description_semantic_content
+    }
 
     robot_description_kinematics = PathJoinSubstitution(
         [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
@@ -216,10 +219,7 @@ def launch_setup(context, *args, **kwargs):
     }
     
     # Merge gripper-specific limits with base limits
-    if gripper_limits and "robot_description_planning" in robot_description_planning:
-        if robot_description_planning["robot_description_planning"] is None:
-            robot_description_planning["robot_description_planning"] = {}
-        
+    if gripper_limits and robot_description_planning["robot_description_planning"]:
         if "joint_limits" not in robot_description_planning["robot_description_planning"]:
             robot_description_planning["robot_description_planning"]["joint_limits"] = {}
         
@@ -229,33 +229,82 @@ def launch_setup(context, *args, **kwargs):
     ompl_planning_pipeline_config = {
         "ompl": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
-            "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
+            "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization
+                default_planner_request_adapters/FixWorkspaceBounds
+                default_planner_request_adapters/FixStartStateBounds
+                default_planner_request_adapters/FixStartStateCollision
+                default_planner_request_adapters/FixStartStatePathConstraints""",
             "start_state_max_bounds_error": 0.1,
         }
     }
+    
+    # Load OMPL planning configuration
     ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
     if ompl_planning_yaml:
         ompl_planning_pipeline_config["ompl"].update(ompl_planning_yaml)
 
-    # Trajectory Execution Configuration
-    controllers_yaml = load_yaml("ur_onrobot_moveit_config", "config/moveit_controllers.yaml")
-    if not controllers_yaml:
-        controllers_yaml = {}
+    # MoveIt Controllers Configuration
+    moveit_controllers_config = load_yaml("ur_onrobot_moveit_config", "config/moveit_controllers.yaml")
     
-    moveit_controllers = {
-        "moveit_simple_controller_manager": controllers_yaml,
-        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
-    }
+    if not moveit_controllers_config:
+        # Configuración por defecto si no se puede cargar el archivo
+        moveit_controllers_config = {
+            "moveit_simple_controller_manager": {
+                "ros__parameters": {
+                    "controller_names": [
+                        "scaled_joint_trajectory_controller",
+                        "joint_trajectory_controller",
+                        "finger_width_trajectory_controller"
+                    ],
+                    "scaled_joint_trajectory_controller": {
+                        "type": "follow_joint_trajectory/FollowJointTrajectory",
+                        "joints": [
+                            "shoulder_pan_joint",
+                            "shoulder_lift_joint",
+                            "elbow_joint",
+                            "wrist_1_joint",
+                            "wrist_2_joint",
+                            "wrist_3_joint"
+                        ]
+                    },
+                    "joint_trajectory_controller": {
+                        "type": "follow_joint_trajectory/FollowJointTrajectory",
+                        "joints": [
+                            "shoulder_pan_joint",
+                            "shoulder_lift_joint",
+                            "elbow_joint",
+                            "wrist_1_joint",
+                            "wrist_2_joint",
+                            "wrist_3_joint"
+                        ]
+                    },
+                    "finger_width_trajectory_controller": {
+                        "type": "follow_joint_trajectory/FollowJointTrajectory",
+                        "joints": ["finger_width"]
+                    }
+                }
+            }
+        }
 
+    # Configuración de controladores de MoveIt
+    moveit_controllers = {
+        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager"
+    }
+    
+    # Agregar la configuración específica
+    if "moveit_simple_controller_manager" in moveit_controllers_config:
+        moveit_controllers.update(moveit_controllers_config)
+
+    # Configuración de ejecución de trayectorias
     trajectory_execution = {
         "moveit_manage_controllers": True,
         "trajectory_execution.allowed_execution_duration_scaling": 1.2,
         "trajectory_execution.allowed_goal_duration_margin": 0.5,
         "trajectory_execution.allowed_start_tolerance": 0.01,
-        # Execution time monitoring can be incompatible with the scaled JTC
         "trajectory_execution.execution_duration_monitoring": False,
     }
 
+    # Configuración del monitor de escena de planificación
     planning_scene_monitor_parameters = {
         "publish_planning_scene": True,
         "publish_geometry_updates": True,
@@ -278,8 +327,6 @@ def launch_setup(context, *args, **kwargs):
             moveit_controllers,
             planning_scene_monitor_parameters,
             {"use_sim_time": use_sim_time},
-            {"publish_robot_description_semantic": True},
-            {"publish_robot_description": True},
         ],
     )
 
