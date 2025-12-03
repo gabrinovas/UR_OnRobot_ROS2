@@ -1,32 +1,38 @@
-# Simple configuration that works with ROS2 Humble
-moveit_simple_controller_manager:
-  ros__parameters:
-    controller_names:
-      - scaled_joint_trajectory_controller
-      - joint_trajectory_controller
-      - finger_width_trajectory_controller
+ros__parameters:
+  moveit_simple_controller_manager:
+    ros__parameters:
+      controller_names:
+        - scaled_joint_trajectory_controller
+        - joint_trajectory_controller
+        - finger_width_trajectory_controller
 
-    scaled_joint_trajectory_controller:
-      type: follow_joint_trajectory/FollowJointTrajectory
-      joints:
-        - shoulder_pan_joint
-        - shoulder_lift_joint
-        - elbow_joint
-        - wrist_1_joint
-        - wrist_2_joint
-        - wrist_3_joint
+      scaled_joint_trajectory_controller:
+        type: follow_joint_trajectory/FollowJointTrajectory
+        action_ns: follow_joint_trajectory
+        default: true
+        joints:
+          - shoulder_pan_joint
+          - shoulder_lift_joint
+          - elbow_joint
+          - wrist_1_joint
+          - wrist_2_joint
+          - wrist_3_joint
 
-    joint_trajectory_controller:
-      type: follow_joint_trajectory/FollowJointTrajectory
-      joints:
-        - shoulder_pan_joint
-        - shoulder_lift_joint
-        - elbow_joint
-        - wrist_1_joint
-        - wrist_2_joint
-        - wrist_3_joint
+      joint_trajectory_controller:
+        type: follow_joint_trajectory/FollowJointTrajectory
+        action_ns: follow_joint_trajectory
+        default: false
+        joints:
+          - shoulder_pan_joint
+          - shoulder_lift_joint
+          - elbow_joint
+          - wrist_1_joint
+          - wrist_2_joint
+          - wrist_3_joint
 
-    finger_width_trajectory_controller:
-      type: follow_joint_trajectory/FollowJointTrajectory
-      joints:
-        - finger_width
+      finger_width_trajectory_controller:
+        type: follow_joint_trajectory/FollowJointTrajectory
+        action_ns: follow_joint_trajectory
+        default: false
+        joints:
+          - finger_width

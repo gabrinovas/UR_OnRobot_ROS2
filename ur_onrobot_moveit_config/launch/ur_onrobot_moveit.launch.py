@@ -30,64 +30,21 @@
 # Author: Denis Stogl
 
 import os
-import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription
 from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     Command,
     FindExecutable,
     LaunchConfiguration,
     PathJoinSubstitution,
 )
-
-
-def load_yaml(package_name, file_path):
-    """Load yaml file from package."""
-    package_path = get_package_share_directory(package_name)
-    absolute_file_path = os.path.join(package_path, file_path)
-    
-    try:
-        with open(absolute_file_path, 'r') as file:
-            return yaml.safe_load(file)
-    except EnvironmentError:
-        print(f"Warning: Could not load YAML file: {absolute_file_path}")
-        return None
-
-
-def load_gripper_joint_limits(onrobot_type_str, prefix_str):
-    """Load joint limits for specific gripper type."""
-    try:
-        all_limits = load_yaml("ur_onrobot_moveit_config", "config/joint_limits_grippers.yaml")
-        
-        if not all_limits:
-            print(f"Warning: Could not load gripper joint limits file")
-            return {}
-        
-        # Select the appropriate gripper limits
-        gripper_key = f"joint_limits_{onrobot_type_str}"
-        if gripper_key in all_limits:
-            gripper_limits = all_limits[gripper_key].copy()
-            
-            # Add prefix to joint names if needed
-            if prefix_str and prefix_str != '""':
-                prefixed_limits = {}
-                for joint_name, limits in gripper_limits.items():
-                    prefixed_joint_name = f"{prefix_str}{joint_name}"
-                    prefixed_limits[prefixed_joint_name] = limits
-                return prefixed_limits
-            return gripper_limits
-        
-        print(f"Warning: No joint limits found for gripper type '{onrobot_type_str}'")
-        return {}
-    except Exception as e:
-        print(f"Warning: Could not load gripper joint limits: {e}")
-        return {}
 
 
 def launch_setup(context, *args, **kwargs):
@@ -103,9 +60,7 @@ def launch_setup(context, *args, **kwargs):
     ur_description_package = LaunchConfiguration("ur_description_package")
     description_file = LaunchConfiguration("description_file")
     moveit_config_package = LaunchConfiguration("moveit_config_package")
-    moveit_joint_limits_file = LaunchConfiguration("moveit_joint_limits_file")
     moveit_config_file = LaunchConfiguration("moveit_config_file")
-    warehouse_sqlite_path = LaunchConfiguration("warehouse_sqlite_path")
     prefix = LaunchConfiguration("prefix")
     use_sim_time = LaunchConfiguration("use_sim_time")
     launch_rviz = LaunchConfiguration("launch_rviz")
@@ -114,9 +69,6 @@ def launch_setup(context, *args, **kwargs):
     # Get actual values from context
     onrobot_type_str = onrobot_type.perform(context)
     prefix_str = prefix.perform(context)
-    
-    # Load gripper-specific joint limits
-    gripper_limits = load_gripper_joint_limits(onrobot_type_str, prefix_str)
 
     joint_limit_params = PathJoinSubstitution(
         [FindPackageShare(ur_description_package), "config", ur_type, "joint_limits.yaml"]
@@ -206,123 +158,6 @@ def launch_setup(context, *args, **kwargs):
         "robot_description_semantic": robot_description_semantic_content
     }
 
-    # Cargar kinematics.yaml correctamente
-    kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
-    if kinematics_yaml and "ros__parameters" in kinematics_yaml:
-        robot_description_kinematics = kinematics_yaml["ros__parameters"]
-    else:
-        # Fallback si no está bien formateado
-        robot_description_kinematics = {
-            "robot_description_kinematics": {
-                "ur_onrobot_manipulator": {
-                    "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
-                    "kinematics_solver_search_resolution": 0.005,
-                    "kinematics_solver_timeout": 0.05,
-                    "kinematics_solver_attempts": 3,
-                    "position_only_ik": False,
-                    "enforce_joint_model_state_space": False
-                }
-            }
-        }
-
-    # Load base joint limits
-    joint_limits_yaml = load_yaml(
-        moveit_config_package.perform(context),
-        os.path.join("config", moveit_joint_limits_file.perform(context))
-    )
-    
-    if joint_limits_yaml and "ros__parameters" in joint_limits_yaml:
-        robot_description_planning = joint_limits_yaml["ros__parameters"]
-    else:
-        robot_description_planning = {"robot_description_planning": {}}
-    
-    # Merge gripper-specific limits with base limits
-    if gripper_limits and "robot_description_planning" in robot_description_planning:
-        if "joint_limits" not in robot_description_planning["robot_description_planning"]:
-            robot_description_planning["robot_description_planning"]["joint_limits"] = {}
-        
-        robot_description_planning["robot_description_planning"]["joint_limits"].update(gripper_limits)
-
-    # Cargar OMPL planning configuration
-    ompl_planning_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
-    if ompl_planning_yaml and "ros__parameters" in ompl_planning_yaml:
-        ompl_planning_pipeline_config = ompl_planning_yaml["ros__parameters"]
-    else:
-        # Configuración por defecto
-        ompl_planning_pipeline_config = {
-            "planning_plugin": "ompl_interface/OMPLPlanner",
-            "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization
-                default_planner_request_adapters/FixWorkspaceBounds
-                default_planner_request_adapters/FixStartStateBounds
-                default_planner_request_adapters/FixStartStateCollision
-                default_planner_request_adapters/FixStartStatePathConstraints""",
-            "start_state_max_bounds_error": 0.1,
-            "planning_pipelines": ["ompl"]
-        }
-
-    # MoveIt Controllers Configuration
-    moveit_controllers_config = load_yaml("ur_onrobot_moveit_config", "config/moveit_controllers.yaml")
-    
-    if moveit_controllers_config and "ros__parameters" in moveit_controllers_config:
-        moveit_controllers = moveit_controllers_config["ros__parameters"]
-    else:
-        # Configuración por defecto si no se puede cargar el archivo
-        moveit_controllers = {
-            "moveit_simple_controller_manager": {
-                "controller_names": [
-                    "scaled_joint_trajectory_controller",
-                    "joint_trajectory_controller",
-                    "finger_width_trajectory_controller"
-                ],
-                "scaled_joint_trajectory_controller": {
-                    "type": "follow_joint_trajectory/FollowJointTrajectory",
-                    "joints": [
-                        "shoulder_pan_joint",
-                        "shoulder_lift_joint",
-                        "elbow_joint",
-                        "wrist_1_joint",
-                        "wrist_2_joint",
-                        "wrist_3_joint"
-                    ]
-                },
-                "joint_trajectory_controller": {
-                    "type": "follow_joint_trajectory/FollowJointTrajectory",
-                    "joints": [
-                        "shoulder_pan_joint",
-                        "shoulder_lift_joint",
-                        "elbow_joint",
-                        "wrist_1_joint",
-                        "wrist_2_joint",
-                        "wrist_3_joint"
-                    ]
-                },
-                "finger_width_trajectory_controller": {
-                    "type": "follow_joint_trajectory/FollowJointTrajectory",
-                    "joints": ["finger_width"]
-                }
-            }
-        }
-
-    # Agregar el manager de controladores
-    moveit_controllers["moveit_controller_manager"] = "moveit_simple_controller_manager/MoveItSimpleControllerManager"
-
-    # Configuración de ejecución de trayectorias
-    trajectory_execution = {
-        "moveit_manage_controllers": True,
-        "trajectory_execution.allowed_execution_duration_scaling": 1.2,
-        "trajectory_execution.allowed_goal_duration_margin": 0.5,
-        "trajectory_execution.allowed_start_tolerance": 0.01,
-        "trajectory_execution.execution_duration_monitoring": False,
-    }
-
-    # Configuración del monitor de escena de planificación
-    planning_scene_monitor_parameters = {
-        "publish_planning_scene": True,
-        "publish_geometry_updates": True,
-        "publish_state_updates": True,
-        "publish_transforms_updates": True,
-    }
-
     # Start the actual move_group node/action server
     move_group_node = Node(
         package="moveit_ros_move_group",
@@ -331,13 +166,32 @@ def launch_setup(context, *args, **kwargs):
         parameters=[
             robot_description,
             robot_description_semantic,
-            robot_description_kinematics,
-            robot_description_planning,
-            ompl_planning_pipeline_config,
-            trajectory_execution,
-            moveit_controllers,
-            planning_scene_monitor_parameters,
-            {"use_sim_time": use_sim_time},
+            PathJoinSubstitution(
+                [FindPackageShare(moveit_config_package), "config", "kinematics.yaml"]
+            ),
+            PathJoinSubstitution(
+                [FindPackageShare(moveit_config_package), "config", "joint_limits.yaml"]
+            ),
+            PathJoinSubstitution(
+                [FindPackageShare(moveit_config_package), "config", "ompl_planning.yaml"]
+            ),
+            PathJoinSubstitution(
+                [FindPackageShare(moveit_config_package), "config", "moveit_controllers.yaml"]
+            ),
+            {
+                "use_sim_time": use_sim_time,
+                "publish_robot_description_semantic": True,
+                "publish_robot_description": True,
+                "moveit_manage_controllers": True,
+                "trajectory_execution.allowed_execution_duration_scaling": 1.2,
+                "trajectory_execution.allowed_goal_duration_margin": 0.5,
+                "trajectory_execution.allowed_start_tolerance": 0.01,
+                "trajectory_execution.execution_duration_monitoring": False,
+                "publish_planning_scene": True,
+                "publish_geometry_updates": True,
+                "publish_state_updates": True,
+                "publish_transforms_updates": True,
+            }
         ],
     )
 
@@ -360,18 +214,14 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # Servo node for realtime control
-    servo_yaml = load_yaml("ur_onrobot_moveit_config", "config/ur_onrobot_servo.yaml")
-    if servo_yaml and "ros__parameters" in servo_yaml:
-        servo_params = servo_yaml["ros__parameters"]
-    else:
-        servo_params = {}
-    
     servo_node = Node(
         package="moveit_servo",
         condition=IfCondition(launch_servo),
         executable="servo_node_main",
         parameters=[
-            servo_params,
+            PathJoinSubstitution(
+                [FindPackageShare(moveit_config_package), "config", "ur_onrobot_servo.yaml"]
+            ),
             robot_description,
             robot_description_semantic,
             {"use_sim_time": use_sim_time},
@@ -453,20 +303,6 @@ def generate_launch_description():
             "moveit_config_file",
             default_value="ur_onrobot.srdf.xacro",
             description="MoveIt SRDF/XACRO description file with the robot.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "moveit_joint_limits_file",
-            default_value="joint_limits.yaml",
-            description="MoveIt joint limits that augment or override the values from the URDF robot_description.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "warehouse_sqlite_path",
-            default_value=os.path.expanduser("~/.ros/warehouse_ros.sqlite"),
-            description="Path where the warehouse database should be stored",
         )
     )
     declared_arguments.append(

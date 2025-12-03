@@ -1,5 +1,5 @@
 ros__parameters:
-  planning_pipelines:
+  planning_pipelines_pipeline_configs:
     ompl:
       pipeline_id: ompl
       planning_plugins:

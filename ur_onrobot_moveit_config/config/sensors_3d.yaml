@@ -1,17 +1,18 @@
-sensors:
-  octomap:
-    sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
-    point_cloud_topic: /camera/depth/points
-    max_range: 5.0
-    padding_offset: 0.1
-    padding_scale: 1.0
-    filtered_cloud_topic: filtered_cloud
-    ns: ""
-    parameters:
-      sensor_max_range: 5.0
-      frame_subsample: 10
-      point_subsample: 10
-      padding_scale: 1.0
+ros__parameters:
+  sensors:
+    octomap:
+      sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+      point_cloud_topic: /camera/depth/points
+      max_range: 5.0
       padding_offset: 0.1
-      max_update_rate: 1.0
+      padding_scale: 1.0
       filtered_cloud_topic: filtered_cloud
+      ns: ""
+      parameters:
+        sensor_max_range: 5.0
+        frame_subsample: 10
+        point_subsample: 10
+        padding_scale: 1.0
+        padding_offset: 0.1
+        max_update_rate: 1.0
+        filtered_cloud_topic: filtered_cloud
