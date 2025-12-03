@@ -233,7 +233,6 @@ def launch_setup(context, *args, **kwargs):
             {"use_sim_time": use_sim_time},
         ],
         output="screen",
-        extra_arguments=[{'use_intra_process_comms': True}],
     )
 
     # Nodo principal de controladores ROS2
@@ -394,7 +393,6 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?")
     )
-    # Nuevo argumento para controladores
     declared_arguments.append(
         DeclareLaunchArgument(
             "launch_controllers",
