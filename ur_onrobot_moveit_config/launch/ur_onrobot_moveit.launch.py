@@ -19,7 +19,7 @@
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
 # LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# CONSECUTIONAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
 # SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
 # INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -253,7 +253,7 @@ def launch_setup(context, *args, **kwargs):
     # Nodos para spawnear controladores
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
-        executable="spawner.py",
+        executable="spawner",
         arguments=[
             "joint_state_broadcaster",
             "--controller-manager",
@@ -265,7 +265,7 @@ def launch_setup(context, *args, **kwargs):
 
     arm_controller_spawner = Node(
         package="controller_manager",
-        executable="spawner.py",
+        executable="spawner",
         arguments=[
             "scaled_joint_trajectory_controller",
             "--controller-manager",
@@ -277,7 +277,7 @@ def launch_setup(context, *args, **kwargs):
 
     gripper_controller_spawner = Node(
         package="controller_manager",
-        executable="spawner.py",
+        executable="spawner",
         arguments=[
             "finger_width_trajectory_controller",
             "--controller-manager",
@@ -396,7 +396,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "launch_controllers",
-            default_value="true",
+            default_value="false",
             description="Launch ROS2 controllers?",
         )
     )
