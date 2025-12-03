@@ -36,9 +36,8 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     Command,
     FindExecutable,
@@ -65,6 +64,7 @@ def launch_setup(context, *args, **kwargs):
     use_sim_time = LaunchConfiguration("use_sim_time")
     launch_rviz = LaunchConfiguration("launch_rviz")
     launch_servo = LaunchConfiguration("launch_servo")
+    launch_controllers = LaunchConfiguration("launch_controllers")
 
     # Get actual values from context
     onrobot_type_str = onrobot_type.perform(context)
@@ -183,6 +183,7 @@ def launch_setup(context, *args, **kwargs):
                 "publish_robot_description_semantic": True,
                 "publish_robot_description": True,
                 "moveit_manage_controllers": True,
+                "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
                 "trajectory_execution.allowed_execution_duration_scaling": 1.2,
                 "trajectory_execution.allowed_goal_duration_margin": 0.5,
                 "trajectory_execution.allowed_start_tolerance": 0.01,
@@ -191,6 +192,9 @@ def launch_setup(context, *args, **kwargs):
                 "publish_geometry_updates": True,
                 "publish_state_updates": True,
                 "publish_transforms_updates": True,
+                "octomap_frame": "",
+                "octomap_resolution": 0.05,
+                "max_safe_path_cost": 1,
             }
         ],
     )
@@ -214,22 +218,85 @@ def launch_setup(context, *args, **kwargs):
     )
 
     # Servo node for realtime control
+    servo_yaml_path = PathJoinSubstitution(
+        [FindPackageShare(moveit_config_package), "config", "servo.yaml"]
+    )
+    
     servo_node = Node(
         package="moveit_servo",
         condition=IfCondition(launch_servo),
         executable="servo_node_main",
         parameters=[
-            PathJoinSubstitution(
-                [FindPackageShare(moveit_config_package), "config", "ur_onrobot_servo.yaml"]
-            ),
+            servo_yaml_path,
             robot_description,
             robot_description_semantic,
             {"use_sim_time": use_sim_time},
         ],
         output="screen",
+        extra_arguments=[{'use_intra_process_comms': True}],
     )
 
-    nodes_to_start = [move_group_node, rviz_node, servo_node]
+    # Nodo principal de controladores ROS2
+    controller_manager_node = Node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=[
+            robot_description,
+            PathJoinSubstitution(
+                [FindPackageShare(moveit_config_package), "config", "ros2_controllers.yaml"]
+            ),
+            {"use_sim_time": use_sim_time},
+        ],
+        output="screen",
+        condition=IfCondition(launch_controllers),
+    )
+
+    # Nodos para spawnear controladores
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner.py",
+        arguments=[
+            "joint_state_broadcaster",
+            "--controller-manager",
+            "/controller_manager",
+        ],
+        output="screen",
+        condition=IfCondition(launch_controllers),
+    )
+
+    arm_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner.py",
+        arguments=[
+            "scaled_joint_trajectory_controller",
+            "--controller-manager",
+            "/controller_manager",
+        ],
+        output="screen",
+        condition=IfCondition(launch_controllers),
+    )
+
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner.py",
+        arguments=[
+            "finger_width_trajectory_controller",
+            "--controller-manager",
+            "/controller_manager",
+        ],
+        output="screen",
+        condition=IfCondition(launch_controllers),
+    )
+
+    nodes_to_start = [
+        move_group_node, 
+        rviz_node, 
+        servo_node,
+        controller_manager_node,
+        joint_state_broadcaster_spawner,
+        arm_controller_spawner,
+        gripper_controller_spawner,
+    ]
 
     return nodes_to_start
 
@@ -326,6 +393,14 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Servo?")
+    )
+    # Nuevo argumento para controladores
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "launch_controllers",
+            default_value="true",
+            description="Launch ROS2 controllers?",
+        )
     )
 
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
