@@ -7,7 +7,7 @@ simulation_launch.py - Launch exclusivo para simulación
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
@@ -57,6 +57,8 @@ def generate_launch_description():
         DeclareLaunchArgument('description_package', default_value='ur_onrobot_description'),
         DeclareLaunchArgument('description_file', default_value='ur_onrobot.urdf.xacro'),
         DeclareLaunchArgument('robot_ip', default_value='127.0.0.1'),
+        DeclareLaunchArgument('tf_prefix', default_value='',
+                            description='Prefijo TF para el robot'),
     ]
 
     config_action = OpaqueFunction(function=configure_simulation)
@@ -71,7 +73,8 @@ def generate_launch_description():
         ' ur_type:=', LaunchConfiguration('ur_type'),
         ' robot_ip:=', LaunchConfiguration('robot_ip'),
         ' onrobot_type:=', LaunchConfiguration('onrobot_type'),
-        ' use_fake_hardware:=true'
+        ' use_fake_hardware:=true',
+        ' tf_prefix:=', LaunchConfiguration('tf_prefix')
     ])
 
     robot_description = {"robot_description": robot_description_content}
@@ -89,10 +92,21 @@ def generate_launch_description():
     # ====== JOINT STATE MERGER ======
     joint_state_merger = Node(
         package='ur_onrobot_control',
-        executable='joint_state_merger.py',
+        executable='joint_state_merger',
         name='joint_state_merger',
-        output='screen'
+        output='screen',
+        parameters=[{
+            'sim_env': LaunchConfiguration('sim_env'),
+            'tf_prefix': LaunchConfiguration('tf_prefix')
+        }]
     )
+
+    # ====== SELECTOR DE CONFIGURACIÓN DE CONTROLADORES ======
+    controllers_config_file = PythonExpression([
+        "'right_scaled_controller.yaml' if '", LaunchConfiguration('sim_env'), "' == 'right' else ",
+        "'left_scaled_controller.yaml' if '", LaunchConfiguration('sim_env'), "' == 'left' else ",
+        "'base_env_controllers.yaml'"
+    ])
 
     # ====== DRIVER UR MODIFICADO ======
     ur_launch = IncludeLaunchDescription(
@@ -110,6 +124,12 @@ def generate_launch_description():
             'launch_rviz': 'false',
             'headless_mode': 'true',
             'launch_robot_state_publisher': 'false',
+            'tf_prefix': LaunchConfiguration('tf_prefix'),
+            'controllers_config_file': PathJoinSubstitution([
+                FindPackageShare('ur_onrobot_control'),
+                'config',
+                controllers_config_file
+            ])
         }.items()
     )
 
@@ -127,6 +147,7 @@ def generate_launch_description():
             'use_fake_hardware': 'true',
             'launch_rviz': 'false',
             'launch_rsp': 'false',
+            'tf_prefix': LaunchConfiguration('tf_prefix'),
         }.items(),
         condition=IfCondition(LaunchConfiguration('launch_onrobot'))
     )
@@ -144,6 +165,9 @@ def generate_launch_description():
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_path],
+        condition=IfCondition(PythonExpression([
+            "'", LaunchConfiguration('sim_env'), "' != 'right' or '", LaunchConfiguration('sim_env'), "' != 'left'"
+        ]))
     )
 
     return LaunchDescription([

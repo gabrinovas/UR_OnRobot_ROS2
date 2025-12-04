@@ -137,6 +137,7 @@ joint_trajectory_controller:
       $(var tf_prefix)wrist_2_joint: { trajectory: 0.2, goal: 0.1 }
       $(var tf_prefix)wrist_3_joint: { trajectory: 0.2, goal: 0.1 }
 
+# SCALED JOINT TRAJECTORY CONTROLLER - ESPECIAL PARA ENTORNO RIGHT
 scaled_joint_trajectory_controller:
   ros__parameters:
     joints:
@@ -164,6 +165,14 @@ scaled_joint_trajectory_controller:
       $(var tf_prefix)wrist_2_joint: { trajectory: 0.2, goal: 0.1 }
       $(var tf_prefix)wrist_3_joint: { trajectory: 0.2, goal: 0.1 }
     speed_scaling_interface_name: $(var tf_prefix)speed_scaling/speed_scaling_factor
+    # FACTOR DE ESCALA NEGATIVO PARA INVERTIR SHOULDER_PAN EN ENTORNO RIGHT
+    joint_scaling_factors:
+      $(var tf_prefix)shoulder_pan_joint: -1.0  # ¡INVERTIDO!
+      $(var tf_prefix)shoulder_lift_joint: 1.0
+      $(var tf_prefix)elbow_joint: 1.0
+      $(var tf_prefix)wrist_1_joint: 1.0
+      $(var tf_prefix)wrist_2_joint: 1.0
+      $(var tf_prefix)wrist_3_joint: 1.0
 
 passthrough_trajectory_controller:
   ros__parameters:
