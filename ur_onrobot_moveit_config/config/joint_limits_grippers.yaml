@@ -1,7 +1,7 @@
 # Joint limits for different OnRobot grippers
 # This file contains gripper-specific joint limits that are loaded dynamically
 
-/**:
+joint_limits_grippers:
   ros__parameters:
     # 2FG7 Gripper
     joint_limits_2fg7:
@@ -10,6 +10,7 @@
         max_velocity: 0.45
         has_acceleration_limits: true
         max_acceleration: 1.0
+        has_jerk_limits: true
         max_jerk: 10.0
         has_position_limits: true
         min_position: 0.035
@@ -22,6 +23,7 @@
         max_velocity: 0.2
         has_acceleration_limits: true
         max_acceleration: 0.5
+        has_jerk_limits: true
         max_jerk: 5.0
         has_position_limits: true
         min_position: 0.0
@@ -34,6 +36,7 @@
         max_velocity: 0.127
         has_acceleration_limits: true
         max_acceleration: 0.3
+        has_jerk_limits: true
         max_jerk: 3.0
         has_position_limits: true
         min_position: 0.0
@@ -46,6 +49,7 @@
         max_velocity: 0.160
         has_acceleration_limits: true
         max_acceleration: 0.4
+        has_jerk_limits: true
         max_jerk: 4.0
         has_position_limits: true
         min_position: 0.0

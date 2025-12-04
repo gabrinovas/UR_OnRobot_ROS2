@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<robot xmlns:xacro="http://wiki.ros.org/xacro">
-<!--This does not replace URDF, and is not an extension of URDF.
-    This is a format for representing semantic information about the robot structure.
-    A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+<!--
+    SRDF/XACRO file for UR robots with OnRobot grippers.
+    This file defines the semantic information for MoveIt2 planning.
 -->
 
   <!-- MACRO for 2FG7 gripper -->
@@ -17,6 +18,8 @@
       <joint name="${prefix}left_finger_joint"/>
       <joint name="${prefix}right_finger_joint"/>
     </group>
+    
+    <!-- Passive joints for gripper fingers (not actively controlled by MoveIt) -->
     <passive_joint name="${prefix}left_finger_joint"/>
     <passive_joint name="${prefix}right_finger_joint"/>
   </xacro:macro>
@@ -35,6 +38,7 @@
       <joint name="${prefix}right_finger_joint"/>
       <joint name="${prefix}center_finger_joint"/>
     </group>
+    
     <passive_joint name="${prefix}left_finger_joint"/>
     <passive_joint name="${prefix}right_finger_joint"/>
     <passive_joint name="${prefix}center_finger_joint"/>
@@ -62,6 +66,7 @@
       <joint name="${prefix}right_inner_knuckle_joint"/>
       <joint name="${prefix}right_inner_finger_joint"/>
     </group>
+    
     <passive_joint name="${prefix}finger_joint"/>
     <passive_joint name="${prefix}left_inner_knuckle_joint"/>
     <passive_joint name="${prefix}left_inner_finger_joint"/>
@@ -92,6 +97,7 @@
       <joint name="${prefix}right_inner_knuckle_joint"/>
       <joint name="${prefix}right_inner_finger_joint"/>
     </group>
+    
     <passive_joint name="${prefix}finger_joint"/>
     <passive_joint name="${prefix}left_inner_knuckle_joint"/>
     <passive_joint name="${prefix}left_inner_finger_joint"/>
@@ -103,9 +109,26 @@
   <!-- MAIN MACRO that selects the appropriate gripper SRDF based on type -->
   <xacro:macro name="ur_onrobot_srdf" params="name prefix onrobot_type">
     
+    <!-- VIRTUAL JOINT: Connect robot to world (REQUIRED for MoveIt2) -->
+    <virtual_joint name="${prefix}fixed_base" 
+                   type="fixed" 
+                   parent_frame="world" 
+                   child_link="${prefix}base_link" />
+    
     <!-- Manipulator group (UR robot arm) - Common for all grippers -->
     <group name="${prefix}${name}_manipulator">
       <chain base_link="${prefix}base_link" tip_link="${prefix}gripper_tcp" />
+      <joint name="${prefix}shoulder_pan_joint"/>
+      <joint name="${prefix}shoulder_lift_joint"/>
+      <joint name="${prefix}elbow_joint"/>
+      <joint name="${prefix}wrist_1_joint"/>
+      <joint name="${prefix}wrist_2_joint"/>
+      <joint name="${prefix}wrist_3_joint"/>
+    </group>
+    
+    <!-- Additional planning groups for better control -->
+    <group name="${prefix}${name}_arm">
+      <chain base_link="${prefix}base_link" tip_link="${prefix}wrist_3_link" />
       <joint name="${prefix}shoulder_pan_joint"/>
       <joint name="${prefix}shoulder_lift_joint"/>
       <joint name="${prefix}elbow_joint"/>
@@ -137,39 +160,44 @@
       <group name="${prefix}ur_onrobot_gripper"/>
     </group>
     
+    <!-- End Effector groups for different planning contexts -->
+    <group name="${prefix}${name}_end_effector">
+      <link name="${prefix}gripper_tcp"/>
+    </group>
+    
     <!-- GROUP STATES - Different open/close values for each gripper type -->
     <xacro:if value="${onrobot_type == '2fg7'}">
-      <group_state name="closed" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}closed" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.035"/>
       </group_state>
-      <group_state name="open" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}open" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.07"/>
       </group_state>
     </xacro:if>
     
     <xacro:if value="${onrobot_type == '3fg15'}">
-      <group_state name="closed" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}closed" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.0"/>
       </group_state>
-      <group_state name="open" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}open" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.150"/>
       </group_state>
     </xacro:if>
     
     <xacro:if value="${onrobot_type == 'rg2'}">
-      <group_state name="closed" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}closed" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.0"/>
       </group_state>
-      <group_state name="open" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}open" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.110"/>
       </group_state>
     </xacro:if>
     
     <xacro:if value="${onrobot_type == 'rg6'}">
-      <group_state name="closed" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}closed" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.0"/>
       </group_state>
-      <group_state name="open" group="${prefix}ur_onrobot_gripper">
+      <group_state name="${prefix}open" group="${prefix}ur_onrobot_gripper">
         <joint name="${prefix}finger_width" value="0.160"/>
       </group_state>
     </xacro:if>
@@ -193,7 +221,16 @@
       <joint name="${prefix}wrist_3_joint" value="0.0" />
     </group_state>
     
-    <!-- END EFFECTOR -->
+    <group_state name="${prefix}extended" group="${prefix}${name}_manipulator">
+      <joint name="${prefix}shoulder_pan_joint" value="0.0" />
+      <joint name="${prefix}shoulder_lift_joint" value="0.0" />
+      <joint name="${prefix}elbow_joint" value="0.0" />
+      <joint name="${prefix}wrist_1_joint" value="0.0" />
+      <joint name="${prefix}wrist_2_joint" value="0.0" />
+      <joint name="${prefix}wrist_3_joint" value="0.0" />
+    </group_state>
+    
+    <!-- END EFFECTOR definition -->
     <end_effector name="${prefix}${name}_tcp" 
                   parent_link="${prefix}gripper_tcp" 
                   group="${prefix}ur_onrobot_gripper" 
@@ -202,16 +239,22 @@
     <!-- DISABLE COLLISIONS - Common collisions for all grippers -->
     <disable_collisions link1="${prefix}onrobot_base_link" link2="${prefix}wrist_3_link" reason="Adjacent"/>
     <disable_collisions link1="${prefix}onrobot_base_link" link2="${prefix}tool0" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}onrobot_base_link" link2="${prefix}flange" reason="Adjacent"/>
     
     <!-- Gripper-specific collision exemptions -->
     <xacro:if value="${onrobot_type == '2fg7'}">
       <disable_collisions link1="${prefix}left_finger_link" link2="${prefix}right_finger_link" reason="Default"/>
+      <disable_collisions link1="${prefix}left_finger_link" link2="${prefix}onrobot_base_link" reason="Always"/>
+      <disable_collisions link1="${prefix}right_finger_link" link2="${prefix}onrobot_base_link" reason="Always"/>
     </xacro:if>
     
     <xacro:if value="${onrobot_type == '3fg15'}">
       <disable_collisions link1="${prefix}left_finger_link" link2="${prefix}right_finger_link" reason="Default"/>
       <disable_collisions link1="${prefix}left_finger_link" link2="${prefix}center_finger_link" reason="Default"/>
       <disable_collisions link1="${prefix}right_finger_link" link2="${prefix}center_finger_link" reason="Default"/>
+      <disable_collisions link1="${prefix}left_finger_link" link2="${prefix}onrobot_base_link" reason="Always"/>
+      <disable_collisions link1="${prefix}right_finger_link" link2="${prefix}onrobot_base_link" reason="Always"/>
+      <disable_collisions link1="${prefix}center_finger_link" link2="${prefix}onrobot_base_link" reason="Always"/>
     </xacro:if>
     
     <xacro:if value="${onrobot_type in ['rg2', 'rg6']}">
@@ -219,7 +262,22 @@
       <disable_collisions link1="${prefix}left_inner_finger" link2="${prefix}right_inner_finger" reason="Default"/>
       <disable_collisions link1="${prefix}left_inner_knuckle" link2="${prefix}right_inner_knuckle" reason="Default"/>
       <disable_collisions link1="${prefix}left_outer_knuckle" link2="${prefix}right_outer_knuckle" reason="Default"/>
+      <disable_collisions link1="${prefix}left_inner_finger" link2="${prefix}left_finger_tip" reason="Adjacent"/>
+      <disable_collisions link1="${prefix}right_inner_finger" link2="${prefix}right_finger_tip" reason="Adjacent"/>
+      <disable_collisions link1="${prefix}onrobot_base_link" link2="${prefix}left_outer_knuckle" reason="Always"/>
+      <disable_collisions link1="${prefix}onrobot_base_link" link2="${prefix}right_outer_knuckle" reason="Always"/>
     </xacro:if>
+    
+    <!-- Self-collision exemptions for robot arm (common for all) -->
+    <disable_collisions link1="${prefix}base_link" link2="${prefix}shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}shoulder_link" link2="${prefix}upper_arm_link" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}upper_arm_link" link2="${prefix}forearm_link" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}forearm_link" link2="${prefix}wrist_1_link" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}wrist_1_link" link2="${prefix}wrist_2_link" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}wrist_2_link" link2="${prefix}wrist_3_link" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}wrist_3_link" link2="${prefix}flange" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}flange" link2="${prefix}tool0" reason="Adjacent"/>
+    <disable_collisions link1="${prefix}tool0" link2="${prefix}onrobot_base_link" reason="Adjacent"/>
     
   </xacro:macro>
 </robot>
