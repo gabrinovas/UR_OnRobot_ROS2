@@ -50,8 +50,14 @@ def launch_setup(context, *args, **kwargs):
     # Get actual values from context
     onrobot_type_str = onrobot_type.perform(context)
     prefix_str = prefix.perform(context)
+    
+    # Handle empty prefix - ensure it's None not empty string
+    if prefix_str == '""' or prefix_str == '':
+        prefix_str = ''
+        namespace = None
+    else:
+        namespace = prefix_str if prefix_str else None
 
-    # Fixed: Use correct path separators for ROS2
     joint_limit_params = PathJoinSubstitution(
         [FindPackageShare(ur_description_package), "config", ur_type, "joint_limits.yaml"]
     )
@@ -65,14 +71,13 @@ def launch_setup(context, *args, **kwargs):
         [FindPackageShare(ur_description_package), "config", ur_type, "visual_parameters.yaml"]
     )
 
-    # Robot Description
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution([FindPackageShare("ur_onrobot_description"), "urdf", description_file]),
             " ",
-            "robot_ip:=xxx.yyy.zzz.www",  # Placeholder for real robot
+            "robot_ip:=xxx.yyy.zzz.www",
             " ",
             "joint_limit_params:=", joint_limit_params,
             " ",
@@ -93,6 +98,12 @@ def launch_setup(context, *args, **kwargs):
             "ur_type:=", ur_type,
             " ",
             "onrobot_type:=", onrobot_type,
+            " ",
+            "script_filename:=ros_control.urscript",
+            " ",
+            "input_recipe_filename:=rtde_input_recipe.txt",
+            " ",
+            "output_recipe_filename:=rtde_output_recipe.txt",
             " ",
             "prefix:=", prefix,
         ]
@@ -120,25 +131,24 @@ def launch_setup(context, *args, **kwargs):
     }
 
     # Load MoveIt config YAML files
-    moveit_config_dir = get_package_share_directory(moveit_config_package.perform(context))
+    moveit_config_pkg = moveit_config_package.perform(context)
     
-    # Fixed: Load all YAML files correctly
-    kinematics_yaml = load_yaml("ur_onrobot_moveit_config", "config/kinematics.yaml")
-    joint_limits_yaml = load_yaml("ur_onrobot_moveit_config", "config/joint_limits.yaml")
+    kinematics_yaml = load_yaml(moveit_config_pkg, "config/kinematics.yaml")
+    joint_limits_yaml = load_yaml(moveit_config_pkg, "config/joint_limits.yaml")
     
     # Load gripper-specific joint limits
-    joint_limits_grippers_yaml = load_yaml("ur_onrobot_moveit_config", "config/joint_limits_grippers.yaml")
+    joint_limits_grippers_yaml = load_yaml(moveit_config_pkg, "config/joint_limits_grippers.yaml")
     gripper_joint_limits = {}
     
     if joint_limits_grippers_yaml and 'ros__parameters' in joint_limits_grippers_yaml:
         gripper_params = joint_limits_grippers_yaml['ros__parameters']
         gripper_key = f"joint_limits_{onrobot_type_str}"
         if gripper_key in gripper_params:
-            gripper_joint_limits = {gripper_key: gripper_params[gripper_key]}
+            gripper_joint_limits = gripper_params[gripper_key]
     
-    moveit_controllers_yaml = load_yaml("ur_onrobot_moveit_config", "config/moveit_controllers.yaml")
-    ompl_yaml = load_yaml("ur_onrobot_moveit_config", "config/ompl_planning.yaml")
-    planning_pipelines_yaml = load_yaml("ur_onrobot_moveit_config", "config/planning_pipelines.yaml")
+    moveit_controllers_yaml = load_yaml(moveit_config_pkg, "config/moveit_controllers.yaml")
+    ompl_yaml = load_yaml(moveit_config_pkg, "config/ompl_planning.yaml")
+    planning_pipelines_yaml = load_yaml(moveit_config_pkg, "config/planning_pipelines.yaml")
 
     # Combine all parameters
     move_group_params = []
@@ -152,17 +162,22 @@ def launch_setup(context, *args, **kwargs):
         move_group_params.append(kinematics_yaml)
     
     # Combine robot and gripper joint limits
-    combined_joint_limits = {}
     if joint_limits_yaml and 'ros__parameters' in joint_limits_yaml:
-        combined_joint_limits.update(joint_limits_yaml['ros__parameters'])
-    if gripper_joint_limits:
-        # Add gripper joint limits
-        if 'joint_limits' not in combined_joint_limits:
-            combined_joint_limits['joint_limits'] = {}
-        combined_joint_limits['joint_limits'].update(gripper_joint_limits[f"joint_limits_{onrobot_type_str}"])
-    
-    if combined_joint_limits:
+        combined_joint_limits = joint_limits_yaml['ros__parameters'].copy()
+        
+        # Add gripper joint limits to the joint_limits dictionary
+        if gripper_joint_limits:
+            if 'joint_limits' not in combined_joint_limits:
+                combined_joint_limits['joint_limits'] = {}
+            
+            # Merge gripper joint limits with robot joint limits
+            for joint_name, joint_params in gripper_joint_limits.items():
+                combined_joint_limits['joint_limits'][joint_name] = joint_params
+        
         move_group_params.append({'ros__parameters': combined_joint_limits})
+    elif gripper_joint_limits:
+        # If only gripper limits exist
+        move_group_params.append({'ros__parameters': {'joint_limits': gripper_joint_limits}})
     
     if moveit_controllers_yaml:
         move_group_params.append(moveit_controllers_yaml)
@@ -189,15 +204,23 @@ def launch_setup(context, *args, **kwargs):
         "trajectory_execution.allowed_goal_duration_margin": 0.5,
         "trajectory_execution.allowed_start_tolerance": 0.01,
         "trajectory_execution.execution_duration_monitoring": False,
+        "allow_trajectory_execution": True,
+        "capabilities": "",
+        "disable_capabilities": "",
+        "move_group_name": "ur_onrobot_manipulator",
+        "max_safe_path_cost": 1,
+        "jiggle_fraction": 0.05,
+        "publish_monitored_planning_scene": True,
     })
 
-    # Start move_group node
+    # Start move_group node - FIXED: namespace should be None for empty prefix
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
         parameters=move_group_params,
-        namespace=prefix_str if prefix_str else None,
+        namespace=namespace,  # Use None for empty namespace
+        remappings=[("/joint_states", "/joint_states")]
     )
 
     # RViz configuration
@@ -216,7 +239,11 @@ def launch_setup(context, *args, **kwargs):
             robot_description_semantic,
             {"use_sim_time": use_sim_time},
         ],
-        namespace=prefix_str if prefix_str else None,
+        namespace=namespace,
+        remappings=[
+            ("/tf", "tf"),
+            ("/tf_static", "tf_static")
+        ]
     )
 
     # Servo node (disabled by default)
@@ -249,7 +276,8 @@ def launch_setup(context, *args, **kwargs):
         executable="servo_node_main",
         parameters=[servo_params, robot_description, robot_description_semantic],
         output="screen",
-        namespace=prefix_str if prefix_str else None,
+        namespace=namespace,
+        remappings=[("/joint_states", "/joint_states")]
     )
 
     return [move_group_node, rviz_node, servo_node]
@@ -306,8 +334,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "prefix",
-            default_value='""',
-            description="Prefix for multi-robot setup.",
+            default_value='',
+            description="Prefix for multi-robot setup. Use empty string for single robot.",
         ),
         DeclareLaunchArgument(
             "use_sim_time",
