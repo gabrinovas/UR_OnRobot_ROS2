@@ -47,7 +47,7 @@
         device_address="$(arg device_address)"
         cable_connector="$(arg cable_connector)">
         <!-- Robot positioned on table - ORIGEN FIJO -->
-        <origin xyz="0.55 0.65 0.75" rpy="0 0 0"/>
+        <origin xyz="0.55 0.65 0.75" rpy="0 0 -1.570796327"/>
    </xacro:ur_onrobot>
 
 </robot>
