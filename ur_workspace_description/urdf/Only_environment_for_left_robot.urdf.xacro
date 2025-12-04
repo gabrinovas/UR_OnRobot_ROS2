@@ -84,30 +84,6 @@
 
   <!-- Safety Barriers - Adjusted positions for 90-degree rotated tables -->
   <!-- Left Barrier (formerly Back Barrier) -->
-  <link name="safety_barrier_left">
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry>
-        <!-- Scale down from mm to m -->
-        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
-      </geometry>
-      <material name="workspace_safety_yellow"/>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
-      <geometry>
-        <box size="-1.2 0.05 0.8"/>
-      </geometry>
-    </collision>
-  </link>
-
-  <joint name="table_to_barrier_left" type="fixed">
-    <parent link="table_top"/>
-    <child link="safety_barrier_left"/>
-    <origin xyz="0 1.55 0.75" rpy="0 0 0"/>
-  </joint>
-
-  <!-- Right Barrier (formerly Front Barrier) -->
   <link name="safety_barrier_right">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -128,6 +104,30 @@
   <joint name="table_to_barrier_right" type="fixed">
     <parent link="table_top"/>
     <child link="safety_barrier_right"/>
+    <origin xyz="0 1.55 0.75" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Right Barrier (formerly Front Barrier) -->
+  <link name="safety_barrier_left">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="-1.2 0.05 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_left" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_left"/>
     <origin xyz="0 0.2 0.75" rpy="0 0 0"/>
   </joint>
 
