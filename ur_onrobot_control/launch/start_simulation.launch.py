@@ -92,7 +92,7 @@ def generate_launch_description():
     # ====== JOINT STATE MERGER ======
     joint_state_merger = Node(
         package='ur_onrobot_control',
-        executable='joint_state_merger',
+        executable='joint_state_merger.py',
         name='joint_state_merger',
         output='screen',
         parameters=[{
