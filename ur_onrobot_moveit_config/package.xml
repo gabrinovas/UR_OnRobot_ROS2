@@ -102,8 +102,8 @@
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_cmake_clang_format</test_depend>
   <test_depend>ament_cmake_copyright</test_depend>
-  <test_depend>launch_testing</exec_depend>
-  <test_depend>launch_testing_ament_cmake</exec_depend>
+  <test_depend>launch_testing</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
   
   <!-- Demo dependencies -->
   <exec_depend>demo_nodes_cpp</exec_depend>
