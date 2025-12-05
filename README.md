@@ -3,102 +3,118 @@
 
 <img src=doc/images/ur_onrobot.gif width=30%>
 
-ROS2 package for Universal Robot e-Series mounted with OnRobot grippers.
+ROS2 integration for Universal Robots e-Series mounted with OnRobot grippers — combined description, control and MoveIt! configuration.
+
+## Quick overview
+Repository provides three main packages:
+- ur_onrobot_description: combined URDF / xacro robot description (UR + OnRobot).
+- ur_onrobot_control: launch files and controllers for robot + gripper.
+- ur_onrobot_moveit_config: MoveIt! configuration and launches for planning.
+
+Key files
+- ur_onrobot_description/urdf/ur_onrobot.urdf.xacro
+- ur_onrobot_description/launch/view_robot.launch.py
+- ur_onrobot_control/launch/start_robot.launch.py
+- ur_onrobot_control/launch/ur_control.launch.py
+- ur_onrobot_control/scripts/joint_state_merger.py
+- ur_onrobot_moveit_config/launch/ur_onrobot_moveit.launch.py
+- LICENSE
 
 ## Features
-- [ur_onrobot_description](https://github.com/tonydle/UR_OnRobot_ROS2/tree/main/ur_onrobot_description): Combined URDF into a single robot description
-- [ur_onrobot_control](https://github.com/tonydle/UR_OnRobot_ROS2/tree/main/ur_onrobot_control): Combined launch file and ROS 2 controllers
-- [ur_onrobot_moveit_config](https://github.com/tonydle/UR_OnRobot_ROS2/tree/main/ur_onrobot_moveit_config): MoveIt! configuration package for the combined robot and controllers
+- Single combined robot description (UR arm + OnRobot grippers).
+- Launch stacks for running robot driver + controllers.
+- MoveIt! configs for planning with the combined robot.
+- Joint state merger to include gripper finger width in /joint_states.
 
-## Dependencies (all included in the installation steps below)
-- [Universal Robot ROS2 Driver](https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver/tree/humble) - humble branch
-- [OnRobot ROS2 Driver](https://github.com/tonydle/OnRobot_ROS2_Driver), which requires:
-    - [OnRobot ROS2 Description](https://github.com/tonydle/OnRobot_ROS2_Description)
-    - libnet1-dev (for Modbus TCP/Serial)
-    - [Modbus](https://github.com/Mazurel/Modbus) C++ library (included as a submodule)
+## Dependencies
+- ROS 2 (targeted for Humble/Foxy-compatible stacks; adjust for your distro).
+- Universal_Robots_ROS2_Driver (humble branch recommended).
+- OnRobot ROS2 Driver and OnRobot description (see required.repos).
+- libnet1-dev (for Modbus TCP/Serial).
+- Modbus C++ library (included as a submodule via required.repos).
 
 ## Installation
 
-1. Navigate to your ROS2 workspace and **clone the repository** into the `src` directory:
+1. Clone into your ROS2 workspace `src/`:
    ```sh
    git clone https://github.com/tonydle/UR_OnRobot_ROS2.git src/ur_onrobot
    ```
-2. Install git dependencies using `vcs`:
+2. Import external repositories referenced by this repo:
    ```sh
    vcs import src --input src/ur_onrobot/required.repos --recursive
    ```
-3. Install libnet (for Modbus TCP/Serial):
+3. Install system deps (example for Modbus):
    ```sh
+   sudo apt update
    sudo apt install libnet1-dev
    ```
-4. Let rosdep install ROS 2 dependencies:
+4. Install ROS deps:
    ```sh
    rosdep install -y --from-paths src --ignore-src
    ```
-4. Build using colcon with symlink install:
+5. Build and source:
    ```sh
    colcon build --symlink-install
-   ```
-5. Source the workspace:
-   ```sh
    source install/setup.bash
    ```
 
-## Hardware Setup
-1. Connect the OnRobot Quick Changer to the Tool I/O of the UR robot.
-2. On the UR Teach Pendant, install the [RS485 Daemon URCap](https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap) following the steps below:
-   - Download the URCap from [Releases](https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap/releases)
-   - Follow the [URCap Installation Guide](https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap/blob/master/doc/install_urcap.md)
-   - Note: Currently there is a bug where if you have the robotiq_grippers URCap installed, the RS485 URCap cannot run.
-    Follow the issue [here](https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap/issues/9) for updates.
-   - Restart robot
-3. Setup Tool I/O parameters (Installation -> General -> Tool I/O)
-
-   <img src=doc/images/installation_tool_io.png width=60%>
-
-      - Controlled by: User
-      - Communication Interface:
-         - Baud Rate: 1M
-         - Parity: Even
-         - Stop Bits: One
-         - RX Idle Chars: 1.5
-         - TX Idle Chars: 3.5
-      - Tool Output Voltage: 24V
-      - Standard Output:
-         - Digital Output 0: Sinking (NPN)
-         - Digital Output 1: Sinking (NPN)
+## Hardware setup (OnRobot / UR)
+1. Connect the OnRobot Quick Changer / gripper to the UR Tool I/O.
+2. On the UR teach pendant install the RS485 Daemon URCap:
+   - Releases and instructions: https://github.com/UniversalRobots/Universal_Robots_ToolComm_Forwarder_URCap
+   - Note: conflict may exist with some URCaps (see issue tracker).
+3. Configure Tool I/O in the robot installation settings (baud, parity, voltage, outputs).
+   Example recommended settings (Tool I/O -> Controlled by: User, Baud 1M, Parity Even, Tool Voltage 24V).
 
 ## Usage
-### View the URDF
-   ```sh
-   ros2 launch ur_onrobot_description view_robot.launch.py ur_type:=ur3e onrobot_type:=rg2
-   ```
 
-### Start robot
-   ```sh
-   ros2 launch ur_onrobot_control start_robot.launch.py ur_type:=ur3e onrobot_type:=rg2 robot_ip:=<robot_ip>
-   ```
-Other arguments:
-- `use_fake_hardware` (default: `false`): Use mock hardware interface for testing
-- `launch_rviz` (default: `true`): Launch RViz with the robot model
-- `tf_prefix` (default: `""`): Prefix for all TF frames
+View URDF in RViz:
+```sh
+ros2 launch ur_onrobot_description view_robot.launch.py ur_type:=ur5e onrobot_type:=2fg7
+```
 
-### Start MoveIt!
-   ```sh
-   ros2 launch ur_onrobot_moveit_config ur_onrobot_moveit.launch.py ur_type:=ur3e onrobot_type:=rg2
-   ```
+Start robot (driver + controllers):
+```sh
+ros2 launch ur_onrobot_control start_robot.launch.py ur_type:=ur5e onrobot_type:=2fg7 robot_ip:=<robot_ip>
+```
+Common launch args:
+- use_fake_hardware (default: false) — simulate hardware.
+- launch_rviz (default: true) — start RViz.
+- tf_prefix (default: "") — TF frame prefix.
+- environment (auto/left/right/basic) — selects URDF/environment.
 
-### Get the full joint states including `finger_width` (metres)
-   ```sh
-   ros2 topic echo /joint_states
-   ```
-### Control the gripper with `finger_width_controller`(JointGroupPositionController)
-   ```sh
-   ros2 topic pub --once /finger_width_controller/commands std_msgs/msg/Float64MultiArray "{data: [0.05]}"
-   ```
+Start MoveIt! (planning + RViz):
+```sh
+ros2 launch ur_onrobot_moveit_config ur_onrobot_moveit.launch.py ur_type:=ur5e onrobot_type:=2fg7
+```
 
-## Author
-[Tony Le](https://github.com/tonydle)
+Get merged joint states (includes finger_width in metres):
+```sh
+ros2 topic echo /joint_states
+```
+
+Control gripper (JointGroupPositionController named finger_width_controller):
+```sh
+ros2 topic pub --once /finger_width_controller/commands std_msgs/msg/Float64MultiArray "{data: [0.05]}"
+```
+
+## Troubleshooting
+- If autodetect fails, pass robot_ip:=<ip> to start_robot.launch.py.
+- To run purely simulated, set use_fake_hardware:=true.
+- If MoveIt! shows a different URDF, verify the environment, description_package and description_file args in the launch files.
+- Check logs in the ROS2 output and the terminal for driver/Modbus errors.
+
+## Development notes
+- Use colcon with --symlink-install for iterative development.
+- Launch files use xacro and standard launch PathJoinSubstitution to find assets inside packages.
+- Modify MoveIt! settings under ur_onrobot_moveit_config/config and relaunch MoveIt!.
+- The joint_state_merger script merges arm + gripper for a complete /joint_states message.
+
+## Authors
+[Tony Le] (http://github.com/tonydle) \
+[Gabriel Novas] (http://github.com/gabrinovas)
+
+See LICENSE for copyright and terms.
 
 ## License
-This software is released under the MIT License, see [LICENSE](./LICENSE).
+This project is licensed under the MIT License. See LICENSE in the repository root.
