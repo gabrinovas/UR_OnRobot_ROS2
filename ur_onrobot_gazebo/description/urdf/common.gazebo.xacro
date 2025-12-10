@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Gazebo plugin for ros_control -->
+  <gazebo>
+    <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+      <parameters>$(find ur_onrobot_control)/config/ur_onrobot_controllers.yaml</parameters>
+      <!-- O usar el local: -->
+      <!-- <parameters>$(find ur_onrobot_gazebo)/config/gazebo_controllers.yaml</parameters> -->
+    </plugin>
+  </gazebo>
+
+  <!-- Transmissions for ros_control -->
+  <!-- Verificar si este archivo existe -->
+  <xacro:include filename="$(find ur_onrobot_description)/urdf/common.gazebo.xacro" />
+
+  <!-- Default material -->
+  <material name="silver">
+    <color rgba="0.7 0.7 0.7 1.0"/>
+  </material>
+
+</robot>

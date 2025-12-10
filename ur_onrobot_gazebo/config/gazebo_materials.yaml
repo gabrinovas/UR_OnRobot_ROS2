@@ -1,0 +1,73 @@
+# Materiales visuales para Gazebo
+# Colores y texturas específicas para UR robots y entornos
+
+materials:
+  # Materiales para UR robots
+  ur_robot:
+    base_color: [0.2, 0.2, 0.2, 1.0]      # Gris oscuro
+    metallic: 0.8
+    roughness: 0.3
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  ur_robot_accent:
+    base_color: [0.0, 0.4, 0.8, 1.0]      # Azul UR
+    metallic: 0.5
+    roughness: 0.4
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  # Materiales para gripper OnRobot
+  onrobot_gripper:
+    base_color: [0.1, 0.1, 0.1, 1.0]      # Negro mate
+    metallic: 0.1
+    roughness: 0.8
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  onrobot_fingers:
+    base_color: [0.6, 0.6, 0.6, 1.0]      # Gris claro
+    metallic: 0.3
+    roughness: 0.6
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  # Materiales para entorno
+  environment_floor:
+    base_color: [0.3, 0.3, 0.3, 1.0]      # Gris concreto
+    metallic: 0.0
+    roughness: 0.9
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  environment_walls:
+    base_color: [0.9, 0.9, 0.9, 1.0]      # Blanco industrial
+    metallic: 0.0
+    roughness: 0.7
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  table_surface:
+    base_color: [0.15, 0.15, 0.15, 1.0]   # Negro mate
+    metallic: 0.0
+    roughness: 0.8
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  # Materiales para objetos manipulables
+  object_red:
+    base_color: [0.8, 0.1, 0.1, 1.0]      # Rojo
+    metallic: 0.3
+    roughness: 0.4
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  object_blue:
+    base_color: [0.1, 0.1, 0.8, 1.0]      # Azul
+    metallic: 0.3
+    roughness: 0.4
+    emissive: [0.0, 0.0, 0.0, 0.0]
+    
+  object_green:
+    base_color: [0.1, 0.8, 0.1, 1.0]      # Verde
+    metallic: 0.3
+    roughness: 0.4
+    emissive: [0.0, 0.0, 0.0, 0.0]
+
+# Configuración de texturas (si se usan archivos)
+textures:
+  concrete_texture: "package://ur_onrobot_gazebo/textures/concrete.png"
+  metal_texture: "package://ur_onrobot_gazebo/textures/metal.png"
+  rubber_texture: "package://ur_onrobot_gazebo/textures/rubber.png"

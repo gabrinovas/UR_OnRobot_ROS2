@@ -1,0 +1,87 @@
+# Transmissions para UR robots en Gazebo
+# Esta configuración es específica para simulación
+
+transmissions:
+  # Transmisión para articulaciones del UR
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: shoulder_pan_joint
+      role: "actuated"
+    actuators:
+      name: shoulder_pan_motor
+      role: "actuator"
+  
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: shoulder_lift_joint
+      role: "actuated"
+    actuators:
+      name: shoulder_lift_motor
+      role: "actuator"
+  
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: elbow_joint
+      role: "actuated"
+    actuators:
+      name: elbow_motor
+      role: "actuator"
+  
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: wrist_1_joint
+      role: "actuated"
+    actuators:
+      name: wrist_1_motor
+      role: "actuator"
+  
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: wrist_2_joint
+      role: "actuated"
+    actuators:
+      name: wrist_2_motor
+      role: "actuator"
+  
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: wrist_3_joint
+      role: "actuated"
+    actuators:
+      name: wrist_3_motor
+      role: "actuator"
+
+  # Transmisiones para gripper OnRobot (2FG7 como ejemplo)
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: onrobot2fg7_finger1_joint
+      role: "actuated"
+    actuators:
+      name: onrobot2fg7_finger1_motor
+      role: "actuator"
+  
+  - type: transmission_interface/SimpleTransmission
+    joints:
+      name: onrobot2fg7_finger2_joint
+      role: "actuated"
+    actuators:
+      name: onrobot2fg7_finger2_motor
+      role: "actuator"
+
+# Configuración de hardware para Gazebo
+hardware:
+  - type: gazebo_ros2_control/GazeboSystem
+    parameters:
+      robot_param_name: "robot_description"
+      control_period: 0.002  # 500 Hz
+      simulate_sensors: true
+      simulate_sensor_noise: false
+      max_effort:
+        shoulder_pan_joint: 150.0
+        shoulder_lift_joint: 150.0
+        elbow_joint: 150.0
+        wrist_1_joint: 28.0
+        wrist_2_joint: 28.0
+        wrist_3_joint: 28.0
+        onrobot2fg7_finger1_joint: 20.0
+        onrobot2fg7_finger2_joint: 20.0

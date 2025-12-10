@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Gazebo plugins for robot -->
+  <xacro:include filename="$(find ur_onrobot_gazebo)/description/urdf/common.gazebo.xacro" />
+
+  <!-- Gazebo plugins for environment -->
+  <gazebo reference="world">
+    <static>true</static>
+  </gazebo>
+
+  <!-- Gazebo properties for all links -->
+  <xacro:property name="default_mu1" value="1.0"/>
+  <xacro:property name="default_mu2" value="1.0"/>
+  <xacro:property name="default_kp" value="10000000.0"/>
+  <xacro:property name="default_kd" value="1.0"/>
+  <xacro:property name="default_max_vel" value="1.0"/>
+  <xacro:property name="default_min_depth" value="0.001"/>
+
+  <!-- Apply gazebo properties to environment links -->
+  <xacro:macro name="apply_gazebo_properties" params="link_name">
+    <gazebo reference="${link_name}">
+      <mu1>${default_mu1}</mu1>
+      <mu2>${default_mu2}</mu2>
+      <kp>${default_kp}</kp>
+      <kd>${default_kd}</kd>
+      <maxVel>${default_max_vel}</maxVel>
+      <minDepth>${default_min_depth}</minDepth>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Apply to key environment links -->
+  <xacro:apply_gazebo_properties link_name="floor" />
+  <xacro:apply_gazebo_properties link_name="table_base" />
+  <xacro:apply_gazebo_properties link_name="table_top" />
+  <xacro:apply_gazebo_properties link_name="back_wall" />
+  <xacro:apply_gazebo_properties link_name="side_wall" />
+  
+</robot>

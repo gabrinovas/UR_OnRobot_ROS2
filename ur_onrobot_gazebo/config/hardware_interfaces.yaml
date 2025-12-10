@@ -1,0 +1,93 @@
+# Interfaces de hardware específicas para Gazebo
+# Adaptadas para simulación precisa
+
+simulated_hardware:
+  ros__parameters:
+    # Configuración de interfaces
+    interfaces:
+      - name: "position"
+        type: "hardware_interface/PositionInterface"
+      - name: "velocity"
+        type: "hardware_interface/VelocityInterface"
+      - name: "effort"
+        type: "hardware_interface/EffortInterface"
+      - name: "joint_state"
+        type: "hardware_interface/JointStateInterface"
+
+    # Parámetros específicos por articulación para simulación
+    joint_parameters:
+      shoulder_pan_joint:
+        command_interfaces: ["position", "velocity", "effort"]
+        state_interfaces: ["position", "velocity", "effort"]
+        initial_position: 0.0
+        kp: 1000000.0
+        kd: 10000.0
+        max_effort: 150.0
+        
+      shoulder_lift_joint:
+        command_interfaces: ["position", "velocity", "effort"]
+        state_interfaces: ["position", "velocity", "effort"]
+        initial_position: -1.57
+        kp: 1000000.0
+        kd: 10000.0
+        max_effort: 150.0
+        
+      elbow_joint:
+        command_interfaces: ["position", "velocity", "effort"]
+        state_interfaces: ["position", "velocity", "effort"]
+        initial_position: 1.57
+        kp: 1000000.0
+        kd: 10000.0
+        max_effort: 150.0
+        
+      wrist_1_joint:
+        command_interfaces: ["position", "velocity", "effort"]
+        state_interfaces: ["position", "velocity", "effort"]
+        initial_position: -1.57
+        kp: 100000.0
+        kd: 1000.0
+        max_effort: 28.0
+        
+      wrist_2_joint:
+        command_interfaces: ["position", "velocity", "effort"]
+        state_interfaces: ["position", "velocity", "effort"]
+        initial_position: -1.57
+        kp: 100000.0
+        kd: 1000.0
+        max_effort: 28.0
+        
+      wrist_3_joint:
+        command_interfaces: ["position", "velocity", "effort"]
+        state_interfaces: ["position", "velocity", "effort"]
+        initial_position: 0.0
+        kp: 100000.0
+        kd: 1000.0
+        max_effort: 28.0
+
+      # Gripper OnRobot 2FG7
+      onrobot2fg7_finger1_joint:
+        command_interfaces: ["position"]
+        state_interfaces: ["position", "effort"]
+        initial_position: 0.0
+        kp: 50000.0
+        kd: 100.0
+        max_effort: 20.0
+        
+      onrobot2fg7_finger2_joint:
+        command_interfaces: ["position"]
+        state_interfaces: ["position", "effort"]
+        initial_position: 0.0
+        kp: 50000.0
+        kd: 100.0
+        max_effort: 20.0
+
+    # Configuración de sensores simulados
+    sensors:
+      joint_states:
+        type: sensor_interface/JointStateSensor
+        update_rate: 500
+        
+      force_torque_sensor:
+        type: sensor_interface/ForceTorqueSensor
+        frame_id: "wrist_3_link"
+        update_rate: 500

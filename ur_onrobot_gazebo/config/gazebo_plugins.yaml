@@ -1,0 +1,31 @@
+# Plugins adicionales para Gazebo
+# Para funcionalidades extendidas
+
+plugins:
+  ros__parameters:
+    # Plugin para control PID
+    pid_plugin:
+      type: "libgazebo_ros_pid.so"
+      name: "pid_controller"
+      
+    # Plugin para fuerzas/vientos
+    wind_plugin:
+      type: "libgazebo_ros_wind.so"
+      name: "wind_plugin"
+      wind_force: [0.0, 0.0, 0.0]
+      
+    # Plugin para gravedad variable
+    gravity_plugin:
+      type: "libgazebo_ros_gravity.so"
+      name: "gravity_plugin"
+      
+    # Plugin para guardar/restaurar estado
+    state_logger:
+      type: "libgazebo_ros_state.so"
+      name: "state_logger"
+      update_rate: 10
+      
+    # Plugin para interacción táctil (opcional)
+    tactile_plugin:
+      type: "libgazebo_ros_tactile.so"
+      name: "tactile_plugin"

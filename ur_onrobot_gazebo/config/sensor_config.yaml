@@ -1,0 +1,76 @@
+# Configuración de sensores simulados
+# Para agregar cámaras, sensores de fuerza, etc.
+
+sensors:
+  ros__parameters:
+    # Cámara RGBD para visión
+    wrist_camera:
+      enabled: true
+      type: "camera"
+      parent: "wrist_3_link"
+      pose: [0.0, 0.0, 0.1, 0.0, 0.0, 0.0]  # xyz rpy
+      update_rate: 30
+      image:
+        width: 640
+        height: 480
+        format: "R8G8B8"
+      depth_camera:
+        output: "depths"
+      clip:
+        near: 0.01
+        far: 10.0
+      distortion:
+        k1: 0.0
+        k2: 0.0
+        k3: 0.0
+        p1: 0.0
+        p2: 0.0
+      noise:
+        type: "gaussian"
+        mean: 0.0
+        stddev: 0.007
+        
+    # Sensor de fuerza/torque
+    wrist_ft_sensor:
+      enabled: true
+      type: "force_torque"
+      parent: "wrist_3_link"
+      frame: "onrobot2fg7_base_link"
+      update_rate: 500
+      noise:
+        force:
+          type: "gaussian"
+          mean: 0.0
+          stddev: 0.1  # N
+        torque:
+          type: "gaussian"
+          mean: 0.0
+          stddev: 0.01  # Nm
+          
+    # Sensores de proximidad (para gripper)
+    gripper_proximity:
+      enabled: true
+      type: "ray"
+      parent: "onrobot2fg7_finger1_link"
+      pose: [0.0, 0.0, 0.05, 0.0, 0.0, 0.0]
+      update_rate: 100
+      ray:
+        scan:
+          horizontal:
+            samples: 1
+            resolution: 1
+            min_angle: 0.0
+            max_angle: 0.0
+          vertical:
+            samples: 1
+            resolution: 1
+            min_angle: 0.0
+            max_angle: 0.0
+        range:
+          min: 0.0
+          max: 0.1
+          resolution: 0.001
+      noise:
+        type: "gaussian"
+        mean: 0.0
+        stddev: 0.001

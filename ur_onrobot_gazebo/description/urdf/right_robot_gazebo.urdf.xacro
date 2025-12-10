@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="right_robot_gazebo">
+
+  <!-- Include the original URDF -->
+  <xacro:include filename="$(find ur_onrobot_control)/urdf/right_robot_with_environment.urdf.xacro" />
+  
+  <!-- Include Gazebo configuration -->
+  <xacro:include filename="$(find ur_onrobot_gazebo)/description/urdf/right_robot_with_environment.gazebo.xacro" />
+
+</robot>

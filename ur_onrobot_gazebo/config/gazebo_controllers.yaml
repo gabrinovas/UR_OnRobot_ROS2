@@ -1,0 +1,76 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 500  # Hz
+
+    # Controlador de estado de las articulaciones
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # Controlador de trayectorias escalado
+    scaled_joint_trajectory_controller:
+      type: position_controllers/ScaledJointTrajectoryController
+      joints:
+        - shoulder_pan_joint
+        - shoulder_lift_joint
+        - elbow_joint
+        - wrist_1_joint
+        - wrist_2_joint
+        - wrist_3_joint
+      command_interfaces:
+        - position
+      state_interfaces:
+        - position
+        - velocity
+      gains:
+        shoulder_pan_joint: {p: 1000.0, i: 0.0, d: 10.0}
+        shoulder_lift_joint: {p: 1000.0, i: 0.0, d: 10.0}
+        elbow_joint: {p: 1000.0, i: 0.0, d: 10.0}
+        wrist_1_joint: {p: 1000.0, i: 0.0, d: 10.0}
+        wrist_2_joint: {p: 1000.0, i: 0.0, d: 10.0}
+        wrist_3_joint: {p: 1000.0, i: 0.0, d: 10.0}
+      constraints:
+        goal_time: 0.6
+        stopped_velocity_tolerance: 0.05
+        shoulder_pan_joint: {trajectory: 0.15, goal: 0.1}
+        shoulder_lift_joint: {trajectory: 0.15, goal: 0.1}
+        elbow_joint: {trajectory: 0.15, goal: 0.1}
+        wrist_1_joint: {trajectory: 0.15, goal: 0.1}
+        wrist_2_joint: {trajectory: 0.15, goal: 0.1}
+        wrist_3_joint: {trajectory: 0.15, goal: 0.1}
+
+    # Controlador de gripper OnRobot
+    onrobot_gripper_controller:
+      type: position_controllers/JointTrajectoryController
+      joints:
+        - onrobot2fg7_finger1_joint
+        - onrobot2fg7_finger2_joint
+      command_interfaces:
+        - position
+      state_interfaces:
+        - position
+        - velocity
+      gains:
+        onrobot2fg7_finger1_joint: {p: 500.0, i: 0.0, d: 5.0}
+        onrobot2fg7_finger2_joint: {p: 500.0, i: 0.0, d: 5.0}
+
+    # Controlador de esfuerzo (opcional)
+    joint_group_effort_controller:
+      type: effort_controllers/JointGroupEffortController
+      joints:
+        - shoulder_pan_joint
+        - shoulder_lift_joint
+        - elbow_joint
+        - wrist_1_joint
+        - wrist_2_joint
+        - wrist_3_joint
+
+    # Controlador de velocidad (opcional)
+    joint_group_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+      joints:
+        - shoulder_pan_joint
+        - shoulder_lift_joint
+        - elbow_joint
+        - wrist_1_joint
+        - wrist_2_joint
+        - wrist_3_joint
