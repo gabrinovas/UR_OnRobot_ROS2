@@ -1,3 +1,4 @@
+import yaml
 # Copyright (c) 2021 PickNik, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -223,6 +224,10 @@ def launch_setup(context, *args, **kwargs):
             ur_type.perform(context) + "_update_rate.yaml",
         ]
     )
+
+    with open(update_rate_config_file.perform(context)) as f:
+        update_rate = yaml.safe_load(f)["controller_manager"]["ros__parameters"]["update_rate"]
+    context.launch_configurations["update_rate"] = str(update_rate)
 
     control_node = Node(
         package="controller_manager",
