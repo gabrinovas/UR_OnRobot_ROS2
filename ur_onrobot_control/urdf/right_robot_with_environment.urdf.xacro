@@ -26,9 +26,9 @@
    <!-- Cable connector (visual elements) -->
    <xacro:arg name="cable_connector" default="true"/>
 
-   <!-- MAIN ROBOT - Attached to table_top in environment -->
+   <!-- MAIN ROBOT - Attached to world at origin (0,0,0) -->
    <xacro:ur_onrobot
-        parent="table_top"
+        parent="world"
         robot_ip="$(arg robot_ip)"
         ur_type="$(arg ur_type)"
         onrobot_type="$(arg onrobot_type)"
@@ -46,8 +46,8 @@
         port="$(arg port)"
         device_address="$(arg device_address)"
         cable_connector="$(arg cable_connector)">
-        <!-- Robot positioned on table - ORIGEN FIJO -->
-        <origin xyz="0.55 0.65 0.75" rpy="0 0 -1.570796327"/>
+        <!-- Robot base at world origin (0,0,0) -->
+        <origin xyz="0 0 0" rpy="0 0 -1.570796327"/>
    </xacro:ur_onrobot>
 
 </robot>
