@@ -8,6 +8,15 @@ controller_manager:
     finger_width_controller:
       type: position_controllers/JointGroupPositionController
 
+    gripper_channel_a_controller:
+      type: position_controllers/GripperActionController
+
+    gripper_channel_b_controller:
+      type: position_controllers/GripperActionController
+
+    vacuum_group_controller:
+      type: position_controllers/JointGroupPositionController
+
     io_and_status_controller:
       type: ur_controllers/GPIOController
 
@@ -62,6 +71,30 @@ finger_width_controller:
       finger_width:
         goal: 0.001
         trajectory: 0.001
+
+gripper_channel_a_controller:
+  ros__parameters:
+    joint: $(var tf_prefix)vacuum_channel_a
+    action_monitor_rate: 20.0
+    goal_tolerance: 0.05
+    max_effort: 80.0
+    stall_velocity_threshold: 0.001
+    stall_timeout: 1.0
+
+gripper_channel_b_controller:
+  ros__parameters:
+    joint: $(var tf_prefix)vacuum_channel_b
+    action_monitor_rate: 20.0
+    goal_tolerance: 0.05
+    max_effort: 80.0
+    stall_velocity_threshold: 0.001
+    stall_timeout: 1.0
+
+vacuum_group_controller:
+  ros__parameters:
+    joints:
+      - $(var tf_prefix)vacuum_channel_a
+      - $(var tf_prefix)vacuum_channel_b
 
 speed_scaling_state_broadcaster:
   ros__parameters:
