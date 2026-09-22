@@ -37,14 +37,12 @@ def launch_setup(context, *args, **kwargs):
     launch_rviz_val = LaunchConfiguration('launch_rviz')
 
     # 1. Resolver archivo URDF según el entorno seleccionado
+    urdf_package = 'ur_onrobot_description'
     if sim_env_val == 'left':
-        urdf_package = 'ur_onrobot_control'
         urdf_file = 'left_robot_with_environment.urdf.xacro'
     elif sim_env_val == 'right':
-        urdf_package = 'ur_onrobot_control'
         urdf_file = 'right_robot_with_environment.urdf.xacro'
     else:  # 'basic'
-        urdf_package = 'ur_onrobot_description'
         urdf_file = 'ur_onrobot.urdf.xacro'
 
     # Generación dinámica del robot_description mediante xacro

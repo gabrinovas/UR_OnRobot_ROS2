@@ -24,6 +24,8 @@ def generate_launch_description():
                             description='Lanzar control del gripper'),
         DeclareLaunchArgument('use_fake_hardware', default_value='false',
                             description='true=simulación, false=robot real'),
+        DeclareLaunchArgument('launch_rviz', default_value='true',
+                            description='Lanzar RViz2'),
     ]
 
     ur_launch = IncludeLaunchDescription(
@@ -38,6 +40,7 @@ def generate_launch_description():
             'ur_type': LaunchConfiguration('ur_type'),
             'robot_ip': LaunchConfiguration('robot_ip'),
             'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
+            'launch_rviz': LaunchConfiguration('launch_rviz'),
         }.items()
     )
 
@@ -52,6 +55,7 @@ def generate_launch_description():
         launch_arguments={
             'onrobot_type': LaunchConfiguration('onrobot_type'),
             'use_fake_hardware': LaunchConfiguration('use_fake_hardware'),
+            'launch_rviz': LaunchConfiguration('launch_rviz'),
         }.items(),
         condition=IfCondition(LaunchConfiguration('launch_onrobot'))
     )

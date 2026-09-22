@@ -21,16 +21,14 @@ def configure_simulation(context):
     print(f"   - Gripper: {LaunchConfiguration('onrobot_type').perform(context)}")
     
     # ========== LÓGICA DE SELECCIÓN DE URDF SEGÚN SIM_ENV ==========
+    description_package = 'ur_onrobot_description'
     if sim_env == 'left':
-        description_package = 'ur_onrobot_control'
         description_file = 'left_robot_with_environment.urdf.xacro'
         print(f"   - URDF: Entorno LEFT ({description_package}/{description_file})")
     elif sim_env == 'right':
-        description_package = 'ur_onrobot_control'
         description_file = 'right_robot_with_environment.urdf.xacro'
         print(f"   - URDF: Entorno RIGHT ({description_package}/{description_file})")
     else:  # 'basic' por defecto o cualquier otro valor
-        description_package = 'ur_onrobot_description'
         description_file = 'ur_onrobot.urdf.xacro'
         print(f"   - URDF: Básico ({description_package}/{description_file})")
     # ===============================================================
@@ -51,6 +49,8 @@ def generate_launch_description():
                             description='Lanzar control del gripper'),
         DeclareLaunchArgument('rviz_config', default_value='view_robot.rviz',
                             description='Configuración de RVIZ'),
+        DeclareLaunchArgument('launch_rviz', default_value='true',
+                            description='Lanzar RViz2'),
         DeclareLaunchArgument('sim_env', default_value='basic',
                             description='Entorno de simulación: basic, left, right'),
         # Parámetros internos
@@ -165,9 +165,7 @@ def generate_launch_description():
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_path],
-        condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('sim_env'), "' != 'right' or '", LaunchConfiguration('sim_env'), "' != 'left'"
-        ]))
+        condition=IfCondition(LaunchConfiguration('launch_rviz'))
     )
 
     return LaunchDescription([
