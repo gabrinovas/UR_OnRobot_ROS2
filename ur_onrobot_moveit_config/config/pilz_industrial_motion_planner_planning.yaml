@@ -1,0 +1,6 @@
+planning_plugins:
+  - pilz_industrial_motion_planner/CommandPlanner
+capabilities:
+  - pilz_industrial_motion_planner/MoveGroupSequenceAction
+  - pilz_industrial_motion_planner/MoveGroupSequenceService
+default_planner_config: PTP

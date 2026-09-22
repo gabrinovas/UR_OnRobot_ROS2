@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="ur5e_collisions" params="tf_prefix:=''">
+    <!-- Internal arm collisions -->
+    <disable_collisions link1="${tf_prefix}base_link_inertia" link2="${tf_prefix}shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}base_link_inertia" link2="${tf_prefix}upper_arm_link" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}base_link" link2="${tf_prefix}base_link_inertia" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}base_link" link2="${tf_prefix}shoulder_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}shoulder_link" link2="${tf_prefix}upper_arm_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}upper_arm_link" link2="${tf_prefix}forearm_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}forearm_link" link2="${tf_prefix}wrist_1_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}wrist_1_link" link2="${tf_prefix}wrist_2_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}wrist_1_link" link2="${tf_prefix}wrist_3_link" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}wrist_2_link" link2="${tf_prefix}wrist_3_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}wrist_3_link" link2="${tf_prefix}tool0" reason="Adjacent"/>
+
+    <!-- Wrist with OnRobot base -->
+    <disable_collisions link1="${tf_prefix}wrist_1_link" link2="${tf_prefix}onrobot_base_link" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}wrist_2_link" link2="${tf_prefix}onrobot_base_link" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}wrist_3_link" link2="${tf_prefix}onrobot_base_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}tool0" link2="${tf_prefix}onrobot_base_link" reason="Adjacent"/>
+
+    <!-- Cable connectors (if present) -->
+    <disable_collisions link1="${tf_prefix}wrist_2_link" link2="${tf_prefix}cable_connector_0" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}wrist_3_link" link2="${tf_prefix}cable_connector_0" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}tool0" link2="${tf_prefix}cable_connector_0" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}onrobot_base_link" link2="${tf_prefix}cable_connector_0" reason="Adjacent"/>
+
+    <disable_collisions link1="${tf_prefix}wrist_2_link" link2="${tf_prefix}cable_connector_1" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}wrist_3_link" link2="${tf_prefix}cable_connector_1" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}tool0" link2="${tf_prefix}cable_connector_1" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}onrobot_base_link" link2="${tf_prefix}cable_connector_1" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}cable_connector_0" link2="${tf_prefix}cable_connector_1" reason="Never"/>
+  </xacro:macro>
+</robot>

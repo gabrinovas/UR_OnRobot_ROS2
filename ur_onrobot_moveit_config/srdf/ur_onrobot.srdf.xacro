@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur_onrobot">
+  <!-- Arguments for dynamic resolution -->
+  <xacro:arg name="onrobot_type" default="2fg7"/>
+  <xacro:arg name="sim_env" default="basic"/>
+  <xacro:arg name="tf_prefix" default=""/>
+
+  <xacro:property name="onrobot_type" value="$(arg onrobot_type)"/>
+  <xacro:property name="sim_env" value="$(arg sim_env)"/>
+  <xacro:property name="tf_prefix" value="$(arg tf_prefix)"/>
+
+  <!-- Include Sub-Macros -->
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/ur5e_collisions.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/2fg7_macro.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/3fg15_macro.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/vgc10_macro.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/environment_collisions.srdf.xacro"/>
+
+  <!-- ==================== PLANNING GROUPS ==================== -->
+  <!-- UR Manipulator Group (Arm + Gripper TCP) -->
+  <group name="ur_manipulator">
+    <chain base_link="${tf_prefix}base_link" tip_link="${tf_prefix}gripper_tcp"/>
+  </group>
+
+  <!-- ==================== GROUP STATES (ARM) ==================== -->
+  <group_state name="home" group="ur_manipulator">
+    <joint name="${tf_prefix}shoulder_pan_joint" value="0.0"/>
+    <joint name="${tf_prefix}shoulder_lift_joint" value="-1.5708"/>
+    <joint name="${tf_prefix}elbow_joint" value="1.5708"/>
+    <joint name="${tf_prefix}wrist_1_joint" value="-1.5708"/>
+    <joint name="${tf_prefix}wrist_2_joint" value="-1.5708"/>
+    <joint name="${tf_prefix}wrist_3_joint" value="0.0"/>
+  </group_state>
+
+  <group_state name="up" group="ur_manipulator">
+    <joint name="${tf_prefix}shoulder_pan_joint" value="0.0"/>
+    <joint name="${tf_prefix}shoulder_lift_joint" value="-1.5708"/>
+    <joint name="${tf_prefix}elbow_joint" value="0.0"/>
+    <joint name="${tf_prefix}wrist_1_joint" value="-1.5708"/>
+    <joint name="${tf_prefix}wrist_2_joint" value="0.0"/>
+    <joint name="${tf_prefix}wrist_3_joint" value="0.0"/>
+  </group_state>
+
+  <!-- ==================== ARM COLLISIONS ==================== -->
+  <xacro:ur5e_collisions tf_prefix="${tf_prefix}"/>
+
+  <!-- ==================== GRIPPER MACROS ==================== -->
+  <xacro:if value="${onrobot_type == '2fg7'}">
+    <xacro:onrobot_2fg7_srdf tf_prefix="${tf_prefix}"/>
+  </xacro:if>
+
+  <xacro:if value="${onrobot_type == '3fg15'}">
+    <xacro:onrobot_3fg15_srdf tf_prefix="${tf_prefix}"/>
+  </xacro:if>
+
+  <xacro:if value="${onrobot_type == 'vgc10'}">
+    <xacro:onrobot_vgc10_srdf tf_prefix="${tf_prefix}"/>
+  </xacro:if>
+
+  <!-- ==================== ENVIRONMENT COLLISIONS ==================== -->
+  <xacro:if value="${sim_env in ['left', 'right']}">
+    <xacro:environment_collisions tf_prefix="${tf_prefix}"/>
+  </xacro:if>
+
+</robot>

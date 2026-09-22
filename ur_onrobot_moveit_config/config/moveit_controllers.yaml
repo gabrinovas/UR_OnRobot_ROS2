@@ -1,0 +1,57 @@
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - scaled_joint_trajectory_controller
+    - joint_trajectory_controller
+    - onrobot/gripper_action_controller
+    - onrobot/gripper_channel_a_controller
+    - onrobot/gripper_channel_b_controller
+
+  scaled_joint_trajectory_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - shoulder_pan_joint
+      - shoulder_lift_joint
+      - elbow_joint
+      - wrist_1_joint
+      - wrist_2_joint
+      - wrist_3_joint
+
+  joint_trajectory_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: false
+    joints:
+      - shoulder_pan_joint
+      - shoulder_lift_joint
+      - elbow_joint
+      - wrist_1_joint
+      - wrist_2_joint
+      - wrist_3_joint
+
+  # For 2FG7 and 3FG15
+  onrobot/gripper_action_controller:
+    action_ns: gripper_cmd
+    type: GripperCommand
+    default: true
+    joints:
+      - finger_width
+
+  # For VGC10 Channel A
+  onrobot/gripper_channel_a_controller:
+    action_ns: gripper_cmd
+    type: GripperCommand
+    default: false
+    joints:
+      - vacuum_channel_a
+
+  # For VGC10 Channel B
+  onrobot/gripper_channel_b_controller:
+    action_ns: gripper_cmd
+    type: GripperCommand
+    default: false
+    joints:
+      - vacuum_channel_b

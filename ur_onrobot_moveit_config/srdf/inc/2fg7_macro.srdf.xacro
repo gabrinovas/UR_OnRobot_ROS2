@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="onrobot_2fg7_srdf" params="tf_prefix:=''">
+    <!-- Gripper Planning Group -->
+    <group name="gripper">
+      <joint name="${tf_prefix}finger_width"/>
+      <joint name="${tf_prefix}left_finger_joint"/>
+      <joint name="${tf_prefix}right_finger_joint"/>
+    </group>
+
+    <!-- Group States -->
+    <group_state name="open" group="gripper">
+      <joint name="${tf_prefix}finger_width" value="0.070"/>
+    </group_state>
+    <group_state name="closed" group="gripper">
+      <joint name="${tf_prefix}finger_width" value="0.035"/>
+    </group_state>
+
+    <!-- End Effector Definition -->
+    <end_effector name="onrobot_2fg7_eef" parent_link="${tf_prefix}tool0" group="gripper" parent_group="ur_manipulator"/>
+
+    <!-- Collision Disable Matrix for 2FG7 -->
+    <disable_collisions link1="${tf_prefix}onrobot_base_link" link2="${tf_prefix}left_finger_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}onrobot_base_link" link2="${tf_prefix}right_finger_link" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}left_finger_link" link2="${tf_prefix}right_finger_link" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}left_finger_link" link2="${tf_prefix}cable_connector_0" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}right_finger_link" link2="${tf_prefix}cable_connector_0" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}left_finger_link" link2="${tf_prefix}cable_connector_1" reason="Never"/>
+    <disable_collisions link1="${tf_prefix}right_finger_link" link2="${tf_prefix}cable_connector_1" reason="Never"/>
+  </xacro:macro>
+</robot>

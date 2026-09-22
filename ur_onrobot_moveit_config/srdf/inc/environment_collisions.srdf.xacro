@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="environment_collisions" params="tf_prefix:=''">
+    <!-- Robot mounting to table -->
+    <disable_collisions link1="${tf_prefix}base_link" link2="table_top" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}base_link_inertia" link2="table_top" reason="Adjacent"/>
+    <disable_collisions link1="${tf_prefix}shoulder_link" link2="table_top" reason="Never"/>
+
+    <!-- Table and conveyor inter-collisions -->
+    <disable_collisions link1="table_top" link2="conveyor_belt" reason="Adjacent"/>
+    <disable_collisions link1="table_top" link2="table_top_2" reason="Never"/>
+    <disable_collisions link1="table_top_2" link2="conveyor_belt" reason="Adjacent"/>
+
+    <!-- Barriers with tables and conveyor -->
+    <disable_collisions link1="table_top" link2="safety_barrier_right" reason="Adjacent"/>
+    <disable_collisions link1="table_top" link2="safety_barrier_left" reason="Adjacent"/>
+    <disable_collisions link1="table_top" link2="safety_barrier_back" reason="Adjacent"/>
+    <disable_collisions link1="table_top" link2="safety_barrier_front" reason="Adjacent"/>
+    <disable_collisions link1="table_top" link2="safety_barrier_top" reason="Adjacent"/>
+
+    <disable_collisions link1="table_top_2" link2="safety_barrier_right" reason="Never"/>
+    <disable_collisions link1="table_top_2" link2="safety_barrier_left" reason="Never"/>
+    <disable_collisions link1="table_top_2" link2="safety_barrier_back" reason="Never"/>
+    <disable_collisions link1="table_top_2" link2="safety_barrier_front" reason="Never"/>
+    <disable_collisions link1="table_top_2" link2="safety_barrier_top" reason="Never"/>
+
+    <disable_collisions link1="conveyor_belt" link2="safety_barrier_right" reason="Never"/>
+    <disable_collisions link1="conveyor_belt" link2="safety_barrier_left" reason="Never"/>
+    <disable_collisions link1="conveyor_belt" link2="safety_barrier_back" reason="Never"/>
+    <disable_collisions link1="conveyor_belt" link2="safety_barrier_front" reason="Never"/>
+    <disable_collisions link1="conveyor_belt" link2="safety_barrier_top" reason="Never"/>
+
+    <!-- Barriers with each other -->
+    <disable_collisions link1="safety_barrier_right" link2="safety_barrier_left" reason="Never"/>
+    <disable_collisions link1="safety_barrier_right" link2="safety_barrier_back" reason="Adjacent"/>
+    <disable_collisions link1="safety_barrier_right" link2="safety_barrier_front" reason="Adjacent"/>
+    <disable_collisions link1="safety_barrier_right" link2="safety_barrier_top" reason="Adjacent"/>
+    <disable_collisions link1="safety_barrier_left" link2="safety_barrier_back" reason="Adjacent"/>
+    <disable_collisions link1="safety_barrier_left" link2="safety_barrier_front" reason="Adjacent"/>
+    <disable_collisions link1="safety_barrier_left" link2="safety_barrier_top" reason="Adjacent"/>
+    <disable_collisions link1="safety_barrier_back" link2="safety_barrier_top" reason="Adjacent"/>
+    <disable_collisions link1="safety_barrier_front" link2="safety_barrier_top" reason="Adjacent"/>
+  </xacro:macro>
+</robot>
