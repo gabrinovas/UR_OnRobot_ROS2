@@ -182,6 +182,7 @@ def generate_launch_description():
             'onrobot_type': LaunchConfiguration('onrobot_type'),
             'launch_onrobot': LaunchConfiguration('launch_onrobot'),
             'launch_rviz': LaunchConfiguration('launch_rviz'),
+            'sim_env': LaunchConfiguration('sim_env'),
             'use_fake_hardware': 'false',
         }.items(),
         condition=UnlessCondition(LaunchConfiguration('use_simulation'))

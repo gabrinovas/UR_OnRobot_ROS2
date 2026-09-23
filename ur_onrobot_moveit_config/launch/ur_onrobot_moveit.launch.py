@@ -36,14 +36,17 @@ def launch_setup(context, *args, **kwargs):
     tf_prefix_val = LaunchConfiguration('tf_prefix').perform(context)
     launch_rviz_val = LaunchConfiguration('launch_rviz')
 
-    # 1. Resolver archivo URDF según el entorno seleccionado
+    # 1. Resolver archivo URDF y nombre de robot según el entorno seleccionado
     urdf_package = 'ur_onrobot_description'
     if sim_env_val == 'left':
         urdf_file = 'left_robot_with_environment.urdf.xacro'
+        robot_name_val = 'left_robot_with_environment'
     elif sim_env_val == 'right':
         urdf_file = 'right_robot_with_environment.urdf.xacro'
+        robot_name_val = 'right_robot_with_environment'
     else:  # 'basic'
         urdf_file = 'ur_onrobot.urdf.xacro'
+        robot_name_val = 'ur_onrobot'
 
     # Generación dinámica del robot_description mediante xacro
     robot_description_content = Command([
@@ -73,6 +76,8 @@ def launch_setup(context, *args, **kwargs):
         PathJoinSubstitution([FindExecutable(name='xacro')]),
         ' ',
         srdf_file,
+        ' ',
+        'robot_name:=', robot_name_val,
         ' ',
         'onrobot_type:=', onrobot_type_val,
         ' ',
@@ -114,11 +119,16 @@ def launch_setup(context, *args, **kwargs):
         'publish_transforms_updates': True,
     }
 
+    joint_states_topic_val = LaunchConfiguration('joint_states_topic')
+
     # Nodo move_group
     move_group_node = Node(
         package='moveit_ros_move_group',
         executable='move_group',
         output='screen',
+        remappings=[
+            ('/joint_states', joint_states_topic_val),
+        ],
         parameters=[
             robot_description,
             robot_description_semantic,
@@ -144,6 +154,9 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         condition=IfCondition(launch_rviz_val),
         arguments=['-d', rviz_config_file],
+        remappings=[
+            ('/joint_states', joint_states_topic_val),
+        ],
         parameters=[
             robot_description,
             robot_description_semantic,
@@ -191,6 +204,11 @@ def generate_launch_description():
             'tf_prefix',
             default_value='',
             description='Prefijo TF para multi-robot o namespacing',
+        ),
+        DeclareLaunchArgument(
+            'joint_states_topic',
+            default_value='/merged_joint_states',
+            description='Tópico de estados articulares unificados para MoveIt (por defecto /merged_joint_states)',
         ),
         DeclareLaunchArgument(
             'launch_rviz',
