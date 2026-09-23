@@ -12,6 +12,7 @@ install(
 install(PROGRAMS
   scripts/joint_state_merger.py
   scripts/selector_tui.py
+  scripts/servo_keyboard_teleop.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

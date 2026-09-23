@@ -1,0 +1,67 @@
+###############################################################################
+# ur_onrobot_servo.yaml - Configuración de MoveIt 2 Servo para UR5e + OnRobot
+# Compatible con ROS 2 Humble y entornos basic, left y right
+###############################################################################
+
+use_gazebo: false
+
+## Propiedades de los comandos de entrada
+# "speed_units": las velocidades se interpretan en m/s y rad/s
+# "unitless": comandos en rango [-1.0, 1.0] (ej. de gamepad/joystick)
+command_in_type: "speed_units"
+
+scale:
+  linear: 0.4        # Máxima velocidad lineal [m/s]
+  rotational: 0.8    # Máxima velocidad angular [rad/s]
+  joint: 0.5         # Máxima velocidad articular [rad/s]
+
+system_latency_compensation: 0.04
+
+## Propiedades de los comandos de salida
+publish_period: 0.004   # 250 Hz (1/publish_period)
+low_latency_mode: false # Publicar a periodo nominal estable
+
+# Salida como trayectoria articular hacia el controlador activo del UR
+command_out_type: trajectory_msgs/JointTrajectory
+
+publish_joint_positions: true
+publish_joint_velocities: true
+publish_joint_accelerations: false
+
+## Filtro de suavizado de comandos para evitar jitter y sobreaceleraciones
+smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
+
+# Planning Scene Monitor
+is_primary_planning_scene_monitor: true
+low_pass_filter_coeff: 10.0
+
+## Cinemática y Planning Group
+move_group_name: ur_manipulator
+planning_frame: base_link
+ee_frame_name: gripper_tcp
+robot_link_command_frame: base_link
+
+## Comportamiento de detención por seguridad
+incoming_command_timeout: 0.15 # Parar si no se reciben comandos en 150 ms
+num_outgoing_halt_msgs_to_publish: 4
+
+## Manejo de singularidades cinemáticas (DLS / SVD)
+lower_singularity_threshold: 17.0
+hard_stop_singularity_threshold: 30.0
+joint_limit_margin: 0.08
+leaving_singularity_threshold_multiplier: 2.0
+
+## Tópicos de comunicación
+cartesian_command_in_topic: ~/delta_twist_cmds  # geometry_msgs/TwistStamped
+joint_command_in_topic: ~/delta_joint_cmds       # control_msgs/JointJog
+joint_topic: /merged_joint_states                # Tópico unificado brazo + gripper
+status_topic: ~/status                           # moveit_msgs/ServoStatus
+command_out_topic: /scaled_joint_trajectory_controller/joint_trajectory
+
+## Chequeo continuo de colisiones en tiempo real
+check_collisions: true
+collision_check_rate: 10.0 # 10 Hz
+self_collision_proximity_threshold: 0.015  # Decelerar a menos de 15 mm de autocolisión
+scene_collision_proximity_threshold: 0.025 # Decelerar a menos de 25 mm de mesas/celda
+min_allowable_collision_distance: 0.005    # Detención de emergencia a menos de 5 mm
+collision_distance_safety_factor: 1000.0
