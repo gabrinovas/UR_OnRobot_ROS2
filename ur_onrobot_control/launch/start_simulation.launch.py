@@ -41,6 +41,8 @@ def configure_simulation(context):
 
 def generate_launch_description():
     declared_arguments = [
+        DeclareLaunchArgument('sim_env', default_value='basic',
+                            description='Entorno de simulación (basic, left, right)'),
         DeclareLaunchArgument('ur_type', default_value='ur5e',
                             description='Tipo de robot UR'),
         DeclareLaunchArgument('onrobot_type', default_value='2fg7',
@@ -51,8 +53,8 @@ def generate_launch_description():
                             description='Configuración de RVIZ'),
         DeclareLaunchArgument('launch_rviz', default_value='true',
                             description='Lanzar RViz2'),
-        DeclareLaunchArgument('sim_env', default_value='basic',
-                            description='Entorno de simulación: basic, left, right'),
+        DeclareLaunchArgument('launch_watchdog', default_value='false',
+                            description='Lanzar Watchdog de Seguridad Industrial UR + OnRobot'),
         # Parámetros internos
         DeclareLaunchArgument('description_package', default_value='ur_onrobot_description'),
         DeclareLaunchArgument('description_file', default_value='ur_onrobot.urdf.xacro'),
@@ -154,6 +156,21 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('launch_onrobot'))
     )
 
+    # ====== WATCHDOG DE SEGURIDAD INDUSTRIAL ======
+    watchdog_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('ur_onrobot_control'),
+                'launch',
+                'ur_onrobot_watchdog.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'onrobot_type': LaunchConfiguration('onrobot_type'),
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('launch_watchdog'))
+    )
+
     # ====== RVIZ ======
     rviz_config_path = PathJoinSubstitution([
         FindPackageShare('ur_onrobot_description'),
@@ -177,5 +194,6 @@ def generate_launch_description():
         main_robot_state_publisher,
         ur_launch,
         onrobot_launch,
+        watchdog_launch,
         rviz_node
     ])

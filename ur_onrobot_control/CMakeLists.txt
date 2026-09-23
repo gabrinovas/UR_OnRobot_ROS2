@@ -10,11 +10,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_task_constructor_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(control_msgs REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
+find_package(diagnostic_updater REQUIRED)
+find_package(ur_dashboard_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_eigen REQUIRED)
 
@@ -31,8 +38,23 @@ ament_target_dependencies(ur_onrobot_mtc_node
   tf2_eigen
 )
 
+# Nodo C++ para Watchdog y Enclavamientos de Seguridad Industrial UR + OnRobot
+add_executable(ur_onrobot_safety_watchdog src/ur_onrobot_safety_watchdog.cpp)
+ament_target_dependencies(ur_onrobot_safety_watchdog
+  rclcpp
+  rclcpp_action
+  ur_dashboard_msgs
+  diagnostic_updater
+  diagnostic_msgs
+  control_msgs
+  sensor_msgs
+  std_msgs
+  std_srvs
+)
+
 install(TARGETS
   ur_onrobot_mtc_node
+  ur_onrobot_safety_watchdog
   DESTINATION lib/${PROJECT_NAME}
 )
 
