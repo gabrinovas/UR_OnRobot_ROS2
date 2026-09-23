@@ -25,7 +25,7 @@
 
   <!-- ==================== GROUP STATES (ARM) ==================== -->
   <group_state name="home" group="ur_manipulator">
-    <joint name="${tf_prefix}shoulder_pan_joint" value="0.0"/>
+    <joint name="${tf_prefix}shoulder_pan_joint" value="-1.5708"/>
     <joint name="${tf_prefix}shoulder_lift_joint" value="-1.5708"/>
     <joint name="${tf_prefix}elbow_joint" value="1.5708"/>
     <joint name="${tf_prefix}wrist_1_joint" value="-1.5708"/>

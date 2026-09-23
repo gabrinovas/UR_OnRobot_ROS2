@@ -121,6 +121,7 @@ def generate_launch_description():
             'ur_type': LaunchConfiguration('ur_type'),
             'robot_ip': LaunchConfiguration('robot_ip'),
             'use_fake_hardware': 'true',
+            'initial_joint_controller': 'joint_trajectory_controller',
             'launch_rviz': 'false',
             'headless_mode': 'true',
             'launch_robot_state_publisher': 'false',
@@ -148,6 +149,7 @@ def generate_launch_description():
             'launch_rviz': 'false',
             'launch_rsp': 'false',
             'tf_prefix': LaunchConfiguration('tf_prefix'),
+            'use_gripper_action_controller': 'true',
         }.items(),
         condition=IfCondition(LaunchConfiguration('launch_onrobot'))
     )

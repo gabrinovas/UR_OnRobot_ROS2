@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ur_onrobot_moveit.launch.py - Launch dinámico de MoveIt 2 para UR5e + OnRobot (2FG7, 3FG15, VGC10)
-Compatible con entornos basic, left y right.
+ur_onrobot_mtc.launch.py - Launch para Pipeline Autónomo de Pick & Place (MoveIt Task Constructor)
+Manipulador UR5e con efectores OnRobot (2FG7, 3FG15, VGC10) en entornos basic, left y right.
 """
 
 import os
@@ -34,9 +34,9 @@ def launch_setup(context, *args, **kwargs):
     use_fake_hardware_val = LaunchConfiguration('use_fake_hardware').perform(context)
     robot_ip_val = LaunchConfiguration('robot_ip').perform(context)
     tf_prefix_val = LaunchConfiguration('tf_prefix').perform(context)
-    launch_rviz_val = LaunchConfiguration('launch_rviz')
+    execute_on_startup_val = LaunchConfiguration('execute_on_startup').perform(context).lower() == 'true'
 
-    # 1. Resolver archivo URDF y nombre de robot según el entorno seleccionado
+    # 1. Determinar URDF y nombre de robot según el entorno
     urdf_package = 'ur_onrobot_description'
     if sim_env_val == 'left':
         urdf_file = 'left_robot_with_environment.urdf.xacro'
@@ -48,7 +48,6 @@ def launch_setup(context, *args, **kwargs):
         urdf_file = 'ur_onrobot.urdf.xacro'
         robot_name_val = 'ur_onrobot'
 
-    # Generación dinámica del robot_description mediante xacro
     robot_description_content = Command([
         PathJoinSubstitution([FindExecutable(name='xacro')]),
         ' ',
@@ -66,7 +65,7 @@ def launch_setup(context, *args, **kwargs):
     ])
     robot_description = {'robot_description': ParameterValue(robot_description_content, value_type=str)}
 
-    # 2. Generación dinámica del SRDF mediante xacro
+    # 2. Generación dinámica de SRDF
     srdf_file = PathJoinSubstitution([
         FindPackageShare('ur_onrobot_moveit_config'),
         'srdf',
@@ -87,25 +86,20 @@ def launch_setup(context, *args, **kwargs):
     ])
     robot_description_semantic = {'robot_description_semantic': ParameterValue(robot_description_semantic_content, value_type=str)}
 
-    # 3. Cargar cinemática y límites articulares
+    # 3. Cargar cinemática, límites y pipelines de planificación
     kinematics_yaml = load_yaml('ur_onrobot_moveit_config', 'config/kinematics.yaml')
     joint_limits_yaml = load_yaml('ur_onrobot_moveit_config', 'config/joint_limits.yaml')
-
-    # 4. Pipelines de planificación (OMPL + Pilz)
     ompl_planning_yaml = load_yaml('ur_onrobot_moveit_config', 'config/ompl_planning.yaml')
-    pilz_planning_yaml = load_yaml('ur_onrobot_moveit_config', 'config/pilz_industrial_motion_planner_planning.yaml')
 
     planning_pipelines = {
-        'planning_pipelines': ['ompl', 'pilz_industrial_motion_planner'],
+        'planning_pipelines': ['ompl'],
         'default_planning_pipeline': 'ompl',
         'ompl': ompl_planning_yaml,
-        'pilz_industrial_motion_planner': pilz_planning_yaml,
     }
 
-    # 5. Configuración de controladores MoveIt (dinámica según fake_hardware / robot real)
     moveit_controllers_yaml = load_yaml('ur_onrobot_moveit_config', 'config/moveit_controllers.yaml')
     target_dict = moveit_controllers_yaml.get('moveit_simple_controller_manager', moveit_controllers_yaml)
-    if use_fake_hardware_val.lower() == 'true':
+    if use_fake_hardware_val:
         if 'scaled_joint_trajectory_controller' in target_dict:
             target_dict['scaled_joint_trajectory_controller']['default'] = False
         if 'joint_trajectory_controller' in target_dict:
@@ -124,7 +118,6 @@ def launch_setup(context, *args, **kwargs):
         'trajectory_execution.execution_duration_monitoring': False,
     }
 
-    # 6. Planning Scene Monitor
     planning_scene_monitor_parameters = {
         'publish_planning_scene': True,
         'publish_geometry_updates': True,
@@ -132,21 +125,41 @@ def launch_setup(context, *args, **kwargs):
         'publish_transforms_updates': True,
     }
 
-    # 7. MoveGroup Capabilities (incluye ExecuteTaskSolutionCapability para MoveIt Task Constructor)
-    move_group_capabilities = {
-        'capabilities': 'move_group/ExecuteTaskSolutionCapability'
+    # Estados de pinza según el modelo
+    if onrobot_type_val == 'vgc10':
+        open_state = 'release'
+        close_state = 'grip'
+    else:
+        open_state = 'open'
+        close_state = 'closed'
+
+    # Frame del mundo según entorno
+    world_frame = 'world'
+
+    # Parámetros MTC
+    mtc_params = {
+        'arm_group_name': 'ur_manipulator',
+        'gripper_group_name': 'gripper',
+        'gripper_open_state': open_state,
+        'gripper_close_state': close_state,
+        'hand_frame': 'gripper_tcp',
+        'world_frame': world_frame,
+        'object_name': 'workpiece_box',
+        'object_dimensions': [0.04, 0.04, 0.07],
+        'pick_pose': [0.10, -0.45, 0.07, 0.0, 3.14159, 0.0],
+        'place_pose': [0.30, -0.45, 0.07, 0.0, 3.14159, 0.0],
+        'approach_distance': 0.08,
+        'lift_distance': 0.12,
+        'retreat_distance': 0.10,
+        'execute_on_startup': execute_on_startup_val,
+        'spawn_table_if_missing': (sim_env_val == 'basic'),
     }
 
-    joint_states_topic_val = LaunchConfiguration('joint_states_topic')
-
-    # Nodo move_group
-    move_group_node = Node(
-        package='moveit_ros_move_group',
-        executable='move_group',
-        output='screen',
-        remappings=[
-            ('/joint_states', joint_states_topic_val),
-        ],
+    # Nodo MTC C++
+    mtc_node = Node(
+        package='ur_onrobot_control',
+        executable='ur_onrobot_mtc_node',
+        name='ur_onrobot_mtc_node',
         parameters=[
             robot_description,
             robot_description_semantic,
@@ -154,39 +167,36 @@ def launch_setup(context, *args, **kwargs):
             {'robot_description_planning': joint_limits_yaml},
             {'joint_limits': joint_limits_yaml},
             planning_pipelines,
-            trajectory_execution,
             moveit_controllers_yaml,
+            trajectory_execution,
             planning_scene_monitor_parameters,
-            move_group_capabilities,
+            mtc_params,
         ],
+        output='screen',
     )
 
-    # Nodo RViz2 con configuración MoveIt
+    # Nodo opcional de RViz con MTC Plugin
     rviz_config_file = PathJoinSubstitution([
         FindPackageShare('ur_onrobot_moveit_config'),
         'rviz',
-        'moveit.rviz'
+        'mtc.rviz'
     ])
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
-        name='rviz2_moveit',
-        output='screen',
-        condition=IfCondition(launch_rviz_val),
+        name='rviz2_mtc',
         arguments=['-d', rviz_config_file],
-        remappings=[
-            ('/joint_states', joint_states_topic_val),
-        ],
         parameters=[
             robot_description,
             robot_description_semantic,
-            {'robot_description_kinematics': kinematics_yaml},
-            planning_pipelines,
+            kinematics_yaml,
         ],
+        condition=IfCondition(LaunchConfiguration('launch_rviz')),
+        output='screen',
     )
 
     return [
-        move_group_node,
+        mtc_node,
         rviz_node,
     ]
 
@@ -196,44 +206,42 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'ur_type',
             default_value='ur5e',
-            description='Modelo de robot UR (ej. ur5e)',
+            description='Modelo UR (ur5e)'
         ),
         DeclareLaunchArgument(
             'onrobot_type',
             default_value='2fg7',
-            description='Modelo de pinza OnRobot (2fg7, 3fg15, vgc10)',
-            choices=['2fg7', '3fg15', 'vgc10'],
+            description='Efector OnRobot (2fg7, 3fg15, vgc10)'
         ),
         DeclareLaunchArgument(
             'sim_env',
             default_value='basic',
-            description='Entorno de celda de trabajo: basic (solo robot), left (entorno izquierdo), right (entorno derecho)',
-            choices=['basic', 'left', 'right'],
+            description='Entorno de celda (basic, left, right)'
         ),
         DeclareLaunchArgument(
             'use_fake_hardware',
             default_value='true',
-            description='true para simulación, false para robot físico',
+            description='Usar simulación ros2_control (true/false)'
         ),
         DeclareLaunchArgument(
             'robot_ip',
-            default_value='127.0.0.1',
-            description='IP del robot UR (127.0.0.1 para simulación)',
+            default_value='192.168.1.105',
+            description='IP del robot físico'
         ),
         DeclareLaunchArgument(
             'tf_prefix',
             default_value='',
-            description='Prefijo TF para multi-robot o namespacing',
+            description='Prefijo TF'
         ),
         DeclareLaunchArgument(
-            'joint_states_topic',
-            default_value='/merged_joint_states',
-            description='Tópico de estados articulares unificados para MoveIt (por defecto /merged_joint_states)',
+            'execute_on_startup',
+            default_value='false',
+            description='Ejecutar inmediatamente el pipeline al iniciar'
         ),
         DeclareLaunchArgument(
             'launch_rviz',
-            default_value='true',
-            description='Lanzar RViz2 con el plugin MotionPlanning',
+            default_value='false',
+            description='Lanzar RViz2 con display de MTC'
         ),
     ]
 

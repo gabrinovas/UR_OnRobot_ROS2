@@ -11,7 +11,7 @@ moveit_simple_controller_manager:
   scaled_joint_trajectory_controller:
     action_ns: follow_joint_trajectory
     type: FollowJointTrajectory
-    default: true
+    default: false
     joints:
       - shoulder_pan_joint
       - shoulder_lift_joint
@@ -23,7 +23,7 @@ moveit_simple_controller_manager:
   joint_trajectory_controller:
     action_ns: follow_joint_trajectory
     type: FollowJointTrajectory
-    default: false
+    default: true
     joints:
       - shoulder_pan_joint
       - shoulder_lift_joint
@@ -44,7 +44,7 @@ moveit_simple_controller_manager:
   onrobot/gripper_channel_a_controller:
     action_ns: gripper_cmd
     type: GripperCommand
-    default: false
+    default: true
     joints:
       - vacuum_channel_a
 
