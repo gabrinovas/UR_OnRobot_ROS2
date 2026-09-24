@@ -5,6 +5,10 @@ selector_tui.py - Interfaz TUI interactiva con Textual para seleccionar la confi
 de robots UR y pinzas OnRobot (Física o Simulación).
 """
 
+import os
+import sys
+import json
+import argparse
 import subprocess
 from typing import Dict, Any, Optional
 from textual.app import App, ComposeResult
@@ -241,6 +245,42 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
 def run_tui(default_ur: str = "ur5e", default_onrobot: str = "2fg7",
             default_sim: bool = True, default_env: str = "basic", default_rviz: bool = True) -> Optional[Dict[str, Any]]:
     """Ejecuta la TUI de Textual y devuelve la configuración seleccionada."""
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    # Si ya hay un event loop de asyncio activo (ej: ROS 2 launch service),
+    # delegar a un subproceso limpio para evitar 'asyncio.run() cannot be called from a running event loop'
+    if loop is not None and loop.is_running():
+        import tempfile
+        with tempfile.NamedTemporaryFile('w+', suffix='.json', delete=False) as tf:
+            out_file = tf.name
+
+        try:
+            cmd = [
+                sys.executable,
+                os.path.abspath(__file__),
+                '--ur', str(default_ur),
+                '--onrobot', str(default_onrobot),
+                '--sim', 'true' if default_sim else 'false',
+                '--env', str(default_env),
+                '--rviz', 'true' if default_rviz else 'false',
+                '--output', out_file
+            ]
+            proc = subprocess.run(cmd)
+            if proc.returncode == 0 and os.path.exists(out_file) and os.path.getsize(out_file) > 0:
+                with open(out_file, 'r') as f:
+                    return json.load(f)
+            return {'cancelled': True}
+        finally:
+            if os.path.exists(out_file):
+                try:
+                    os.remove(out_file)
+                except OSError:
+                    pass
+
     app = RobotSelectorTUI(
         default_ur=default_ur,
         default_onrobot=default_onrobot,
@@ -252,5 +292,32 @@ def run_tui(default_ur: str = "ur5e", default_onrobot: str = "2fg7",
 
 
 if __name__ == "__main__":
-    result = run_tui()
-    print("\n[Resultado de TUI]:", result)
+    parser = argparse.ArgumentParser(description="TUI Selector para robots UR y pinzas OnRobot")
+    parser.add_argument("--ur", default="ur5e", help="Robot UR por defecto")
+    parser.add_argument("--onrobot", default="2fg7", help="Pinza OnRobot por defecto")
+    parser.add_argument("--sim", default="true", help="true para simulación, false para robot real")
+    parser.add_argument("--env", default="basic", help="Entorno: basic, left, right")
+    parser.add_argument("--rviz", default="true", help="true para lanzar RViz, false en caso contrario")
+    parser.add_argument("--output", default=None, help="Archivo JSON para guardar resultado")
+
+    args = parser.parse_args()
+
+    sim_bool = args.sim.lower() in ("true", "1", "yes")
+    rviz_bool = args.rviz.lower() in ("true", "1", "yes")
+
+    app = RobotSelectorTUI(
+        default_ur=args.ur,
+        default_onrobot=args.onrobot,
+        default_sim=sim_bool,
+        default_env=args.env,
+        default_rviz=rviz_bool
+    )
+    res = app.run()
+
+    if args.output and res:
+        with open(args.output, "w") as f:
+            json.dump(res, f)
+
+    if not res or res.get("cancelled", False):
+        sys.exit(1)
+    sys.exit(0)
