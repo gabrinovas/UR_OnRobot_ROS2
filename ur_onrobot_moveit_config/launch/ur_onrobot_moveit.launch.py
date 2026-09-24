@@ -102,19 +102,14 @@ def launch_setup(context, *args, **kwargs):
         'pilz_industrial_motion_planner': pilz_planning_yaml,
     }
 
-    # 5. Configuración de controladores MoveIt (dinámica según fake_hardware / robot real)
+    # 5. Configuración de controladores MoveIt (por defecto scaled_joint_trajectory_controller)
+    trajectory_controller_val = LaunchConfiguration('trajectory_controller').perform(context)
     moveit_controllers_yaml = load_yaml('ur_onrobot_moveit_config', 'config/moveit_controllers.yaml')
     target_dict = moveit_controllers_yaml.get('moveit_simple_controller_manager', moveit_controllers_yaml)
-    if use_fake_hardware_val.lower() == 'true':
-        if 'scaled_joint_trajectory_controller' in target_dict:
-            target_dict['scaled_joint_trajectory_controller']['default'] = False
-        if 'joint_trajectory_controller' in target_dict:
-            target_dict['joint_trajectory_controller']['default'] = True
-    else:
-        if 'scaled_joint_trajectory_controller' in target_dict:
-            target_dict['scaled_joint_trajectory_controller']['default'] = True
-        if 'joint_trajectory_controller' in target_dict:
-            target_dict['joint_trajectory_controller']['default'] = False
+    if 'scaled_joint_trajectory_controller' in target_dict and 'joint_trajectory_controller' in target_dict:
+        use_scaled = (trajectory_controller_val == 'scaled_joint_trajectory_controller')
+        target_dict['scaled_joint_trajectory_controller']['default'] = use_scaled
+        target_dict['joint_trajectory_controller']['default'] = not use_scaled
 
     trajectory_execution = {
         'moveit_manage_controllers': True,
@@ -230,6 +225,12 @@ def generate_launch_description():
             'launch_rviz',
             default_value='true',
             description='Lanzar RViz2 con el plugin MotionPlanning',
+        ),
+        DeclareLaunchArgument(
+            'trajectory_controller',
+            default_value='scaled_joint_trajectory_controller',
+            description='Controlador articular activo en ros2_control para MoveIt (scaled_joint_trajectory_controller o joint_trajectory_controller)',
+            choices=['scaled_joint_trajectory_controller', 'joint_trajectory_controller'],
         ),
     ]
 
