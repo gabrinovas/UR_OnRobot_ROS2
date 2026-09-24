@@ -93,10 +93,14 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         ("enter", "submit", "Lanzar"),
     ]
 
-    def __init__(self, default_ur: str = "ur5e", default_onrobot: str = "2fg7"):
+    def __init__(self, default_ur: str = "ur5e", default_onrobot: str = "2fg7",
+                 default_sim: bool = True, default_env: str = "basic", default_rviz: bool = True):
         super().__init__()
         self.default_ur = default_ur
         self.default_onrobot = default_onrobot
+        self.default_sim = default_sim
+        self.default_env = default_env if default_env in ('basic', 'left', 'right') else 'basic'
+        self.default_rviz = default_rviz
         self.result_config: Optional[Dict[str, Any]] = None
 
         # IPs de robots físicos
@@ -136,22 +140,26 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
                     yield Static("🔍 Verificando...", id="status-right")
 
             # 2. Configuración en columnas
+            is_sim = self.default_sim
+            is_real_left = (not self.default_sim and self.default_env == "left")
+            is_real_right = (not self.default_sim and self.default_env != "left")
+
             with Horizontal():
                 # Modo de Ejecución
                 with Vertical(classes="panel", id="col-mode"):
                     yield Label("⚙️  Modo de Ejecución", classes="panel-title")
                     with RadioSet(id="mode-radios"):
-                        yield RadioButton("🎮 Simulación (Fake HW)", value=True, id="mode-sim")
-                        yield RadioButton("🤖 Robot Físico LEFT", id="mode-real-left")
-                        yield RadioButton("🤖 Robot Físico RIGHT", id="mode-real-right")
+                        yield RadioButton("🎮 Simulación (Fake HW)", value=is_sim, id="mode-sim")
+                        yield RadioButton("🤖 Robot Físico LEFT", value=is_real_left, id="mode-real-left")
+                        yield RadioButton("🤖 Robot Físico RIGHT", value=is_real_right, id="mode-real-right")
 
                 # Entorno
                 with Vertical(classes="panel", id="col-env"):
                     yield Label("🏭 Entorno de Celda", classes="panel-title")
                     with RadioSet(id="env-radios"):
-                        yield RadioButton("Básico (Solo robot)", value=True, id="env-basic")
-                        yield RadioButton("Izquierdo (Mesa 1 + Cinta)", id="env-left")
-                        yield RadioButton("Derecho (Mesa 2 + Cinta)", id="env-right")
+                        yield RadioButton("Básico (Solo robot)", value=(self.default_env == "basic"), id="env-basic")
+                        yield RadioButton("Izquierdo (Mesa 1 + Cinta)", value=(self.default_env == "left"), id="env-left")
+                        yield RadioButton("Derecho (Mesa 2 + Cinta)", value=(self.default_env == "right"), id="env-right")
 
                 # Gripper
                 with Vertical(classes="panel", id="col-gripper"):
@@ -163,7 +171,7 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
 
             # 3. Opciones y Botones
             with Horizontal(classes="panel"):
-                yield Checkbox("Abrir visualizador RViz2", value=True, id="chk-rviz")
+                yield Checkbox("Abrir visualizador RViz2", value=self.default_rviz, id="chk-rviz")
 
             with Horizontal(id="buttons-bar"):
                 yield Button("🚀 LANZAR", id="btn-launch", variant="success")
@@ -230,9 +238,16 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         self.exit(result={'cancelled': True})
 
 
-def run_tui(default_ur: str = "ur5e", default_onrobot: str = "2fg7") -> Optional[Dict[str, Any]]:
+def run_tui(default_ur: str = "ur5e", default_onrobot: str = "2fg7",
+            default_sim: bool = True, default_env: str = "basic", default_rviz: bool = True) -> Optional[Dict[str, Any]]:
     """Ejecuta la TUI de Textual y devuelve la configuración seleccionada."""
-    app = RobotSelectorTUI(default_ur=default_ur, default_onrobot=default_onrobot)
+    app = RobotSelectorTUI(
+        default_ur=default_ur,
+        default_onrobot=default_onrobot,
+        default_sim=default_sim,
+        default_env=default_env,
+        default_rviz=default_rviz
+    )
     return app.run()
 
 

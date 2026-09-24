@@ -5,7 +5,7 @@ simulation_launch.py - Launch exclusivo para simulación
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, GroupAction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -14,11 +14,13 @@ from launch_ros.actions import Node
 
 def configure_simulation(context):
     sim_env = LaunchConfiguration('sim_env').perform(context)
+    launch_rviz_val = LaunchConfiguration('launch_rviz').perform(context)
     
     print(f"\n🎮 CONFIGURANDO SIMULACIÓN")
     print(f"   - Entorno de simulación: {sim_env}")
     print(f"   - Robot UR: {LaunchConfiguration('ur_type').perform(context)}")
     print(f"   - Gripper: {LaunchConfiguration('onrobot_type').perform(context)}")
+    print(f"   - Launch RViz: {launch_rviz_val}")
     
     # ========== LÓGICA DE SELECCIÓN DE URDF SEGÚN SIM_ENV ==========
     description_package = 'ur_onrobot_description'
@@ -37,6 +39,7 @@ def configure_simulation(context):
         SetLaunchConfiguration('description_package', description_package),
         SetLaunchConfiguration('description_file', description_file),
         SetLaunchConfiguration('robot_ip', '127.0.0.1'),
+        SetLaunchConfiguration('sim_launch_rviz', launch_rviz_val),
     ]
 
 def generate_launch_description():
@@ -171,6 +174,21 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('launch_watchdog'))
     )
 
+    # ====== DRIVER UR MODIFICADO (GroupAction para aislar launch configurations) ======
+    ur_launch_group = GroupAction([ur_launch])
+
+    # ====== DRIVER ONROBOT (GroupAction para aislar launch configurations) ======
+    onrobot_launch_group = GroupAction(
+        [onrobot_launch],
+        condition=IfCondition(LaunchConfiguration('launch_onrobot'))
+    )
+
+    # ====== WATCHDOG DE SEGURIDAD INDUSTRIAL ======
+    watchdog_launch_group = GroupAction(
+        [watchdog_launch],
+        condition=IfCondition(LaunchConfiguration('launch_watchdog'))
+    )
+
     # ====== RVIZ ======
     rviz_config_path = PathJoinSubstitution([
         FindPackageShare('ur_onrobot_description'),
@@ -184,7 +202,7 @@ def generate_launch_description():
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_path],
-        condition=IfCondition(LaunchConfiguration('launch_rviz'))
+        condition=IfCondition(LaunchConfiguration('sim_launch_rviz'))
     )
 
     return LaunchDescription([
@@ -192,8 +210,8 @@ def generate_launch_description():
         config_action,
         joint_state_merger,
         main_robot_state_publisher,
-        ur_launch,
-        onrobot_launch,
-        watchdog_launch,
+        ur_launch_group,
+        onrobot_launch_group,
+        watchdog_launch_group,
         rviz_node
     ])

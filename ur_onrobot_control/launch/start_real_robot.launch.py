@@ -7,7 +7,7 @@ Compatible con ROS 2 Humble y Dockerfile.aimen.
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, GroupAction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -20,11 +20,13 @@ def configure_real_robot(context):
     ur_type = LaunchConfiguration('ur_type').perform(context)
     onrobot_type = LaunchConfiguration('onrobot_type').perform(context)
     robot_ip = LaunchConfiguration('robot_ip').perform(context)
+    launch_rviz_val = LaunchConfiguration('launch_rviz').perform(context)
 
     print(f"\n🤖 CONFIGURANDO ROBOT REAL (ROS 2 Humble / Dockerfile.aimen)")
     print(f"   - Entorno de trabajo: {sim_env}")
     print(f"   - Robot UR:           {ur_type} (IP: {robot_ip})")
     print(f"   - Gripper OnRobot:    {onrobot_type}")
+    print(f"   - Launch RViz:        {launch_rviz_val}")
 
     # Selección dinámica del URDF combinado con entorno
     description_package = 'ur_onrobot_description'
@@ -41,6 +43,7 @@ def configure_real_robot(context):
     return [
         SetLaunchConfiguration('description_package', description_package),
         SetLaunchConfiguration('description_file', description_file),
+        SetLaunchConfiguration('real_launch_rviz', launch_rviz_val),
     ]
 
 
@@ -163,6 +166,15 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('launch_onrobot'))
     )
 
+    # ====== DRIVER UR FÍSICO (GroupAction para aislar configuraciones) ======
+    ur_launch_group = GroupAction([ur_launch])
+
+    # ====== DRIVER ONROBOT FÍSICO (GroupAction para aislar configuraciones) ======
+    onrobot_launch_group = GroupAction(
+        [onrobot_launch],
+        condition=IfCondition(LaunchConfiguration('launch_onrobot'))
+    )
+
     # ====== RVIZ2 CENTRALIZADO ======
     rviz_config_path = PathJoinSubstitution([
         FindPackageShare('ur_onrobot_description'),
@@ -176,7 +188,7 @@ def generate_launch_description():
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_path],
-        condition=IfCondition(LaunchConfiguration('launch_rviz'))
+        condition=IfCondition(LaunchConfiguration('real_launch_rviz'))
     )
 
     return LaunchDescription([
@@ -184,7 +196,7 @@ def generate_launch_description():
         config_action,
         joint_state_merger,
         main_robot_state_publisher,
-        ur_launch,
-        onrobot_launch,
+        ur_launch_group,
+        onrobot_launch_group,
         rviz_node
     ])

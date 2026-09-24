@@ -9,7 +9,7 @@ import os
 import sys
 from ament_index_python.packages import get_package_share_directory, get_package_prefix, PackageNotFoundError
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription, LogInfo
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription, LogInfo, GroupAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -61,19 +61,38 @@ def interactive_selector(context):
     is_interactive = (interactive_str in ('true', '1', 'yes'))
     has_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
+    # Sincronizar posibles alias provenientes de .bash_aliases
+    use_fake_hw = LaunchConfiguration('use_fake_hardware').perform(context).strip().lower()
+    if use_fake_hw in ('true', '1', 'yes'):
+        context.launch_configurations['use_simulation'] = 'true'
+    elif use_fake_hw in ('false', '0', 'no'):
+        context.launch_configurations['use_simulation'] = 'false'
+
+    env_alias = LaunchConfiguration('environment').perform(context).strip().lower()
+    if env_alias in ('basic', 'left', 'right'):
+        context.launch_configurations['sim_env'] = env_alias
+
     ur_type = LaunchConfiguration('ur_type').perform(context)
     onrobot_type = LaunchConfiguration('onrobot_type').perform(context)
     use_simulation = LaunchConfiguration('use_simulation').perform(context)
     sim_env = LaunchConfiguration('sim_env').perform(context)
     robot_ip = LaunchConfiguration('robot_ip').perform(context)
+    launch_rviz_str = LaunchConfiguration('launch_rviz').perform(context)
+    launch_rviz_bool = (launch_rviz_str.lower() in ('true', '1', 'yes'))
 
     actions = []
 
     if is_interactive and has_tty:
         selector_mod = import_selector_tui()
         if selector_mod is not None:
-            # Ejecutar interfaz TUI de Textual
-            result = selector_mod.run_tui(default_ur=ur_type, default_onrobot=onrobot_type)
+            # Ejecutar interfaz TUI de Textual con valores preseleccionados
+            result = selector_mod.run_tui(
+                default_ur=ur_type,
+                default_onrobot=onrobot_type,
+                default_sim=(use_simulation == 'true'),
+                default_env=sim_env,
+                default_rviz=launch_rviz_bool
+            )
             if not result or result.get('cancelled', False):
                 print("\n🚫 Operación cancelada por el usuario en la TUI.")
                 sys.exit(0)
@@ -112,9 +131,10 @@ def interactive_selector(context):
     print(f"   • Robot IP:      {robot_ip}")
     print(f"   • Tipo Robot UR: {ur_type}")
     print(f"   • Tipo Gripper:  {onrobot_type}")
+    print(f"   • Lanzar RViz:   {launch_rviz_str}")
     print("="*60 + "\n")
 
-    actions.append(LogInfo(msg=f"Modo Headless activo: sim={use_simulation}, env={sim_env}, ip={robot_ip}, gripper={onrobot_type}"))
+    actions.append(LogInfo(msg=f"Modo Headless activo: sim={use_simulation}, env={sim_env}, ip={robot_ip}, gripper={onrobot_type}, rviz={launch_rviz_str}"))
     return actions
 
 
@@ -137,11 +157,15 @@ def generate_launch_description():
         # Parámetros del entorno / ejecución (pueden venir de CLI o ser sobreescritos por TUI)
         DeclareLaunchArgument('use_simulation', default_value='true',
                             description='true=simulación, false=robot real'),
+        DeclareLaunchArgument('use_fake_hardware', default_value='',
+                            description='Alias de use_simulation (true=simulación, false=robot real)'),
         DeclareLaunchArgument('robot_ip', default_value='127.0.0.1',
                             description='IP del robot físico (127.0.0.1 para simulación)'),
         DeclareLaunchArgument('sim_env', default_value='basic',
                             choices=['basic', 'left', 'right'],
                             description='Entorno: basic, left, right'),
+        DeclareLaunchArgument('environment', default_value='',
+                            description='Alias de sim_env (basic, left, right)'),
     ]
 
     # Selector TUI / Headless
@@ -163,7 +187,10 @@ def generate_launch_description():
             'launch_rviz': LaunchConfiguration('launch_rviz'),
             'rviz_config': LaunchConfiguration('rviz_config'),
             'sim_env': LaunchConfiguration('sim_env'),
-        }.items(),
+        }.items()
+    )
+    simulation_group = GroupAction(
+        [simulation_launch],
         condition=IfCondition(LaunchConfiguration('use_simulation'))
     )
 
@@ -184,13 +211,16 @@ def generate_launch_description():
             'launch_rviz': LaunchConfiguration('launch_rviz'),
             'sim_env': LaunchConfiguration('sim_env'),
             'use_fake_hardware': 'false',
-        }.items(),
+        }.items()
+    )
+    real_robot_group = GroupAction(
+        [real_robot_launch],
         condition=UnlessCondition(LaunchConfiguration('use_simulation'))
     )
 
     return LaunchDescription([
         *declared_arguments,
         selector_action,
-        simulation_launch,
-        real_robot_launch,
+        simulation_group,
+        real_robot_group,
     ])
