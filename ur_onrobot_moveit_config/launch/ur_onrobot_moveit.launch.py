@@ -132,12 +132,7 @@ def launch_setup(context, *args, **kwargs):
         'publish_transforms_updates': True,
     }
 
-    # 7. MoveGroup Capabilities (incluye ExecuteTaskSolutionCapability para MoveIt Task Constructor)
-    move_group_capabilities = {
-        'capabilities': 'move_group/ExecuteTaskSolutionCapability'
-    }
-
-    joint_states_topic_val = LaunchConfiguration('joint_states_topic')
+    joint_states_topic_val = LaunchConfiguration('joint_states_topic').perform(context)
 
     # Nodo move_group
     move_group_node = Node(
@@ -145,6 +140,7 @@ def launch_setup(context, *args, **kwargs):
         executable='move_group',
         output='screen',
         remappings=[
+            ('joint_states', joint_states_topic_val),
             ('/joint_states', joint_states_topic_val),
         ],
         parameters=[
@@ -157,7 +153,6 @@ def launch_setup(context, *args, **kwargs):
             trajectory_execution,
             moveit_controllers_yaml,
             planning_scene_monitor_parameters,
-            move_group_capabilities,
         ],
     )
 
@@ -175,6 +170,7 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(launch_rviz_val),
         arguments=['-d', rviz_config_file],
         remappings=[
+            ('joint_states', joint_states_topic_val),
             ('/joint_states', joint_states_topic_val),
         ],
         parameters=[
