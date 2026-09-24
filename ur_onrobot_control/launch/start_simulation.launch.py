@@ -58,6 +58,8 @@ def generate_launch_description():
                             description='Lanzar RViz2'),
         DeclareLaunchArgument('launch_watchdog', default_value='false',
                             description='Lanzar Watchdog de Seguridad Industrial UR + OnRobot'),
+        DeclareLaunchArgument('initial_joint_controller', default_value='scaled_joint_trajectory_controller',
+                            description='Controlador articular inicial'),
         # Parámetros internos
         DeclareLaunchArgument('description_package', default_value='ur_onrobot_description'),
         DeclareLaunchArgument('description_file', default_value='ur_onrobot.urdf.xacro'),
@@ -126,7 +128,7 @@ def generate_launch_description():
             'ur_type': LaunchConfiguration('ur_type'),
             'robot_ip': LaunchConfiguration('robot_ip'),
             'use_fake_hardware': 'true',
-            'initial_joint_controller': 'joint_trajectory_controller',
+            'initial_joint_controller': LaunchConfiguration('initial_joint_controller'),
             'launch_rviz': 'false',
             'headless_mode': 'true',
             'launch_robot_state_publisher': 'false',

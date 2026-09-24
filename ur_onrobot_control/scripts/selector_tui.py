@@ -31,6 +31,7 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
     Screen {
         background: #1e1e2e;
         color: #cdd6f4;
+        overflow-y: auto;
     }
     Header {
         background: #313244;
@@ -38,19 +39,26 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         text-style: bold;
     }
     #main-container {
-        padding: 1 2;
-        height: 100%;
+        padding: 0 1;
+        height: auto;
+        overflow-y: auto;
     }
     .panel {
         background: #181825;
-        border: round #45475a;
-        padding: 1 2;
+        border: solid #45475a;
+        padding: 0 1;
+        margin: 0;
+        height: auto;
+    }
+    #network-panel {
+        height: 3;
         margin-bottom: 1;
+        align: left middle;
     }
     .panel-title {
         color: #f9e2af;
         text-style: bold;
-        margin-bottom: 1;
+        margin: 0;
     }
     .status-ok {
         color: #a6e3a1;
@@ -60,12 +68,26 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         color: #f38ba8;
         text-style: bold;
     }
+    #columns-container {
+        height: auto;
+        margin-top: 0;
+    }
+    #columns-container > .panel {
+        width: 1fr;
+        margin-right: 1;
+    }
+    #columns-container > .panel:last-child {
+        margin-right: 0;
+    }
     RadioSet {
         background: transparent;
         border: none;
+        padding: 0;
     }
     RadioButton {
         background: transparent;
+        padding: 0;
+        height: 1;
     }
     RadioButton:focus {
         color: #89b4fa;
@@ -115,68 +137,70 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         self.detected = {}
 
     def on_mount(self) -> None:
-        self.title = "🤖 APERTA / UR OnRobot Launcher (ROS 2 Humble)"
+        self.title = "🤖 APERTA / UR OnRobot Launcher"
         # Escaneo inicial de red en hilo rápido
         for side, ip in self.ips.items():
             ok = ping_ip(ip)
             self.detected[side] = ok
             label = self.query_one(f"#status-{side}", Static)
+            side_str = side.upper()
             if ok:
-                label.update(f"🟢 [b]DETECTADO[/b] ({ip})")
+                label.update(f"{side_str}: 🟢 [b]OK[/b] ({ip})")
                 label.set_class(True, "status-ok")
                 label.set_class(False, "status-err")
             else:
-                label.update(f"🔴 [dim]No disponible[/dim] ({ip})")
+                label.update(f"{side_str}: 🔴 [dim]Off[/dim] ({ip})")
                 label.set_class(False, "status-ok")
                 label.set_class(True, "status-err")
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Vertical(id="main-container"):
-            # 1. Panel de Estado de Red
-            with Vertical(classes="panel"):
-                yield Label("📡 Estado de Red de Robots Físicos", classes="panel-title")
-                with Horizontal():
-                    yield Static("• Robot LEFT:  ", classes="bold")
-                    yield Static("🔍 Verificando...", id="status-left")
-                with Horizontal():
-                    yield Static("• Robot RIGHT: ", classes="bold")
-                    yield Static("🔍 Verificando...", id="status-right")
+            # 1. Panel de Estado de Red (Horizontal y compacto)
+            with Horizontal(classes="panel", id="network-panel"):
+                yield Static("📡 Red Robots: ", classes="bold")
+                yield Static("LEFT: 🔍...", id="status-left")
+                yield Static("   |   ", classes="bold")
+                yield Static("RIGHT: 🔍...", id="status-right")
 
-            # 2. Configuración en columnas
+            # 2. Configuración en 4 columnas
             is_sim = self.default_sim
             is_real_left = (not self.default_sim and self.default_env == "left")
             is_real_right = (not self.default_sim and self.default_env != "left")
 
-            with Horizontal():
+            with Horizontal(id="columns-container"):
                 # Modo de Ejecución
                 with Vertical(classes="panel", id="col-mode"):
-                    yield Label("⚙️  Modo de Ejecución", classes="panel-title")
+                    yield Label("⚙️  Modo", classes="panel-title")
                     with RadioSet(id="mode-radios"):
-                        yield RadioButton("🎮 Simulación (Fake HW)", value=is_sim, id="mode-sim")
-                        yield RadioButton("🤖 Robot Físico LEFT", value=is_real_left, id="mode-real-left")
-                        yield RadioButton("🤖 Robot Físico RIGHT", value=is_real_right, id="mode-real-right")
+                        yield RadioButton("🎮 Simulación", value=is_sim, id="mode-sim")
+                        yield RadioButton("🤖 Robot LEFT", value=is_real_left, id="mode-real-left")
+                        yield RadioButton("🤖 Robot RIGHT", value=is_real_right, id="mode-real-right")
 
                 # Entorno
                 with Vertical(classes="panel", id="col-env"):
-                    yield Label("🏭 Entorno de Celda", classes="panel-title")
+                    yield Label("🏭 Entorno", classes="panel-title")
                     with RadioSet(id="env-radios"):
                         yield RadioButton("Básico (Solo robot)", value=(self.default_env == "basic"), id="env-basic")
-                        yield RadioButton("Izquierdo (Mesa 1 + Cinta)", value=(self.default_env == "left"), id="env-left")
-                        yield RadioButton("Derecho (Mesa 2 + Cinta)", value=(self.default_env == "right"), id="env-right")
+                        yield RadioButton("Izquierdo (Mesa 1)", value=(self.default_env == "left"), id="env-left")
+                        yield RadioButton("Derecho (Mesa 2)", value=(self.default_env == "right"), id="env-right")
 
                 # Gripper
                 with Vertical(classes="panel", id="col-gripper"):
-                    yield Label("🦾 Efector OnRobot", classes="panel-title")
+                    yield Label("🦾 Efector", classes="panel-title")
                     with RadioSet(id="gripper-radios"):
-                        yield RadioButton("2FG7 (Pinza Paralela)", value=(self.default_onrobot == "2fg7"), id="grip-2fg7")
-                        yield RadioButton("3FG15 (Pinza 3 Dedos)", value=(self.default_onrobot == "3fg15"), id="grip-3fg15")
-                        yield RadioButton("VGC10 (Vacío Doble Canal)", value=(self.default_onrobot == "vgc10"), id="grip-vgc10")
+                        yield RadioButton("2FG7 (Paralela)", value=(self.default_onrobot == "2fg7"), id="grip-2fg7")
+                        yield RadioButton("3FG15 (3 Dedos)", value=(self.default_onrobot == "3fg15"), id="grip-3fg15")
+                        yield RadioButton("VGC10 (Vacío)", value=(self.default_onrobot == "vgc10"), id="grip-vgc10")
 
-            # 3. Opciones y Botones
-            with Horizontal(classes="panel"):
-                yield Checkbox("Abrir visualizador RViz2", value=self.default_rviz, id="chk-rviz")
+                # Visualizador RViz2 (Opciones explícitas con RadioButtons)
+                with Vertical(classes="panel", id="col-rviz"):
+                    yield Label("👁️ RViz2", classes="panel-title")
+                    with RadioSet(id="rviz-radios"):
+                        yield RadioButton("🟢 Lanzar RViz", value=self.default_rviz, id="rviz-yes")
+                        yield RadioButton("🔴 No lanzar RViz", value=(not self.default_rviz), id="rviz-no")
 
+            # 3. Botones de acción
             with Horizontal(id="buttons-bar"):
                 yield Button("🚀 LANZAR", id="btn-launch", variant="success")
                 yield Button("❌ CANCELAR", id="btn-cancel", variant="error")
@@ -225,8 +249,10 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         else:
             onrobot_type = "2fg7"
 
-        # 3. RViz
-        launch_rviz = "true" if self.query_one("#chk-rviz", Checkbox).value else "false"
+        # 3. RViz (RadioSet explícito con rviz-yes / rviz-no)
+        rviz_radios = self.query_one("#rviz-radios", RadioSet)
+        rviz_id = rviz_radios.pressed_button.id if rviz_radios.pressed_button else "rviz-yes"
+        launch_rviz = "false" if rviz_id == "rviz-no" else "true"
 
         self.result_config = {
             'use_simulation': use_sim,
