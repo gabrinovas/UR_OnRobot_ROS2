@@ -58,6 +58,13 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+include_directories(include)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
 install(
   DIRECTORY launch urdf config scripts
   DESTINATION share/${PROJECT_NAME}
@@ -71,6 +78,34 @@ install(PROGRAMS
   scripts/spawn_and_pick.py
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# =============================================================================
+# Testing
+# =============================================================================
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(launch_testing_ament_cmake REQUIRED)
+
+  ament_add_gtest(test_safety_watchdog
+    test/test_safety_watchdog.cpp
+  )
+  ament_target_dependencies(test_safety_watchdog
+    rclcpp
+    rclcpp_action
+    ur_dashboard_msgs
+    diagnostic_updater
+    diagnostic_msgs
+    control_msgs
+    sensor_msgs
+    std_msgs
+    std_srvs
+  )
+  target_include_directories(test_safety_watchdog PRIVATE
+    include
+  )
+
+  add_launch_test(test/test_cell_bringup.launch.py)
+endif()
 
 ament_package()
 

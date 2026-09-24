@@ -1,0 +1,119 @@
+{
+  "configById": {
+    "3D!cell_3d_view": {
+      "cameraState": {
+        "perspective": true,
+        "distance": 2.2,
+        "phi": 58.0,
+        "thetaOffset": 45.0,
+        "target": [0.3, 0.0, 0.4],
+        "targetOffset": [0, 0, 0],
+        "fovy": 45.0,
+        "near": 0.01,
+        "far": 50.0
+      },
+      "followMode": "follow-pose",
+      "scene": {
+        "enableShadows": true,
+        "transforms": {
+          "showLabels": false,
+          "axisScale": 0.15
+        }
+      },
+      "transforms": {
+        "frame:world": { "visible": true },
+        "frame:base_link": { "visible": true },
+        "frame:flange": { "visible": true },
+        "frame:tool0": { "visible": true },
+        "frame:onrobot_base_link": { "visible": true }
+      },
+      "topics": {
+        "/robot_description": { "visible": true },
+        "/tf": { "visible": true },
+        "/tf_static": { "visible": true },
+        "/merged_joint_states": { "visible": true }
+      },
+      "customMarkerTopicOptions": {},
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point"
+      }
+    },
+    "Diagnostics!safety_monitor": {
+      "selectedHardwareId": "UR Safety Watchdog (2fg7)",
+      "selectedName": "ur_onrobot_safety_watchdog: Safety & Interlock Monitor",
+      "splitPercentage": 35,
+      "topic": "/diagnostics"
+    },
+    "Plot!gripper_telemetry_plot": {
+      "paths": [
+        {
+          "value": "/merged_joint_states.position[6]",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "2FG7 / 3FG15 Opening (m)",
+          "color": "#3b82f6"
+        },
+        {
+          "value": "/merged_joint_states.position[7]",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "VGC10 Channel A Vacuum (norm)",
+          "color": "#10b981"
+        },
+        {
+          "value": "/merged_joint_states.position[8]",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "VGC10 Channel B Vacuum (norm)",
+          "color": "#f59e0b"
+        }
+      ],
+      "showLegend": true,
+      "xAxisVal": "timestamp",
+      "minYVal": 0.0,
+      "maxYVal": 0.15
+    },
+    "Teleop!quick_actions": {
+      "topic": "/onrobot/gripper_action_controller/gripper_cmd/goal"
+    },
+    "StateTransitions!watchdog_events": {
+      "paths": [
+        {
+          "value": "/diagnostics.status[0].values[1].value",
+          "label": "Watchdog State"
+        },
+        {
+          "value": "/diagnostics.status[0].values[2].value",
+          "label": "UR Safety Mode"
+        },
+        {
+          "value": "/diagnostics.status[0].values[4].value",
+          "label": "Fail-Safe Hold Engaged"
+        }
+      ]
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "direction": "row",
+    "first": {
+      "first": "3D!cell_3d_view",
+      "second": "Plot!gripper_telemetry_plot",
+      "direction": "column",
+      "splitPercentage": 65
+    },
+    "second": {
+      "first": "Diagnostics!safety_monitor",
+      "second": "StateTransitions!watchdog_events",
+      "direction": "column",
+      "splitPercentage": 50
+    },
+    "splitPercentage": 68
+  }
+}
