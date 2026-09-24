@@ -24,8 +24,18 @@
   </group>
 
   <!-- ==================== GROUP STATES (ARM) ==================== -->
+  <xacro:if value="${sim_env == 'right'}">
+    <xacro:property name="home_shoulder_pan" value="1.5708"/>
+  </xacro:if>
+  <xacro:if value="${sim_env == 'left'}">
+    <xacro:property name="home_shoulder_pan" value="3.1415"/>
+  </xacro:if>
+  <xacro:if value="${sim_env == 'basic'}">
+    <xacro:property name="home_shoulder_pan" value="-1.5708"/>
+  </xacro:if>
+
   <group_state name="home" group="ur_manipulator">
-    <joint name="${tf_prefix}shoulder_pan_joint" value="-1.5708"/>
+    <joint name="${tf_prefix}shoulder_pan_joint" value="${home_shoulder_pan}"/>
     <joint name="${tf_prefix}shoulder_lift_joint" value="-1.5708"/>
     <joint name="${tf_prefix}elbow_joint" value="1.5708"/>
     <joint name="${tf_prefix}wrist_1_joint" value="-1.5708"/>
