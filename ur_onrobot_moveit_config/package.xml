@@ -17,8 +17,6 @@
   <exec_depend>moveit_kinematics</exec_depend>
   <exec_depend>moveit_planners_ompl</exec_depend>
   <exec_depend>moveit_servo</exec_depend>
-  <exec_depend>moveit_task_constructor_core</exec_depend>
-  <exec_depend>moveit_task_constructor_visualization</exec_depend>
   <exec_depend>joy</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>pilz_industrial_motion_planner</exec_depend>
