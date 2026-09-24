@@ -25,6 +25,8 @@ Panels:
     Name: Time
     SyncMode: 0
     SyncSource: ""
+  - Class: moveit_rviz_plugin/MotionPlanning
+    Name: MotionPlanning
 Visualization Manager:
   Class: ""
   Displays:
@@ -76,7 +78,7 @@ Visualization Manager:
         Interpolate Effort: false
         Line Style: Lines
         Line Width: 0.02
-        Loop Animation: true
+        Loop Animation: false
         Show Robot: true
         State Display Time: 0.05
         Trail Display Time: 1

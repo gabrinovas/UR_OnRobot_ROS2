@@ -50,6 +50,8 @@ class JointStateMerger(Node):
         # Variables para almacenar estados con protección de hilos
         self.ur_joint_state = None
         self.gripper_joint_state = None
+        self.last_stamp_sec = 0
+        self.last_stamp_nanosec = 0
         self.lock = threading.Lock()
 
         self.get_logger().info(
@@ -77,7 +79,10 @@ class JointStateMerger(Node):
     def gripper_callback(self, msg: JointState):
         with self.lock:
             self.gripper_joint_state = msg
-            self._publish_merged_locked(msg.header.stamp)
+            # Solo publicamos directamente si el UR aún no está activo (ej. pruebas aisladas del gripper)
+            # Cuando el UR está activo a 500 Hz, ur_callback publica de forma síncrona y con sellos limpios
+            if self.ur_joint_state is None:
+                self._publish_merged_locked(msg.header.stamp)
 
     def _publish_merged_locked(self, stamp):
         """Publica el mensaje combinado de forma inmediata. Debe llamarse con self.lock adquirido."""
@@ -85,7 +90,19 @@ class JointStateMerger(Node):
             return
 
         merged_msg = JointState()
-        merged_msg.header.stamp = stamp
+
+        # Garantizar monotonía estricta en los sellos temporales para evitar TF_OLD_DATA y parpadeos
+        current_time_ns = stamp.sec * 1_000_000_000 + stamp.nanosec
+        last_time_ns = self.last_stamp_sec * 1_000_000_000 + self.last_stamp_nanosec
+        if current_time_ns <= last_time_ns:
+            current_time_ns = last_time_ns + 1000  # avanzar 1 microsegundo
+            merged_msg.header.stamp.sec = int(current_time_ns // 1_000_000_000)
+            merged_msg.header.stamp.nanosec = int(current_time_ns % 1_000_000_000)
+        else:
+            merged_msg.header.stamp = stamp
+
+        self.last_stamp_sec = merged_msg.header.stamp.sec
+        self.last_stamp_nanosec = merged_msg.header.stamp.nanosec
 
         # 1. Articulaciones del brazo UR
         if self.ur_joint_state:

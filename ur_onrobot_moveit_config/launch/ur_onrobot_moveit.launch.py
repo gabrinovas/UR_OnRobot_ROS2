@@ -132,7 +132,7 @@ def launch_setup(context, *args, **kwargs):
         'publish_transforms_updates': True,
     }
 
-    joint_states_topic_val = LaunchConfiguration('joint_states_topic').perform(context)
+    joint_states_topic_val = LaunchConfiguration('joint_states_topic')
 
     # Nodo move_group
     move_group_node = Node(
