@@ -88,7 +88,7 @@ class ServoKeyboardTeleop(Node):
             return
 
         goal = GripperCommand.Goal()
-        goal.command.position = 0.0 if close_gripper else 0.07  # 0 m cerrado, 70 mm abierto
+        goal.command.position = 0.035 if close_gripper else 0.073  # 35 mm cerrado, 73 mm abierto (montaje outwards 2FG7)
         goal.command.max_effort = 40.0
         self.gripper_client.send_goal_async(goal)
         self.gripper_closed = close_gripper

@@ -10,7 +10,7 @@
 
     <!-- Group States -->
     <group_state name="open" group="gripper">
-      <joint name="${tf_prefix}finger_width" value="0.070"/>
+      <joint name="${tf_prefix}finger_width" value="0.073"/>
     </group_state>
     <group_state name="closed" group="gripper">
       <joint name="${tf_prefix}finger_width" value="0.035"/>
