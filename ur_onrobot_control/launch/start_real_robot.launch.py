@@ -139,11 +139,8 @@ def generate_launch_description():
             'headless_mode': 'true',
             'launch_robot_state_publisher': 'false',
             'tf_prefix': LaunchConfiguration('tf_prefix'),
-            'controllers_config_file': PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'config',
-                controllers_config_file
-            ])
+            'runtime_config_package': 'ur_onrobot_control',
+            'controllers_file': controllers_config_file,
         }.items()
     )
 

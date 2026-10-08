@@ -60,6 +60,8 @@ def generate_launch_description():
                             description='Lanzar Watchdog de Seguridad Industrial UR + OnRobot'),
         DeclareLaunchArgument('initial_joint_controller', default_value='scaled_joint_trajectory_controller',
                             description='Controlador articular inicial'),
+        DeclareLaunchArgument('controller_spawner_timeout', default_value='25',
+                            description='Timeout used when spawning controllers.'),
         # Parámetros internos
         DeclareLaunchArgument('description_package', default_value='ur_onrobot_description'),
         DeclareLaunchArgument('description_file', default_value='ur_onrobot.urdf.xacro'),
@@ -133,11 +135,9 @@ def generate_launch_description():
             'headless_mode': 'true',
             'launch_robot_state_publisher': 'false',
             'tf_prefix': LaunchConfiguration('tf_prefix'),
-            'controllers_config_file': PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'config',
-                controllers_config_file
-            ])
+            'runtime_config_package': 'ur_onrobot_control',
+            'controllers_file': controllers_config_file,
+            'controller_spawner_timeout': LaunchConfiguration('controller_spawner_timeout'),
         }.items()
     )
 
