@@ -24,6 +24,7 @@
         ip_address:=192.168.1.1
         port:=502
         device_address:=65
+        include_gripper_ros2_control:=true
         ">
 
         <!-- Create the UR robot -->
@@ -53,6 +54,7 @@
             ip_address="${ip_address}"
             port="${port}"
             device_address="${device_address}"
+            include_ros2_control="${include_gripper_ros2_control}"
         />
 
         <!-- Connect the OnRobot to the UR robot -->

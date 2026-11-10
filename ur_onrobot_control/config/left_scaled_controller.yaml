@@ -49,6 +49,9 @@ controller_manager:
     ur_configuration_controller:
       type: ur_controllers/URConfigurationController
 
+    tool_contact_controller:
+      type: ur_controllers/ToolContactController
+
 # Environment joint state broadcaster - configure for static joints
 environment_joint_state_broadcaster:
   ros__parameters:
@@ -225,21 +228,6 @@ tcp_pose_broadcaster:
     tf:
       child_frame_id: $(var tf_prefix)tool0_controller
 
-# Generic hardware parameters for all gripper types
-onrobot_hardware:
+tool_contact_controller:
   ros__parameters:
-    onrobot_type: "$(var onrobot_type)"  # Will be set from launch file
-    connection_type: "$(var connection_type)"
-    ip_address: "$(var gripper_ip)"
-    port: $(var gripper_port)
-    device_address: $(var gripper_device_address)
-    prefix: "$(var tf_prefix)"
-    use_fake_hardware: $(var use_fake_hardware)
-    device: "$(var gripper_device)"
-    # Gripper-specific parameters with defaults
-    max_width: "$(var max_width)"
-    min_width: "$(var min_width)"
-    max_force: "$(var max_force)"
-    # Timeout parameters
-    timeout: 5.0
-    response_timeout: 2.0
+    tf_prefix: "$(var tf_prefix)"

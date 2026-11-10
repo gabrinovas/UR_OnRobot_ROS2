@@ -5,7 +5,7 @@ simulation_launch.py - Launch exclusivo para simulación
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, GroupAction
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -14,23 +14,23 @@ from launch_ros.actions import Node
 
 def configure_simulation(context):
     sim_env = LaunchConfiguration('sim_env').perform(context)
+    launch_rviz_val = LaunchConfiguration('launch_rviz').perform(context)
     
     print(f"\n🎮 CONFIGURANDO SIMULACIÓN")
     print(f"   - Entorno de simulación: {sim_env}")
     print(f"   - Robot UR: {LaunchConfiguration('ur_type').perform(context)}")
     print(f"   - Gripper: {LaunchConfiguration('onrobot_type').perform(context)}")
+    print(f"   - Launch RViz: {launch_rviz_val}")
     
     # ========== LÓGICA DE SELECCIÓN DE URDF SEGÚN SIM_ENV ==========
+    description_package = 'ur_onrobot_description'
     if sim_env == 'left':
-        description_package = 'ur_onrobot_control'
         description_file = 'left_robot_with_environment.urdf.xacro'
         print(f"   - URDF: Entorno LEFT ({description_package}/{description_file})")
     elif sim_env == 'right':
-        description_package = 'ur_onrobot_control'
         description_file = 'right_robot_with_environment.urdf.xacro'
         print(f"   - URDF: Entorno RIGHT ({description_package}/{description_file})")
     else:  # 'basic' por defecto o cualquier otro valor
-        description_package = 'ur_onrobot_description'
         description_file = 'ur_onrobot.urdf.xacro'
         print(f"   - URDF: Básico ({description_package}/{description_file})")
     # ===============================================================
@@ -39,10 +39,13 @@ def configure_simulation(context):
         SetLaunchConfiguration('description_package', description_package),
         SetLaunchConfiguration('description_file', description_file),
         SetLaunchConfiguration('robot_ip', '127.0.0.1'),
+        SetLaunchConfiguration('sim_launch_rviz', launch_rviz_val),
     ]
 
 def generate_launch_description():
     declared_arguments = [
+        DeclareLaunchArgument('sim_env', default_value='basic',
+                            description='Entorno de simulación (basic, left, right)'),
         DeclareLaunchArgument('ur_type', default_value='ur5e',
                             description='Tipo de robot UR'),
         DeclareLaunchArgument('onrobot_type', default_value='2fg7',
@@ -51,8 +54,14 @@ def generate_launch_description():
                             description='Lanzar control del gripper'),
         DeclareLaunchArgument('rviz_config', default_value='view_robot.rviz',
                             description='Configuración de RVIZ'),
-        DeclareLaunchArgument('sim_env', default_value='basic',
-                            description='Entorno de simulación: basic, left, right'),
+        DeclareLaunchArgument('launch_rviz', default_value='true',
+                            description='Lanzar RViz2'),
+        DeclareLaunchArgument('launch_watchdog', default_value='false',
+                            description='Lanzar Watchdog de Seguridad Industrial UR + OnRobot'),
+        DeclareLaunchArgument('initial_joint_controller', default_value='scaled_joint_trajectory_controller',
+                            description='Controlador articular inicial'),
+        DeclareLaunchArgument('controller_spawner_timeout', default_value='25',
+                            description='Timeout used when spawning controllers.'),
         # Parámetros internos
         DeclareLaunchArgument('description_package', default_value='ur_onrobot_description'),
         DeclareLaunchArgument('description_file', default_value='ur_onrobot.urdf.xacro'),
@@ -121,15 +130,18 @@ def generate_launch_description():
             'ur_type': LaunchConfiguration('ur_type'),
             'robot_ip': LaunchConfiguration('robot_ip'),
             'use_fake_hardware': 'true',
+            'initial_joint_controller': LaunchConfiguration('initial_joint_controller'),
             'launch_rviz': 'false',
             'headless_mode': 'true',
             'launch_robot_state_publisher': 'false',
             'tf_prefix': LaunchConfiguration('tf_prefix'),
-            'controllers_config_file': PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'config',
-                controllers_config_file
-            ])
+            'runtime_config_package': 'ur_onrobot_control',
+            'controllers_file': controllers_config_file,
+            'controller_spawner_timeout': LaunchConfiguration('controller_spawner_timeout'),
+            # Gripper runs in its own controller manager (/onrobot) when launch_onrobot is true:
+            # keep it out of the UR controller manager so a gripper failure cannot kill the UR driver.
+            'include_gripper_ros2_control': PythonExpression(
+                ["'false' if '", LaunchConfiguration('launch_onrobot'), "'.lower() == 'true' else 'true'"]),
         }.items()
     )
 
@@ -148,8 +160,39 @@ def generate_launch_description():
             'launch_rviz': 'false',
             'launch_rsp': 'false',
             'tf_prefix': LaunchConfiguration('tf_prefix'),
+            'use_gripper_action_controller': 'true',
         }.items(),
         condition=IfCondition(LaunchConfiguration('launch_onrobot'))
+    )
+
+    # ====== WATCHDOG DE SEGURIDAD INDUSTRIAL ======
+    watchdog_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('ur_onrobot_control'),
+                'launch',
+                'ur_onrobot_watchdog.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'onrobot_type': LaunchConfiguration('onrobot_type'),
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('launch_watchdog'))
+    )
+
+    # ====== DRIVER UR MODIFICADO (GroupAction para aislar launch configurations) ======
+    ur_launch_group = GroupAction([ur_launch])
+
+    # ====== DRIVER ONROBOT (GroupAction para aislar launch configurations) ======
+    onrobot_launch_group = GroupAction(
+        [onrobot_launch],
+        condition=IfCondition(LaunchConfiguration('launch_onrobot'))
+    )
+
+    # ====== WATCHDOG DE SEGURIDAD INDUSTRIAL ======
+    watchdog_launch_group = GroupAction(
+        [watchdog_launch],
+        condition=IfCondition(LaunchConfiguration('launch_watchdog'))
     )
 
     # ====== RVIZ ======
@@ -165,9 +208,7 @@ def generate_launch_description():
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_path],
-        condition=IfCondition(PythonExpression([
-            "'", LaunchConfiguration('sim_env'), "' != 'right' or '", LaunchConfiguration('sim_env'), "' != 'left'"
-        ]))
+        condition=IfCondition(LaunchConfiguration('sim_launch_rviz'))
     )
 
     return LaunchDescription([
@@ -175,7 +216,8 @@ def generate_launch_description():
         config_action,
         joint_state_merger,
         main_robot_state_publisher,
-        ur_launch,
-        onrobot_launch,
+        ur_launch_group,
+        onrobot_launch_group,
+        watchdog_launch_group,
         rviz_node
     ])

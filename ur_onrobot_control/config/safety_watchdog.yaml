@@ -1,0 +1,10 @@
+ur_onrobot_safety_watchdog:
+  ros__parameters:
+    safety_mode_topic: "/io_and_status_controller/safety_mode"
+    robot_mode_topic: "/io_and_status_controller/robot_mode"
+    joint_states_topic: "/merged_joint_states"
+    onrobot_type: "2fg7"
+    gripper_action_topic: ""
+    auto_recover: false
+    fail_safe_effort: 140.0
+    diagnostic_period: 1.0
