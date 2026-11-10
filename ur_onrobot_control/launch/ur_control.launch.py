@@ -62,6 +62,7 @@ def launch_setup(context, *args, **kwargs):
     kinematics_params_file = LaunchConfiguration("kinematics_params_file")
     tf_prefix = LaunchConfiguration("tf_prefix")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
+    include_gripper_ros2_control = LaunchConfiguration("include_gripper_ros2_control")
     fake_sensor_commands = LaunchConfiguration("fake_sensor_commands")
     controller_spawner_timeout = LaunchConfiguration("controller_spawner_timeout")
     initial_joint_controller = LaunchConfiguration("initial_joint_controller")
@@ -201,6 +202,9 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "trajectory_port:=",
             trajectory_port,
+            " ",
+            "include_gripper_ros2_control:=",
+            include_gripper_ros2_control,
             " ",
         ]
     )
@@ -490,6 +494,15 @@ def generate_launch_description():
             default_value="ur_description",
             description="Description package with robot URDF/XACRO files. Usually the argument "
             "is not set, it enables use of a custom description.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "include_gripper_ros2_control",
+            default_value="true",
+            description="Include the OnRobot gripper <ros2_control> block in the UR controller manager. "
+            "Set to false when the gripper runs in its own controller manager (/onrobot), so a gripper "
+            "failure cannot take down the UR driver.",
         )
     )
     declared_arguments.append(

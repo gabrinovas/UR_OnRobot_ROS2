@@ -141,6 +141,10 @@ def generate_launch_description():
             'tf_prefix': LaunchConfiguration('tf_prefix'),
             'runtime_config_package': 'ur_onrobot_control',
             'controllers_file': controllers_config_file,
+            # Gripper runs in its own controller manager (/onrobot) when launch_onrobot is true:
+            # keep it out of the UR controller manager so a gripper failure cannot kill the UR driver.
+            'include_gripper_ros2_control': PythonExpression(
+                ["'false' if '", LaunchConfiguration('launch_onrobot'), "'.lower() == 'true' else 'true'"]),
         }.items()
     )
 
