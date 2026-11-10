@@ -1,3 +1,4 @@
+planning_plugin: pilz_industrial_motion_planner/CommandPlanner
 planning_plugins:
   - pilz_industrial_motion_planner/CommandPlanner
 capabilities:

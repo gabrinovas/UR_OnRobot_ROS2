@@ -20,6 +20,8 @@
     <xacro:arg name="ip_address" default="192.168.1.1"/>
     <xacro:arg name="port" default="502"/>
     <xacro:arg name="device_address" default="65"/>
+    <!-- false: gripper ros2_control lives only in its own controller manager (/onrobot) -->
+    <xacro:arg name="include_gripper_ros2_control" default="true"/>
 
     <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot_macro.xacro"/>
 
@@ -44,6 +46,7 @@
         ip_address="$(arg ip_address)"
         port="$(arg port)"
         device_address="$(arg device_address)"
+        include_gripper_ros2_control="$(arg include_gripper_ros2_control)"
         >
         <origin xyz="0 0 0" rpy="0 0 0" />
     </xacro:ur_onrobot>

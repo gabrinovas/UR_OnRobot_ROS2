@@ -5,6 +5,10 @@ selector_tui.py - Interfaz TUI interactiva con Textual para seleccionar la confi
 de robots UR y pinzas OnRobot (Física o Simulación).
 """
 
+import os
+import sys
+import json
+import argparse
 import subprocess
 from typing import Dict, Any, Optional
 from textual.app import App, ComposeResult
@@ -27,6 +31,7 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
     Screen {
         background: #1e1e2e;
         color: #cdd6f4;
+        overflow-y: auto;
     }
     Header {
         background: #313244;
@@ -34,19 +39,26 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         text-style: bold;
     }
     #main-container {
-        padding: 1 2;
-        height: 100%;
+        padding: 0 1;
+        height: auto;
+        overflow-y: auto;
     }
     .panel {
         background: #181825;
-        border: round #45475a;
-        padding: 1 2;
+        border: solid #45475a;
+        padding: 0 1;
+        margin: 0;
+        height: auto;
+    }
+    #network-panel {
+        height: 3;
         margin-bottom: 1;
+        align: left middle;
     }
     .panel-title {
         color: #f9e2af;
         text-style: bold;
-        margin-bottom: 1;
+        margin: 0;
     }
     .status-ok {
         color: #a6e3a1;
@@ -56,12 +68,26 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         color: #f38ba8;
         text-style: bold;
     }
+    #columns-container {
+        height: auto;
+        margin-top: 0;
+    }
+    #columns-container > .panel {
+        width: 1fr;
+        margin-right: 1;
+    }
+    #columns-container > .panel:last-child {
+        margin-right: 0;
+    }
     RadioSet {
         background: transparent;
         border: none;
+        padding: 0;
     }
     RadioButton {
         background: transparent;
+        padding: 0;
+        height: 1;
     }
     RadioButton:focus {
         color: #89b4fa;
@@ -93,10 +119,14 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         ("enter", "submit", "Lanzar"),
     ]
 
-    def __init__(self, default_ur: str = "ur5e", default_onrobot: str = "2fg7"):
+    def __init__(self, default_ur: str = "ur5e", default_onrobot: str = "2fg7",
+                 default_sim: bool = True, default_env: str = "basic", default_rviz: bool = True):
         super().__init__()
         self.default_ur = default_ur
         self.default_onrobot = default_onrobot
+        self.default_sim = default_sim
+        self.default_env = default_env if default_env in ('basic', 'left', 'right') else 'basic'
+        self.default_rviz = default_rviz
         self.result_config: Optional[Dict[str, Any]] = None
 
         # IPs de robots físicos
@@ -107,64 +137,70 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         self.detected = {}
 
     def on_mount(self) -> None:
-        self.title = "🤖 APERTA / UR OnRobot Launcher (ROS 2 Humble)"
+        self.title = "🤖 APERTA / UR OnRobot Launcher"
         # Escaneo inicial de red en hilo rápido
         for side, ip in self.ips.items():
             ok = ping_ip(ip)
             self.detected[side] = ok
             label = self.query_one(f"#status-{side}", Static)
+            side_str = side.upper()
             if ok:
-                label.update(f"🟢 [b]DETECTADO[/b] ({ip})")
+                label.update(f"{side_str}: 🟢 [b]OK[/b] ({ip})")
                 label.set_class(True, "status-ok")
                 label.set_class(False, "status-err")
             else:
-                label.update(f"🔴 [dim]No disponible[/dim] ({ip})")
+                label.update(f"{side_str}: 🔴 [dim]Off[/dim] ({ip})")
                 label.set_class(False, "status-ok")
                 label.set_class(True, "status-err")
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Vertical(id="main-container"):
-            # 1. Panel de Estado de Red
-            with Vertical(classes="panel"):
-                yield Label("📡 Estado de Red de Robots Físicos", classes="panel-title")
-                with Horizontal():
-                    yield Static("• Robot LEFT:  ", classes="bold")
-                    yield Static("🔍 Verificando...", id="status-left")
-                with Horizontal():
-                    yield Static("• Robot RIGHT: ", classes="bold")
-                    yield Static("🔍 Verificando...", id="status-right")
+            # 1. Panel de Estado de Red (Horizontal y compacto)
+            with Horizontal(classes="panel", id="network-panel"):
+                yield Static("📡 Red Robots: ", classes="bold")
+                yield Static("LEFT: 🔍...", id="status-left")
+                yield Static("   |   ", classes="bold")
+                yield Static("RIGHT: 🔍...", id="status-right")
 
-            # 2. Configuración en columnas
-            with Horizontal():
+            # 2. Configuración en 4 columnas
+            is_sim = self.default_sim
+            is_real_left = (not self.default_sim and self.default_env == "left")
+            is_real_right = (not self.default_sim and self.default_env != "left")
+
+            with Horizontal(id="columns-container"):
                 # Modo de Ejecución
                 with Vertical(classes="panel", id="col-mode"):
-                    yield Label("⚙️  Modo de Ejecución", classes="panel-title")
+                    yield Label("⚙️  Modo", classes="panel-title")
                     with RadioSet(id="mode-radios"):
-                        yield RadioButton("🎮 Simulación (Fake HW)", value=True, id="mode-sim")
-                        yield RadioButton("🤖 Robot Físico LEFT", id="mode-real-left")
-                        yield RadioButton("🤖 Robot Físico RIGHT", id="mode-real-right")
+                        yield RadioButton("🎮 Simulación", value=is_sim, id="mode-sim")
+                        yield RadioButton("🤖 Robot LEFT", value=is_real_left, id="mode-real-left")
+                        yield RadioButton("🤖 Robot RIGHT", value=is_real_right, id="mode-real-right")
 
                 # Entorno
                 with Vertical(classes="panel", id="col-env"):
-                    yield Label("🏭 Entorno de Celda", classes="panel-title")
+                    yield Label("🏭 Entorno", classes="panel-title")
                     with RadioSet(id="env-radios"):
-                        yield RadioButton("Básico (Solo robot)", value=True, id="env-basic")
-                        yield RadioButton("Izquierdo (Mesa 1 + Cinta)", id="env-left")
-                        yield RadioButton("Derecho (Mesa 2 + Cinta)", id="env-right")
+                        yield RadioButton("Básico (Solo robot)", value=(self.default_env == "basic"), id="env-basic")
+                        yield RadioButton("Izquierdo (Mesa 1)", value=(self.default_env == "left"), id="env-left")
+                        yield RadioButton("Derecho (Mesa 2)", value=(self.default_env == "right"), id="env-right")
 
                 # Gripper
                 with Vertical(classes="panel", id="col-gripper"):
-                    yield Label("🦾 Efector OnRobot", classes="panel-title")
+                    yield Label("🦾 Efector", classes="panel-title")
                     with RadioSet(id="gripper-radios"):
-                        yield RadioButton("2FG7 (Pinza Paralela)", value=(self.default_onrobot == "2fg7"), id="grip-2fg7")
-                        yield RadioButton("3FG15 (Pinza 3 Dedos)", value=(self.default_onrobot == "3fg15"), id="grip-3fg15")
-                        yield RadioButton("VGC10 (Vacío Doble Canal)", value=(self.default_onrobot == "vgc10"), id="grip-vgc10")
+                        yield RadioButton("2FG7 (Paralela)", value=(self.default_onrobot == "2fg7"), id="grip-2fg7")
+                        yield RadioButton("3FG15 (3 Dedos)", value=(self.default_onrobot == "3fg15"), id="grip-3fg15")
+                        yield RadioButton("VGC10 (Vacío)", value=(self.default_onrobot == "vgc10"), id="grip-vgc10")
 
-            # 3. Opciones y Botones
-            with Horizontal(classes="panel"):
-                yield Checkbox("Abrir visualizador RViz2", value=True, id="chk-rviz")
+                # Visualizador RViz2 (Opciones explícitas con RadioButtons)
+                with Vertical(classes="panel", id="col-rviz"):
+                    yield Label("👁️ RViz2", classes="panel-title")
+                    with RadioSet(id="rviz-radios"):
+                        yield RadioButton("🟢 Lanzar RViz", value=self.default_rviz, id="rviz-yes")
+                        yield RadioButton("🔴 No lanzar RViz", value=(not self.default_rviz), id="rviz-no")
 
+            # 3. Botones de acción
             with Horizontal(id="buttons-bar"):
                 yield Button("🚀 LANZAR", id="btn-launch", variant="success")
                 yield Button("❌ CANCELAR", id="btn-cancel", variant="error")
@@ -213,8 +249,10 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         else:
             onrobot_type = "2fg7"
 
-        # 3. RViz
-        launch_rviz = "true" if self.query_one("#chk-rviz", Checkbox).value else "false"
+        # 3. RViz (RadioSet explícito con rviz-yes / rviz-no)
+        rviz_radios = self.query_one("#rviz-radios", RadioSet)
+        rviz_id = rviz_radios.pressed_button.id if rviz_radios.pressed_button else "rviz-yes"
+        launch_rviz = "false" if rviz_id == "rviz-no" else "true"
 
         self.result_config = {
             'use_simulation': use_sim,
@@ -230,12 +268,82 @@ class RobotSelectorTUI(App[Optional[Dict[str, Any]]]):
         self.exit(result={'cancelled': True})
 
 
-def run_tui(default_ur: str = "ur5e", default_onrobot: str = "2fg7") -> Optional[Dict[str, Any]]:
+def run_tui(default_ur: str = "ur5e", default_onrobot: str = "2fg7",
+            default_sim: bool = True, default_env: str = "basic", default_rviz: bool = True) -> Optional[Dict[str, Any]]:
     """Ejecuta la TUI de Textual y devuelve la configuración seleccionada."""
-    app = RobotSelectorTUI(default_ur=default_ur, default_onrobot=default_onrobot)
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    # Si ya hay un event loop de asyncio activo (ej: ROS 2 launch service),
+    # delegar a un subproceso limpio para evitar 'asyncio.run() cannot be called from a running event loop'
+    if loop is not None and loop.is_running():
+        import tempfile
+        with tempfile.NamedTemporaryFile('w+', suffix='.json', delete=False) as tf:
+            out_file = tf.name
+
+        try:
+            cmd = [
+                sys.executable,
+                os.path.abspath(__file__),
+                '--ur', str(default_ur),
+                '--onrobot', str(default_onrobot),
+                '--sim', 'true' if default_sim else 'false',
+                '--env', str(default_env),
+                '--rviz', 'true' if default_rviz else 'false',
+                '--output', out_file
+            ]
+            proc = subprocess.run(cmd)
+            if proc.returncode == 0 and os.path.exists(out_file) and os.path.getsize(out_file) > 0:
+                with open(out_file, 'r') as f:
+                    return json.load(f)
+            return {'cancelled': True}
+        finally:
+            if os.path.exists(out_file):
+                try:
+                    os.remove(out_file)
+                except OSError:
+                    pass
+
+    app = RobotSelectorTUI(
+        default_ur=default_ur,
+        default_onrobot=default_onrobot,
+        default_sim=default_sim,
+        default_env=default_env,
+        default_rviz=default_rviz
+    )
     return app.run()
 
 
 if __name__ == "__main__":
-    result = run_tui()
-    print("\n[Resultado de TUI]:", result)
+    parser = argparse.ArgumentParser(description="TUI Selector para robots UR y pinzas OnRobot")
+    parser.add_argument("--ur", default="ur5e", help="Robot UR por defecto")
+    parser.add_argument("--onrobot", default="2fg7", help="Pinza OnRobot por defecto")
+    parser.add_argument("--sim", default="true", help="true para simulación, false para robot real")
+    parser.add_argument("--env", default="basic", help="Entorno: basic, left, right")
+    parser.add_argument("--rviz", default="true", help="true para lanzar RViz, false en caso contrario")
+    parser.add_argument("--output", default=None, help="Archivo JSON para guardar resultado")
+
+    args = parser.parse_args()
+
+    sim_bool = args.sim.lower() in ("true", "1", "yes")
+    rviz_bool = args.rviz.lower() in ("true", "1", "yes")
+
+    app = RobotSelectorTUI(
+        default_ur=args.ur,
+        default_onrobot=args.onrobot,
+        default_sim=sim_bool,
+        default_env=args.env,
+        default_rviz=rviz_bool
+    )
+    res = app.run()
+
+    if args.output and res:
+        with open(args.output, "w") as f:
+            json.dump(res, f)
+
+    if not res or res.get("cancelled", False):
+        sys.exit(1)
+    sys.exit(0)

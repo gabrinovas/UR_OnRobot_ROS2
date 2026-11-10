@@ -12,18 +12,20 @@
     <!-- Group States (Suction Modes) -->
     <group_state name="grip" group="gripper">
       <joint name="${tf_prefix}vacuum_channel_a" value="1.0"/>
-      <joint name="${tf_prefix}vacuum_channel_b" value="1.0"/>
     </group_state>
     <group_state name="release" group="gripper">
       <joint name="${tf_prefix}vacuum_channel_a" value="0.0"/>
-      <joint name="${tf_prefix}vacuum_channel_b" value="0.0"/>
+    </group_state>
+    <group_state name="closed" group="gripper">
+      <joint name="${tf_prefix}vacuum_channel_a" value="1.0"/>
+    </group_state>
+    <group_state name="open" group="gripper">
+      <joint name="${tf_prefix}vacuum_channel_a" value="0.0"/>
     </group_state>
     <group_state name="grip_a" group="gripper">
       <joint name="${tf_prefix}vacuum_channel_a" value="1.0"/>
-      <joint name="${tf_prefix}vacuum_channel_b" value="0.0"/>
     </group_state>
     <group_state name="grip_b" group="gripper">
-      <joint name="${tf_prefix}vacuum_channel_a" value="0.0"/>
       <joint name="${tf_prefix}vacuum_channel_b" value="1.0"/>
     </group_state>
 

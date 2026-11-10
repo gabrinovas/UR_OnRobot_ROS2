@@ -36,14 +36,17 @@ def launch_setup(context, *args, **kwargs):
     tf_prefix_val = LaunchConfiguration('tf_prefix').perform(context)
     launch_rviz_val = LaunchConfiguration('launch_rviz')
 
-    # 1. Resolver archivo URDF según el entorno seleccionado
+    # 1. Resolver archivo URDF y nombre de robot según el entorno seleccionado
     urdf_package = 'ur_onrobot_description'
     if sim_env_val == 'left':
         urdf_file = 'left_robot_with_environment.urdf.xacro'
+        robot_name_val = 'left_robot_with_environment'
     elif sim_env_val == 'right':
         urdf_file = 'right_robot_with_environment.urdf.xacro'
+        robot_name_val = 'right_robot_with_environment'
     else:  # 'basic'
         urdf_file = 'ur_onrobot.urdf.xacro'
+        robot_name_val = 'ur_onrobot'
 
     # Generación dinámica del robot_description mediante xacro
     robot_description_content = Command([
@@ -74,6 +77,8 @@ def launch_setup(context, *args, **kwargs):
         ' ',
         srdf_file,
         ' ',
+        'robot_name:=', robot_name_val,
+        ' ',
         'onrobot_type:=', onrobot_type_val,
         ' ',
         'sim_env:=', sim_env_val,
@@ -97,13 +102,21 @@ def launch_setup(context, *args, **kwargs):
         'pilz_industrial_motion_planner': pilz_planning_yaml,
     }
 
-    # 5. Configuración de controladores MoveIt
+    # 5. Configuración de controladores MoveIt (por defecto scaled_joint_trajectory_controller)
+    trajectory_controller_val = LaunchConfiguration('trajectory_controller').perform(context)
     moveit_controllers_yaml = load_yaml('ur_onrobot_moveit_config', 'config/moveit_controllers.yaml')
+    target_dict = moveit_controllers_yaml.get('moveit_simple_controller_manager', moveit_controllers_yaml)
+    if 'scaled_joint_trajectory_controller' in target_dict and 'joint_trajectory_controller' in target_dict:
+        use_scaled = (trajectory_controller_val == 'scaled_joint_trajectory_controller')
+        target_dict['scaled_joint_trajectory_controller']['default'] = use_scaled
+        target_dict['joint_trajectory_controller']['default'] = not use_scaled
+
     trajectory_execution = {
         'moveit_manage_controllers': True,
         'trajectory_execution.allowed_execution_duration_scaling': 1.2,
         'trajectory_execution.allowed_goal_duration_margin': 0.5,
         'trajectory_execution.allowed_start_tolerance': 0.01,
+        'trajectory_execution.execution_duration_monitoring': False,
     }
 
     # 6. Planning Scene Monitor
@@ -114,15 +127,22 @@ def launch_setup(context, *args, **kwargs):
         'publish_transforms_updates': True,
     }
 
+    joint_states_topic_val = LaunchConfiguration('joint_states_topic')
+
     # Nodo move_group
     move_group_node = Node(
         package='moveit_ros_move_group',
         executable='move_group',
         output='screen',
+        remappings=[
+            ('joint_states', joint_states_topic_val),
+            ('/joint_states', joint_states_topic_val),
+        ],
         parameters=[
             robot_description,
             robot_description_semantic,
             {'robot_description_kinematics': kinematics_yaml},
+            {'robot_description_planning': joint_limits_yaml},
             {'joint_limits': joint_limits_yaml},
             planning_pipelines,
             trajectory_execution,
@@ -144,6 +164,10 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         condition=IfCondition(launch_rviz_val),
         arguments=['-d', rviz_config_file],
+        remappings=[
+            ('joint_states', joint_states_topic_val),
+            ('/joint_states', joint_states_topic_val),
+        ],
         parameters=[
             robot_description,
             robot_description_semantic,
@@ -193,9 +217,20 @@ def generate_launch_description():
             description='Prefijo TF para multi-robot o namespacing',
         ),
         DeclareLaunchArgument(
+            'joint_states_topic',
+            default_value='/merged_joint_states',
+            description='Tópico de estados articulares unificados para MoveIt (por defecto /merged_joint_states)',
+        ),
+        DeclareLaunchArgument(
             'launch_rviz',
             default_value='true',
             description='Lanzar RViz2 con el plugin MotionPlanning',
+        ),
+        DeclareLaunchArgument(
+            'trajectory_controller',
+            default_value='scaled_joint_trajectory_controller',
+            description='Controlador articular activo en ros2_control para MoveIt (scaled_joint_trajectory_controller o joint_trajectory_controller)',
+            choices=['scaled_joint_trajectory_controller', 'joint_trajectory_controller'],
         ),
     ]
 
