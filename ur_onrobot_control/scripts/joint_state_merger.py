@@ -130,7 +130,8 @@ def main():
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():  # a SIGINT already shut rclpy down: shutting it down again raises an RCLError
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
