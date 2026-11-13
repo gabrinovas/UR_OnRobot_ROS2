@@ -14,8 +14,12 @@ Repository provides three main packages:
 Key files
 - ur_onrobot_description/urdf/ur_onrobot.urdf.xacro
 - ur_onrobot_description/launch/view_robot.launch.py
-- ur_onrobot_control/launch/start_robot.launch.py
+- ur_onrobot_control/launch/start_robot.launch.py (interactive selector; includes one of the two below)
+- ur_onrobot_control/launch/start_simulation.launch.py and start_real_robot.launch.py (thin wrappers with their own arguments)
+- ur_onrobot_control/launch/ur_onrobot_bringup.launch.py (the bringup both wrappers include)
 - ur_onrobot_control/launch/ur_control.launch.py
+- ur_onrobot_control/launch/foxglove_bridge.launch.py
+- ur_onrobot_control/config/ur_onrobot_controllers.yaml (the UR controllers, the same in every environment)
 - ur_onrobot_control/scripts/joint_state_merger.py
 - ur_onrobot_moveit_config/launch/ur_onrobot_moveit.launch.py
 - LICENSE
@@ -82,6 +86,22 @@ Common launch args:
 - launch_rviz (default: true) — start RViz.
 - tf_prefix (default: "") — TF frame prefix.
 - environment (auto/left/right/basic) — selects URDF/environment.
+- load_freedrive_controller (default: false) — load the UR freedrive (hand guiding) controller. See "Freedrive controller" below.
+
+### Freedrive controller
+The freedrive controller of `ur_controllers` is **not loaded by default**. It starts a logging thread when it is
+configured and does not stop it when the node shuts down, so while it is loaded the control node can hang (or
+crash) when the stack is stopped: about one stop in three to five. To use hand guiding, launch with
+`load_freedrive_controller:=true`: the controller is then loaded (inactive) as before, and the launch gives the
+control node `freedrive_stop_timeout` seconds (default 2) to stop before terminating it. By then the hardware has already been deactivated and shut down.
+
+### Foxglove Studio
+To watch the cell from Foxglove Studio (web or desktop) instead of RViz, start the WebSocket bridge and connect the
+application to `ws://<host>:8765`:
+```sh
+ros2 launch ur_onrobot_control foxglove_bridge.launch.py
+```
+A panel layout for the cell is in `ur_onrobot_control/config/foxglove/ur_onrobot_cell_layout.json`.
 
 Start MoveIt! (planning + RViz):
 ```sh

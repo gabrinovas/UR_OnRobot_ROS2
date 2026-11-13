@@ -1,11 +1,17 @@
 <?xml version='1.0' encoding='utf-8'?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="right_robot_with_environment">
+<!--
+  Robot with gripper inside a cell (left or right). The file that includes it sets first:
+    cell_side        left / right: the environment of ur_workspace_description it stands in
+    cell_robot_yaw   rotation of the robot base around z (rad), written as in the URDF
+  and declares the argument robot_ip with the default address of the robot of that cell.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
    <!-- World Link -->
    <link name="world"/>
 
    <!-- Include environment components -->
-   <xacro:include filename="$(find ur_workspace_description)/urdf/right_robot_environment.urdf.xacro"/>
+   <xacro:include filename="$(find ur_workspace_description)/urdf/${cell_side}_robot_environment.urdf.xacro"/>
 
    <!-- Create robot description -->
    <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot_macro.xacro"/>
@@ -13,7 +19,6 @@
    <!-- Define parameters with defaults -->
    <xacro:arg name="ur_type" default="ur5e"/>
    <xacro:arg name="onrobot_type" default="2fg7"/>
-   <xacro:arg name="robot_ip" default="192.168.1.101"/>
    <xacro:arg name="use_fake_hardware" default="true"/>
    <xacro:arg name="tf_prefix" default=""/>
    
@@ -50,7 +55,7 @@
         include_gripper_ros2_control="$(arg include_gripper_ros2_control)"
         cable_connector="$(arg cable_connector)">
         <!-- Robot base at world origin (0,0,0) -->
-        <origin xyz="0 0 0" rpy="0 0 -1.570796327"/>
+        <origin xyz="0 0 0" rpy="0 0 ${cell_robot_yaw}"/>
    </xacro:ur_onrobot>
 
 </robot>

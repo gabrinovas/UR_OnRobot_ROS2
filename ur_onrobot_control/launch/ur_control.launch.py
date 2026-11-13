@@ -88,6 +88,21 @@ def launch_setup(context, *args, **kwargs):
     # NUEVO ARGUMENTO: controlar si se lanza robot_state_publisher
     launch_robot_state_publisher = LaunchConfiguration("launch_robot_state_publisher")
 
+    # The freedrive controller (hand guiding) is loaded only on request. ur_controllers::FreedriveModeController
+    # starts a logging thread when it is configured and stops it only on cleanup: when the node shuts down, its
+    # destructor blocks on that thread and the control node hangs (seen in about 1 of 3 stops). While it is
+    # loaded, the launch gives the control node freedrive_stop_timeout seconds to stop and then terminates it;
+    # by then the hardware has already been deactivated and shut down.
+    load_freedrive = (
+        LaunchConfiguration("load_freedrive_controller").perform(context).lower() == "true"
+        or initial_joint_controller.perform(context) == "freedrive_mode_controller"
+    )
+    # The value is resolved here: the launch evaluates this timeout when it stops, outside the scope of this file's
+    # arguments, where a LaunchConfiguration of them no longer exists.
+    control_node_stop = (
+        {"sigterm_timeout": LaunchConfiguration("freedrive_stop_timeout").perform(context)} if load_freedrive else {}
+    )
+
     joint_limit_params = PathJoinSubstitution(
         [FindPackageShare(description_package), "config", ur_type, "joint_limits.yaml"]
     )
@@ -243,6 +258,7 @@ def launch_setup(context, *args, **kwargs):
         ],
         output="screen",
         condition=IfCondition(use_fake_hardware),
+        **control_node_stop,
     )
 
     ur_control_node = Node(
@@ -255,6 +271,7 @@ def launch_setup(context, *args, **kwargs):
         ],
         output="screen",
         condition=UnlessCondition(use_fake_hardware),
+        **control_node_stop,
     )
 
     dashboard_client_node = Node(
@@ -393,6 +410,8 @@ def launch_setup(context, *args, **kwargs):
         "freedrive_mode_controller",
         "tool_contact_controller",
     ]
+    if not load_freedrive:
+        controllers_inactive.remove("freedrive_mode_controller")
     if activate_joint_controller.perform(context) == "true":
         controllers_active.append(initial_joint_controller.perform(context))
         controllers_inactive.remove(initial_joint_controller.perform(context))
@@ -706,6 +725,22 @@ def generate_launch_description():
             "launch_robot_state_publisher",
             default_value="true",
             description="Launch robot state publisher?"
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "load_freedrive_controller",
+            default_value="false",
+            description="Load the freedrive (hand guiding) controller. Off by default: while it is loaded the "
+            "control node may hang when it is stopped (see freedrive_stop_timeout).",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "freedrive_stop_timeout",
+            default_value="2",
+            description="Seconds the launch waits for the control node to stop before terminating it, used "
+            "only while the freedrive controller is loaded.",
         )
     )
     

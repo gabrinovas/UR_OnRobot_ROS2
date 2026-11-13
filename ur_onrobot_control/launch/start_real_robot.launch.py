@@ -4,47 +4,14 @@
 start_real_robot.launch.py - Launch unificado para robot físico (UR5e + OnRobot 2FG7/3FG15/VGC10)
 Soporta entornos basic, left y right con main_robot_state_publisher único y joint_state_merger reactivo.
 Compatible con ROS 2 Humble y Dockerfile.aimen.
+Declara los argumentos del robot físico e incluye el bringup común (ur_onrobot_bringup.launch.py).
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, GroupAction
-from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command, PythonExpression
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.substitutions import FindPackageShare
-from launch_ros.actions import Node
-
-
-def configure_real_robot(context):
-    sim_env = LaunchConfiguration('sim_env').perform(context)
-    ur_type = LaunchConfiguration('ur_type').perform(context)
-    onrobot_type = LaunchConfiguration('onrobot_type').perform(context)
-    robot_ip = LaunchConfiguration('robot_ip').perform(context)
-    launch_rviz_val = LaunchConfiguration('launch_rviz').perform(context)
-
-    print(f"\n🤖 CONFIGURANDO ROBOT REAL (ROS 2 Humble / Dockerfile.aimen)")
-    print(f"   - Entorno de trabajo: {sim_env}")
-    print(f"   - Robot UR:           {ur_type} (IP: {robot_ip})")
-    print(f"   - Gripper OnRobot:    {onrobot_type}")
-    print(f"   - Launch RViz:        {launch_rviz_val}")
-
-    # Selección dinámica del URDF combinado con entorno
-    description_package = 'ur_onrobot_description'
-    if sim_env == 'left':
-        description_file = 'left_robot_with_environment.urdf.xacro'
-        print(f"   - URDF: Entorno LEFT ({description_package}/{description_file})")
-    elif sim_env == 'right':
-        description_file = 'right_robot_with_environment.urdf.xacro'
-        print(f"   - URDF: Entorno RIGHT ({description_package}/{description_file})")
-    else:  # 'basic' por defecto
-        description_file = 'ur_onrobot.urdf.xacro'
-        print(f"   - URDF: Básico sin entorno adicional ({description_package}/{description_file})")
-
-    return [
-        SetLaunchConfiguration('description_package', description_package),
-        SetLaunchConfiguration('description_file', description_file),
-        SetLaunchConfiguration('real_launch_rviz', launch_rviz_val),
-    ]
 
 
 def generate_launch_description():
@@ -69,135 +36,35 @@ def generate_launch_description():
                               description='false para robot físico real'),
         DeclareLaunchArgument('tf_prefix', default_value='',
                               description='Prefijo TF para el robot'),
+        DeclareLaunchArgument('load_freedrive_controller', default_value='false',
+                              description='Cargar el controlador de guiado a mano (freedrive) del UR. Desactivado por '
+                                          'defecto: mientras está cargado, el nodo de control puede colgarse al parar'),
         # Parámetros internos resueltos dinámicamente
         DeclareLaunchArgument('description_package', default_value='ur_onrobot_description'),
         DeclareLaunchArgument('description_file', default_value='ur_onrobot.urdf.xacro'),
     ]
 
-    config_action = OpaqueFunction(function=configure_real_robot)
-
-    # Robot description combinado mediante xacro para hardware real
-    robot_description_content = Command([
-        'xacro ', PathJoinSubstitution([
-            FindPackageShare(LaunchConfiguration('description_package')),
-            'urdf',
-            LaunchConfiguration('description_file')
-        ]),
-        ' ur_type:=', LaunchConfiguration('ur_type'),
-        ' robot_ip:=', LaunchConfiguration('robot_ip'),
-        ' onrobot_type:=', LaunchConfiguration('onrobot_type'),
-        ' use_fake_hardware:=false',
-        ' tf_prefix:=', LaunchConfiguration('tf_prefix')
-    ])
-
-    robot_description = {"robot_description": robot_description_content}
-
-    # ====== MAIN ROBOT STATE PUBLISHER ======
-    # Publica la cinemática completa del robot + entorno + pinza a partir de /merged_joint_states
-    main_robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='main_robot_state_publisher',
-        output='both',
-        parameters=[robot_description],
-        remappings=[('/joint_states', '/merged_joint_states')]
-    )
-
-    # ====== JOINT STATE MERGER (Zero-Latency) ======
-    joint_state_merger = Node(
-        package='ur_onrobot_control',
-        executable='joint_state_merger.py',
-        name='joint_state_merger',
-        output='screen',
-        parameters=[{
-            'sim_env': LaunchConfiguration('sim_env'),
-            'tf_prefix': LaunchConfiguration('tf_prefix')
-        }]
-    )
-
-    # ====== SELECTOR DE CONFIGURACIÓN DE CONTROLADORES ======
-    controllers_config_file = PythonExpression([
-        "'right_scaled_controller.yaml' if '", LaunchConfiguration('sim_env'), "' == 'right' else ",
-        "'left_scaled_controller.yaml' if '", LaunchConfiguration('sim_env'), "' == 'left' else ",
-        "'base_env_controllers.yaml'"
-    ])
-
-    # ====== DRIVER UR FÍSICO ======
-    ur_launch = IncludeLaunchDescription(
+    bringup = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'launch',
-                'ur_control.launch.py'
-            ])
+            PathJoinSubstitution([FindPackageShare('ur_onrobot_control'), 'launch', 'ur_onrobot_bringup.launch.py'])
         ]),
         launch_arguments={
-            'ur_type': LaunchConfiguration('ur_type'),
-            'robot_ip': LaunchConfiguration('robot_ip'),
             'use_fake_hardware': 'false',
-            'launch_rviz': 'false',
-            'headless_mode': 'true',
-            'launch_robot_state_publisher': 'false',
+            'robot_ip': LaunchConfiguration('robot_ip'),
+            'ur_type': LaunchConfiguration('ur_type'),
+            'onrobot_type': LaunchConfiguration('onrobot_type'),
+            'launch_onrobot': LaunchConfiguration('launch_onrobot'),
+            'sim_env': LaunchConfiguration('sim_env'),
+            'launch_rviz': LaunchConfiguration('launch_rviz'),
+            'rviz_config': LaunchConfiguration('rviz_config'),
             'tf_prefix': LaunchConfiguration('tf_prefix'),
-            'runtime_config_package': 'ur_onrobot_control',
-            'controllers_file': controllers_config_file,
-            # Gripper runs in its own controller manager (/onrobot) when launch_onrobot is true:
-            # keep it out of the UR controller manager so a gripper failure cannot kill the UR driver.
-            'include_gripper_ros2_control': PythonExpression(
-                ["'false' if '", LaunchConfiguration('launch_onrobot'), "'.lower() == 'true' else 'true'"]),
+            # Valores que este lanzador nunca ha expuesto: los de por defecto de los drivers
+            'launch_watchdog': 'false',
+            'initial_joint_controller': 'scaled_joint_trajectory_controller',
+            'controller_spawner_timeout': '10',
+            'use_gripper_action_controller': 'true',
+            'load_freedrive_controller': LaunchConfiguration('load_freedrive_controller'),
         }.items()
     )
 
-    # ====== DRIVER ONROBOT FÍSICO ======
-    onrobot_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('onrobot_driver'),
-                'launch',
-                'onrobot_control.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'onrobot_type': LaunchConfiguration('onrobot_type'),
-            'use_fake_hardware': 'false',
-            'launch_rviz': 'false',
-            'launch_rsp': 'false',
-            'tf_prefix': LaunchConfiguration('tf_prefix'),
-        }.items(),
-        condition=IfCondition(LaunchConfiguration('launch_onrobot'))
-    )
-
-    # ====== DRIVER UR FÍSICO (GroupAction para aislar configuraciones) ======
-    ur_launch_group = GroupAction([ur_launch])
-
-    # ====== DRIVER ONROBOT FÍSICO (GroupAction para aislar configuraciones) ======
-    onrobot_launch_group = GroupAction(
-        [onrobot_launch],
-        condition=IfCondition(LaunchConfiguration('launch_onrobot'))
-    )
-
-    # ====== RVIZ2 CENTRALIZADO ======
-    rviz_config_path = PathJoinSubstitution([
-        FindPackageShare('ur_onrobot_description'),
-        'rviz',
-        LaunchConfiguration('rviz_config')
-    ])
-
-    rviz_node = Node(
-        package='rviz2',
-        executable='rviz2',
-        name='rviz2',
-        output='screen',
-        arguments=['-d', rviz_config_path],
-        condition=IfCondition(LaunchConfiguration('real_launch_rviz'))
-    )
-
-    return LaunchDescription([
-        *declared_arguments,
-        config_action,
-        joint_state_merger,
-        main_robot_state_publisher,
-        ur_launch_group,
-        onrobot_launch_group,
-        rviz_node
-    ])
+    return LaunchDescription([*declared_arguments, bringup])

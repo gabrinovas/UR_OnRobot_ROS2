@@ -1,0 +1,216 @@
+<?xml version="1.0"?>
+<!--
+  Cell environment (tables, conveyor and safety barriers) shared by the left and right cells. The file that
+  includes it sets these properties first:
+    cell_with_world_link      true: the file also creates the world link (environment viewed without the robot)
+    cell_table_xyz, cell_conveyor_xyz, cell_table_2_xyz    position of each piece in the world
+    cell_first_barrier, cell_second_barrier                side name (left / right) of the two narrow barriers
+    cell_second_barrier_xyz, cell_back_barrier_xyz, cell_front_barrier_xyz, cell_top_barrier_xyz
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Materials -->
+  <xacro:include filename="$(find ur_workspace_description)/meshes/materials/materials.xacro" />
+
+  <xacro:if value="${cell_with_world_link}">
+    <!-- World Link -->
+    <link name="world"/>
+  </xacro:if>
+
+  <!-- Main Table (First Table) -->
+  <link name="table_top">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/table.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_light_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.7 0.75"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="world_to_table" type="fixed">
+    <parent link="world"/>
+    <child link="table_top"/>
+    <!-- Rotated 90 degrees around Z-axis like in reference file -->
+    <origin xyz="${cell_table_xyz}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Conveyor Belt -->
+  <link name="conveyor_belt">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/conveyor.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_dark_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="2.05 0.825 0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="world_to_conveyor" type="fixed">
+    <parent link="world"/>
+    <child link="conveyor_belt"/>
+    <!-- Conveyor rotated 90 degrees and positioned between tables -->
+    <origin xyz="${cell_conveyor_xyz}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Second Table -->
+  <link name="table_top_2">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/table.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_light_gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.7 0.75"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="world_to_table_2" type="fixed">
+    <parent link="world"/>
+    <child link="table_top_2"/>
+    <!-- Second table positioned on the other side of conveyor with 90-degree rotation -->
+    <origin xyz="${cell_table_2_xyz}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Safety Barriers - Adjusted positions for 90-degree rotated tables -->
+  <!-- Left Barrier (formerly Back Barrier) -->
+  <link name="safety_barrier_${cell_first_barrier}">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="1.2 0.05 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_${cell_first_barrier}" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_${cell_first_barrier}"/>
+    <origin xyz="0 1.55 0.75" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Right Barrier (formerly Front Barrier) -->
+  <link name="safety_barrier_${cell_second_barrier}">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/narrow_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="1.2 0.05 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_${cell_second_barrier}" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_${cell_second_barrier}"/>
+    <origin xyz="${cell_second_barrier_xyz}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Back Barrier (formerly Right Barrier) -->
+  <link name="safety_barrier_back">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="0.05 0.7 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_back" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_back"/>
+    <origin xyz="${cell_back_barrier_xyz}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Front Barrier (formerly Left Barrier) -->
+  <link name="safety_barrier_front">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/wide_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.4" rpy="0 0 1.5708"/>
+      <geometry>
+        <box size="0.05 0.7 0.8"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_front" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_front"/>
+    <origin xyz="${cell_front_barrier_xyz}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Top Barrier -->
+  <link name="safety_barrier_top">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Scale down from mm to m -->
+        <mesh filename="package://ur_workspace_description/meshes/environment/top_safety_barrier.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="workspace_safety_yellow"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.7 1.2 0.01"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="table_to_barrier_top" type="fixed">
+    <parent link="table_top"/>
+    <child link="safety_barrier_top"/>
+    <origin xyz="${cell_top_barrier_xyz}" rpy="0 0 0"/>
+  </joint>
+
+</robot>

@@ -49,7 +49,7 @@ install(
 )
 
 install(
-  DIRECTORY launch urdf config scripts
+  DIRECTORY launch config scripts
   DESTINATION share/${PROJECT_NAME}
 )
 

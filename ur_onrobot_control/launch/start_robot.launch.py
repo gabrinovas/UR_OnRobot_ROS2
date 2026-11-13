@@ -166,6 +166,9 @@ def generate_launch_description():
                             description='Entorno: basic, left, right'),
         DeclareLaunchArgument('environment', default_value='',
                             description='Alias de sim_env (basic, left, right)'),
+        DeclareLaunchArgument('load_freedrive_controller', default_value='false',
+                            description='Cargar el controlador de guiado a mano (freedrive) del UR. Desactivado por '
+                                        'defecto: mientras está cargado, el nodo de control puede colgarse al parar'),
     ]
 
     # Selector TUI / Headless
@@ -187,6 +190,7 @@ def generate_launch_description():
             'launch_rviz': LaunchConfiguration('launch_rviz'),
             'rviz_config': LaunchConfiguration('rviz_config'),
             'sim_env': LaunchConfiguration('sim_env'),
+            'load_freedrive_controller': LaunchConfiguration('load_freedrive_controller'),
         }.items()
     )
     simulation_group = GroupAction(
@@ -211,6 +215,7 @@ def generate_launch_description():
             'launch_rviz': LaunchConfiguration('launch_rviz'),
             'sim_env': LaunchConfiguration('sim_env'),
             'use_fake_hardware': 'false',
+            'load_freedrive_controller': LaunchConfiguration('load_freedrive_controller'),
         }.items()
     )
     real_robot_group = GroupAction(
