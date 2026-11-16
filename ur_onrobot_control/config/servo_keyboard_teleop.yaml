@@ -1,0 +1,49 @@
+# Values of scripts/servo_keyboard_teleop.py: Cartesian jogging of the tool with MoveIt Servo from the keyboard.
+
+twist_topic: /servo_node/delta_twist_cmds
+start_servo_service: /servo_node/start_servo
+gripper_action: '/{namespace}/{controller}/gripper_cmd'   # action of the gripper driver
+queue_depth: 10
+
+linear_speed: 0.15            # m/s at start
+angular_speed: 0.40           # rad/s
+linear_speed_step: 0.05       # change of the linear speed per key press
+linear_speed_range: [0.02, 0.6]
+gripper_max_effort: 40.0      # effort of the open and close commands (N for fingers, % for vacuum)
+
+frames: {'1': base_link, '2': gripper_tcp}   # key: frame the motion is expressed in
+start_frame: base_link
+
+key_wait_s: 0.05              # how long a key is waited for; no key in that time stops the motion
+service_wait_s: 1.0           # wait for the servo start service
+action_wait_s: 0.5            # wait for the gripper action
+
+# key: [linear x, linear y, linear z, angular x, angular y, angular z], each -1, 0 or 1 times the speed
+motion_keys:
+  w: [1, 0, 0, 0, 0, 0]
+  s: [-1, 0, 0, 0, 0, 0]
+  a: [0, 1, 0, 0, 0, 0]
+  d: [0, -1, 0, 0, 0, 0]
+  r: [0, 0, 1, 0, 0, 0]
+  f: [0, 0, -1, 0, 0, 0]
+  u: [0, 0, 0, 1, 0, 0]
+  o: [0, 0, 0, -1, 0, 0]
+  i: [0, 0, 0, 0, 1, 0]
+  k: [0, 0, 0, 0, -1, 0]
+  j: [0, 0, 0, 0, 0, 1]
+  l: [0, 0, 0, 0, 0, -1]
+faster_keys: ['+', '=']
+slower_keys: ['-', '_']
+close_key: ' '
+open_key: b
+quit_keys: [q, "\x03"]
+
+help: |
+  Cartesian jogging with MoveIt Servo
+
+    Linear:  w/s +x/-x   a/d +y/-y   r/f +z/-z
+    Angular: u/o +roll/-roll   i/k +pitch/-pitch   j/l +yaw/-yaw
+    Gripper: space closes (or starts the vacuum), b opens (or releases)
+    Frame:   1 base_link, 2 gripper_tcp
+    Speed:   + faster, - slower
+    q or Ctrl+C quits

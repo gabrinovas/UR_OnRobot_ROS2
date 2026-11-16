@@ -1,48 +1,48 @@
-import os
+# Copyright 2026 Tony Le, Gabriel Novas
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
+"""Start a simulated cell with the watchdog and check what it publishes."""
+
 import time
 import unittest
-import pytest
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import JointState
+
 from diagnostic_msgs.msg import DiagnosticArray
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import PathJoinSubstitution
 import launch_testing
 import launch_testing.actions
 import launch_testing.markers
+from onrobot_description.config_loader import package_file
+import pytest
+import rclpy
+from sensor_msgs.msg import JointState
+
+WAIT_S = 30.0
 
 
 @pytest.mark.launch_test
 @launch_testing.markers.keep_alive
 def generate_test_description():
-    sim_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'launch',
-                'start_simulation.launch.py'
-            ])
-        ]),
+    bringup = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            package_file('ur_onrobot_control', 'launch', 'ur_onrobot_bringup.launch.py')),
         launch_arguments={
+            'use_fake_hardware': 'true',
             'ur_type': 'ur5e',
             'onrobot_type': '2fg7',
-            'sim_env': 'basic',
+            'cell': 'basic',
             'launch_rviz': 'false',
             'launch_watchdog': 'true',
-        }.items()
-    )
-
-    return LaunchDescription([
-        sim_launch,
-        launch_testing.actions.ReadyToTest()
-    ])
+        }.items())
+    return LaunchDescription([bringup, launch_testing.actions.ReadyToTest()])
 
 
 class TestCellBringup(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         rclpy.init()
@@ -57,71 +57,31 @@ class TestCellBringup(unittest.TestCase):
     def tearDown(self):
         self.node.destroy_node()
 
-    def test_merged_joint_states_published(self):
-        """Verifica que el tópico unificado de articulaciones publica estados de robot y efector."""
-        received_msgs = []
-
-        sub = self.node.create_subscription(
-            JointState,
-            '/merged_joint_states',
-            lambda msg: received_msgs.append(msg),
-            10
-        )
-
-        start_time = time.time()
-        timeout = 30.0
-        found_ur = False
-        found_gripper = False
-        while (time.time() - start_time) < timeout:
+    def collect(self, message_type, topic, done):
+        """Spin until done(messages) is true or the wait ends; return the messages received."""
+        messages = []
+        subscription = self.node.create_subscription(message_type, topic, messages.append, 10)
+        deadline = time.time() + WAIT_S
+        while time.time() < deadline and not done(messages):
             rclpy.spin_once(self.node, timeout_sec=0.2)
-            if received_msgs:
-                latest = received_msgs[-1]
-                if any('shoulder_pan_joint' in name for name in latest.name):
-                    found_ur = True
-                if any('finger_width' in name for name in latest.name):
-                    found_gripper = True
-                if found_ur and found_gripper:
-                    break
+        self.node.destroy_subscription(subscription)
+        return messages
 
-        self.node.destroy_subscription(sub)
+    def test_the_merged_joint_states_hold_the_arm_and_the_gripper(self):
+        def complete(messages):
+            expected = {'shoulder_pan_joint', 'finger_width'}
+            return bool(messages) and expected <= set(messages[-1].name)
 
-        self.assertGreaterEqual(len(received_msgs), 1,
-                                "No se recibieron mensajes en /merged_joint_states")
-        self.assertTrue(found_ur,
-                        "Falta shoulder_pan_joint en /merged_joint_states")
-        self.assertTrue(found_gripper,
-                        "Falta finger_width en /merged_joint_states")
+        messages = self.collect(JointState, '/merged_joint_states', complete)
+        self.assertTrue(messages, 'No message on /merged_joint_states')
+        self.assertTrue(complete(messages), f'Joints received: {messages[-1].name}')
 
-    def test_watchdog_diagnostics_published(self):
-        """Verifica que el supervisor de seguridad publica diagnósticos nominales."""
-        diag_msgs = []
+    def test_the_watchdog_reports_a_normal_state(self):
+        def watchdog_statuses(messages):
+            return [status for array in messages for status in array.status
+                    if 'Safety & Interlock Monitor' in status.name]
 
-        sub = self.node.create_subscription(
-            DiagnosticArray,
-            '/diagnostics',
-            lambda msg: diag_msgs.append(msg),
-            10
-        )
-
-        start_time = time.time()
-        timeout = 25.0
-        watchdog_found = False
-        while (time.time() - start_time) < timeout:
-            rclpy.spin_once(self.node, timeout_sec=0.2)
-            for arr in diag_msgs:
-                for status in arr.status:
-                    if 'Safety & Interlock Monitor' in status.name or 'UR Safety Watchdog' in status.hardware_id:
-                        watchdog_found = True
-                        self.assertEqual(ord(status.level), 0,
-                                         f"Nivel esperado OK(0), recibido {status.level}")
-                        break
-                if watchdog_found:
-                    break
-            if watchdog_found:
-                break
-
-        self.node.destroy_subscription(sub)
-
-        self.assertGreaterEqual(len(diag_msgs), 1, "No se recibieron mensajes en /diagnostics")
-        self.assertTrue(watchdog_found,
-                        "No se encontró el estado de UR Safety Watchdog en /diagnostics")
+        messages = self.collect(DiagnosticArray, '/diagnostics', watchdog_statuses)
+        statuses = watchdog_statuses(messages)
+        self.assertTrue(statuses, 'The watchdog published no diagnostics')
+        self.assertEqual(ord(statuses[-1].level), 0, statuses[-1].message)

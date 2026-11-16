@@ -1,125 +1,87 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# Copyright 2026 Tony Le, Gabriel Novas
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
 """
-joint_state_merger.py - Combina de forma reactiva y con cero latencia los estados articulares
-del brazo UR (/joint_states) y del efector OnRobot (/onrobot/joint_states) en /merged_joint_states.
+Merge the joint states of the arm and of the gripper into one topic.
+
+The gripper runs in a controller manager of its own, so its joints arrive on another topic. Every
+message of the arm is republished at once with the last state of the gripper added, so the merged
+topic has the rate and the time stamps of the arm.
 """
 
 import threading
+
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
+from ur_onrobot_control.node_parameters import INTEGER, required, STRING, STRING_ARRAY
 
 
 class JointStateMerger(Node):
-    UR_BASE_JOINTS = {
-        'shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint',
-        'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint'
-    }
 
     def __init__(self):
         super().__init__('joint_state_merger')
+        prefix = required(self, 'tf_prefix', STRING)
+        self.arm_joints = {prefix + joint for joint in required(self, 'arm_joints', STRING_ARRAY)}
+        self.minimum_step_ns = required(self, 'minimum_stamp_step_ns', INTEGER)
+        depth = required(self, 'queue_depth', INTEGER)
 
-        # Parámetros opcionales
-        self.declare_parameter('tf_prefix', '')
-        self.declare_parameter('sim_env', 'basic')
-        self.tf_prefix = self.get_parameter('tf_prefix').get_parameter_value().string_value
-
-        # Subscriptores
-        self.ur_sub = self.create_subscription(
-            JointState,
-            '/joint_states',
-            self.ur_callback,
-            10
-        )
-
-        self.gripper_sub = self.create_subscription(
-            JointState,
-            '/onrobot/joint_states',
-            self.gripper_callback,
-            10
-        )
-
-        # Publicador
-        self.merged_pub = self.create_publisher(
-            JointState,
-            '/merged_joint_states',
-            10
-        )
-
-        # Variables para almacenar estados con protección de hilos
-        self.ur_joint_state = None
-        self.gripper_joint_state = None
-        self.last_stamp_sec = 0
-        self.last_stamp_nanosec = 0
         self.lock = threading.Lock()
+        self.arm_state = None
+        self.gripper_state = None
+        self.last_stamp_ns = 0
+        self.publisher = self.create_publisher(
+            JointState, required(self, 'merged_topic', STRING), depth)
+        self.create_subscription(
+            JointState, required(self, 'arm_topic', STRING), self.on_arm_state, depth)
+        self.create_subscription(
+            JointState, required(self, 'gripper_topic', STRING), self.on_gripper_state, depth)
+        self.get_logger().info(f"Joint state merger started (tf_prefix='{prefix}')")
 
-        self.get_logger().info(
-            f"Joint State Merger reactivo iniciado (Zero-Latency) - tf_prefix='{self.tf_prefix}'"
-        )
-
-    def ur_callback(self, msg: JointState):
+    def on_arm_state(self, msg):
+        """Keep the joints of the arm and publish the merged state."""
         with self.lock:
-            # Filtrar: tomar solo joints del brazo UR
-            filtered_msg = JointState()
-            filtered_msg.header = msg.header
+            arm = JointState()
+            arm.header = msg.header
+            for index, name in enumerate(msg.name):
+                if name not in self.arm_joints:
+                    continue
+                arm.name.append(name)
+                arm.position.append(msg.position[index] if index < len(msg.position) else 0.0)
+                arm.velocity.append(msg.velocity[index] if index < len(msg.velocity) else 0.0)
+                arm.effort.append(msg.effort[index] if index < len(msg.effort) else 0.0)
+            self.arm_state = arm
+            self.publish_merged(msg.header.stamp)
 
-            for i, name in enumerate(msg.name):
-                # Comprobar si corresponde a una articulación del UR
-                is_ur_joint = any(name.endswith(base_j) for base_j in self.UR_BASE_JOINTS)
-                if is_ur_joint:
-                    filtered_msg.name.append(name)
-                    filtered_msg.position.append(msg.position[i] if i < len(msg.position) else 0.0)
-                    filtered_msg.velocity.append(msg.velocity[i] if i < len(msg.velocity) else 0.0)
-                    filtered_msg.effort.append(msg.effort[i] if i < len(msg.effort) else 0.0)
-
-            self.ur_joint_state = filtered_msg
-            self._publish_merged_locked(msg.header.stamp)
-
-    def gripper_callback(self, msg: JointState):
+    def on_gripper_state(self, msg):
+        """Keep the state of the gripper; publish it alone while the arm has not reported yet."""
         with self.lock:
-            self.gripper_joint_state = msg
-            # Solo publicamos directamente si el UR aún no está activo (ej. pruebas aisladas del gripper)
-            # Cuando el UR está activo a 500 Hz, ur_callback publica de forma síncrona y con sellos limpios
-            if self.ur_joint_state is None:
-                self._publish_merged_locked(msg.header.stamp)
+            self.gripper_state = msg
+            if self.arm_state is None:
+                self.publish_merged(msg.header.stamp)
 
-    def _publish_merged_locked(self, stamp):
-        """Publica el mensaje combinado de forma inmediata. Debe llamarse con self.lock adquirido."""
-        if self.ur_joint_state is None and self.gripper_joint_state is None:
-            return
-
-        merged_msg = JointState()
-
-        # Garantizar monotonía estricta en los sellos temporales para evitar TF_OLD_DATA y parpadeos
-        current_time_ns = stamp.sec * 1_000_000_000 + stamp.nanosec
-        last_time_ns = self.last_stamp_sec * 1_000_000_000 + self.last_stamp_nanosec
-        if current_time_ns <= last_time_ns:
-            current_time_ns = last_time_ns + 1000  # avanzar 1 microsegundo
-            merged_msg.header.stamp.sec = int(current_time_ns // 1_000_000_000)
-            merged_msg.header.stamp.nanosec = int(current_time_ns % 1_000_000_000)
-        else:
-            merged_msg.header.stamp = stamp
-
-        self.last_stamp_sec = merged_msg.header.stamp.sec
-        self.last_stamp_nanosec = merged_msg.header.stamp.nanosec
-
-        # 1. Articulaciones del brazo UR
-        if self.ur_joint_state:
-            merged_msg.name.extend(self.ur_joint_state.name)
-            merged_msg.position.extend(self.ur_joint_state.position)
-            merged_msg.velocity.extend(self.ur_joint_state.velocity)
-            merged_msg.effort.extend(self.ur_joint_state.effort)
-
-        # 2. Articulaciones del gripper OnRobot (2FG7, 3FG15, VGC10)
-        if self.gripper_joint_state:
-            merged_msg.name.extend(self.gripper_joint_state.name)
-            merged_msg.position.extend(self.gripper_joint_state.position)
-            merged_msg.velocity.extend(self.gripper_joint_state.velocity)
-            merged_msg.effort.extend(self.gripper_joint_state.effort)
-
-        self.merged_pub.publish(merged_msg)
+    def publish_merged(self, stamp):
+        """Publish arm and gripper together. Called with the lock held."""
+        merged = JointState()
+        # Stamps never go back or repeat: TF would drop the message otherwise.
+        stamp_ns = stamp.sec * 1_000_000_000 + stamp.nanosec
+        if stamp_ns <= self.last_stamp_ns:
+            stamp_ns = self.last_stamp_ns + self.minimum_step_ns
+        self.last_stamp_ns = stamp_ns
+        merged.header.stamp.sec = int(stamp_ns // 1_000_000_000)
+        merged.header.stamp.nanosec = int(stamp_ns % 1_000_000_000)
+        for state in (self.arm_state, self.gripper_state):
+            if state is not None:
+                merged.name.extend(state.name)
+                merged.position.extend(state.position)
+                merged.velocity.extend(state.velocity)
+                merged.effort.extend(state.effort)
+        self.publisher.publish(merged)
 
 
 def main():
@@ -129,9 +91,13 @@ def main():
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):  # a stop signal raises either
         pass
+    except RuntimeError:
+        # rclpy can fail to take a last message while the stop signal shuts it down
+        if rclpy.ok():
+            raise
     finally:
         node.destroy_node()
-        if rclpy.ok():  # a SIGINT already shut rclpy down: shutting it down again raises an RCLError
+        if rclpy.ok():  # a SIGINT already shut rclpy down: shutting down again is an error
             rclpy.shutdown()
 
 

@@ -1,0 +1,32 @@
+# Values of the ur_onrobot_description package. Launch arguments given on the command line override the ones
+# under view_launch_arguments.
+
+description:
+  file: urdf/ur_onrobot.urdf.xacro      # relative to this package
+  # Files of other packages the description needs, each as package and path inside it. {ur_type} is replaced
+  # by the model of the robot.
+  joint_limits: {package: ur_description, file: 'config/{ur_type}/joint_limits.yaml'}
+  kinematics: {package: ur_description, file: 'config/{ur_type}/default_kinematics.yaml'}
+  physical_parameters: {package: ur_description, file: 'config/{ur_type}/physical_parameters.yaml'}
+  visual_parameters: {package: ur_description, file: 'config/{ur_type}/visual_parameters.yaml'}
+  input_recipe: {package: ur_robot_driver, file: resources/rtde_input_recipe.txt}
+  output_recipe: {package: ur_robot_driver, file: resources/rtde_output_recipe.txt}
+
+view_launch_arguments:                  # arguments of launch/view_robot.launch.py
+  ur_type:
+    default: ur5e
+    description: Model of the UR robot (a folder of ur_description/config).
+  onrobot_type:
+    default: 2fg7
+    description: OnRobot gripper on the flange.
+  cell:
+    default: basic
+    description: Cell the robot stands in.
+  tf_prefix:
+    default: ''
+    description: Prefix of the link and joint names (for setups with several robots).
+
+view:
+  rviz_config: rviz/view_robot.rviz     # relative to this package
+  use_fake_hardware: true               # the description shown is the simulated one
+  include_gripper_ros2_control: true    # with the gripper hardware in the same description

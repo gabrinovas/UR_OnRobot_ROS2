@@ -1,0 +1,89 @@
+# Values of launch/ur_onrobot_bringup.launch.py: the whole cell (arm, gripper, joint state merger, robot state
+# publisher, safety watchdog and RViz), simulated or real. A value given on the command line overrides the
+# default of its argument.
+
+launch_arguments:
+  use_fake_hardware:
+    default: true
+    description: 'true: simulated arm and gripper. false: the real robot.'
+    choices: ['true', 'false']
+  cell:
+    default: basic
+    description: Cell the robot stands in (a file of ur_workspace_description/config/cells).
+  ur_type:
+    default: ur5e
+    description: Model of the UR robot.
+  onrobot_type:
+    default: 2fg7
+    description: OnRobot gripper on the flange.
+  robot_ip:
+    default: ''
+    description: >-
+      Address of the real robot. Empty chooses among the addresses the robot addresses file lists for the
+      cell: the one that answers on the network, else the default of the cell.
+  tf_prefix:
+    default: ''
+    description: Prefix of the joint names, for setups with several robots.
+  launch_onrobot:
+    default: true
+    description: >-
+      Run the gripper in a controller manager of its own (/onrobot). false loads its hardware into the
+      controller manager of the arm.
+    choices: ['true', 'false']
+  launch_rviz:
+    default: true
+    description: Start RViz.
+    choices: ['true', 'false']
+  rviz_config:
+    default: view_robot.rviz
+    description: RViz layout, a file of ur_onrobot_description/rviz.
+  launch_watchdog:
+    default: false
+    description: Start the safety watchdog.
+    choices: ['true', 'false']
+  initial_joint_controller:
+    default: scaled_joint_trajectory_controller
+    description: Controller that moves the arm at start (simulation; the real robot uses the one of its mode).
+  controller_spawner_timeout:
+    default: 25
+    description: Seconds the spawners wait for the controller manager (simulation).
+  load_freedrive_controller:
+    default: false
+    description: >-
+      Load the freedrive (hand guiding) controller. Off by default: while it is loaded the control node can
+      hang when it is stopped.
+    choices: ['true', 'false']
+
+# What differs between the two ways of running the cell and is not a launch argument.
+# Values fixed by the way the cell is run: each replaces the launch argument of the same name.
+modes:
+  simulation: {}                         # the simulation takes every value from its launch argument
+  real:
+    initial_joint_controller: scaled_joint_trajectory_controller
+    controller_spawner_timeout: 10
+
+ur_driver:                               # how the driver of the arm is started inside the cell
+  launch_rviz: false                     # RViz is started here, once for the whole cell
+  headless_mode: false                   # the robot program is started from the pendant, as the hardware expects
+  launch_robot_state_publisher: false    # the cell has a single robot_state_publisher, below
+
+gripper_driver:                          # how the driver of the gripper is started inside the cell
+  launch_rviz: false
+  launch_rsp: false
+  use_gripper_action_controller: true
+
+joint_states:
+  merged_topic: /merged_joint_states     # arm and gripper together; what the robot_state_publisher reads
+  arm_topic: /joint_states
+merger_config: config/joint_state_merger.yaml   # relative to this package
+
+rviz_config_directory: {package: ur_onrobot_description, directory: rviz}
+
+# launch/start_robot.launch.py: the bringup above, preceded by a terminal window to choose its values.
+selector_launch_arguments:
+  interactive:
+    default: true
+    description: >-
+      Ask in a terminal window how to launch the cell. Without a terminal, or when false, the launch
+      arguments are used as given.
+    choices: ['true', 'false']

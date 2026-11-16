@@ -1,10 +1,44 @@
-ur_onrobot_safety_watchdog:
-  ros__parameters:
-    safety_mode_topic: "/io_and_status_controller/safety_mode"
-    robot_mode_topic: "/io_and_status_controller/robot_mode"
-    joint_states_topic: "/merged_joint_states"
-    onrobot_type: "2fg7"
-    gripper_action_topic: ""
-    auto_recover: false
-    fail_safe_effort: 140.0
-    diagnostic_period: 1.0
+# Values of the safety watchdog (launch/ur_onrobot_watchdog.launch.py and the ur_onrobot_safety_watchdog node).
+# The node has no value of its own: the launch file gives it everything below and what depends on the gripper.
+
+launch_arguments:
+  onrobot_type:
+    default: 2fg7
+    description: OnRobot gripper on the flange.
+  tf_prefix:
+    default: ''
+    description: Prefix of the joint names.
+  auto_recover:
+    default: false
+    description: Re-arm by itself when the robot goes back to its normal safety mode.
+    choices: ['true', 'false']
+  safety_mode_topic:
+    default: /io_and_status_controller/safety_mode
+    description: Topic with the safety mode of the UR robot.
+  robot_mode_topic:
+    default: /io_and_status_controller/robot_mode
+    description: Topic with the robot mode of the UR robot.
+  joint_states_topic:
+    default: /merged_joint_states
+    description: Topic with the joint states of the arm and the gripper.
+
+# What the gripper is told to do when the robot makes a protective stop, by kind of gripper.
+holds:
+  finger:
+    hold_current_position: true     # keep the fingers where they are
+    hold_position: 0.0              # not used while hold_current_position is true
+    hold_max_effort: 140.0          # N
+  vacuum:
+    hold_current_position: false
+    hold_position: 1.0              # full vacuum
+    hold_max_effort: 80.0           # %
+
+gripper_action: '/{namespace}/{controller}/gripper_cmd'   # action the hold is sent to
+reset_power_service: '/{namespace}/reset_power'           # tool power reset of the gripper driver
+
+node:                               # parameters of the node that do not depend on the gripper
+  diagnostic_period_s: 1.0
+  queue_depth: 10
+  action_server_wait_s: 0.5         # wait for the gripper action before giving up the hold
+  reset_service_wait_s: 1.0         # wait for the power reset service during a recovery
+  telemetry_warning_age_s: 3.0      # joint states older than this: warning

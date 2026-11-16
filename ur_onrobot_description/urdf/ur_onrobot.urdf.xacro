@@ -1,33 +1,26 @@
 <?xml version="1.0"?>
-<robot name="ur_onrobot" xmlns:xacro="http://ros.org/wiki/xacro">
-    <!-- Arguments -->
-    <xacro:arg name="robot_ip" default="192.168.1.105"/>
-    <xacro:arg name="ur_type" default="ur5e"/>
-    <xacro:arg name="onrobot_type" default="2fg7"/>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="$(arg name)">
+
+    <!-- A UR arm with an OnRobot gripper standing in a cell. The cell (config/cells/<cell>.yaml of
+         ur_workspace_description) gives the furniture around the robot, if any, and how the robot base is
+         turned. Every argument but tf_prefix and ip_address is required; the launch files build the whole
+         command with ur_onrobot_description.description_command, from configuration files. ip_address is the
+         Compute Box of the gripper, needed only by a real gripper over tcp. -->
     <xacro:arg name="tf_prefix" default=""/>
-    <xacro:arg name="name" default="ur_onrobot"/>
-    <xacro:arg name="use_fake_hardware" default="false"/>
-    <xacro:arg name="joint_limits_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
-    <xacro:arg name="kinematics_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
-    <xacro:arg name="physical_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
-    <xacro:arg name="visual_parameters_file" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
-    <xacro:arg name="script_filename" default="$(find ur_client_library)/resources/external_control.urscript"/>
-    <xacro:arg name="input_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_input_recipe.txt"/>
-    <xacro:arg name="output_recipe_filename" default="$(find ur_robot_driver)/resources/rtde_output_recipe.txt"/>
-    
-    <!-- MODBUS parameters -->
-    <xacro:arg name="connection_type" default="tcp"/>
-    <xacro:arg name="ip_address" default="192.168.1.1"/>
-    <xacro:arg name="port" default="502"/>
-    <xacro:arg name="device_address" default="65"/>
-    <!-- false: gripper ros2_control lives only in its own controller manager (/onrobot) -->
-    <xacro:arg name="include_gripper_ros2_control" default="true"/>
+    <xacro:arg name="ip_address" default=""/>
+
+    <xacro:property name="cell"
+        value="${xacro.load_yaml('$(find ur_workspace_description)/config/cells/$(arg cell).yaml')}"/>
 
     <xacro:include filename="$(find ur_onrobot_description)/urdf/ur_onrobot_macro.xacro"/>
 
     <link name="world"/>
 
-    <!--This will create the scene where the robot is located in-->
+    <xacro:if value="${cell['environment'] != None}">
+        <xacro:include filename="$(find ur_workspace_description)/${cell['environment']['file']}"/>
+        <xacro:cell_environment environment="${cell['environment']}"/>
+    </xacro:if>
+
     <xacro:ur_onrobot
         parent="world"
         robot_ip="$(arg robot_ip)"
@@ -35,6 +28,7 @@
         onrobot_type="$(arg onrobot_type)"
         tf_prefix="$(arg tf_prefix)"
         use_fake_hardware="$(arg use_fake_hardware)"
+        cable_connector="${cell['robot']['cable_connector']}"
         joint_limits_parameters_file="$(arg joint_limits_parameters_file)"
         kinematics_parameters_file="$(arg kinematics_parameters_file)"
         physical_parameters_file="$(arg physical_parameters_file)"
@@ -43,12 +37,12 @@
         output_recipe_filename="$(arg output_recipe_filename)"
         input_recipe_filename="$(arg input_recipe_filename)"
         connection_type="$(arg connection_type)"
+        device="$(arg device)"
         ip_address="$(arg ip_address)"
         port="$(arg port)"
         device_address="$(arg device_address)"
-        include_gripper_ros2_control="$(arg include_gripper_ros2_control)"
-        >
-        <origin xyz="0 0 0" rpy="0 0 0" />
+        include_gripper_ros2_control="$(arg include_gripper_ros2_control)">
+        <origin xyz="0 0 0" rpy="0 0 ${cell['robot']['base_yaw']}"/>
     </xacro:ur_onrobot>
 
 </robot>

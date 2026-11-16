@@ -1,0 +1,93 @@
+# Values of the launch files of this package. A value given on the command line overrides the default of its
+# argument.
+
+launch_arguments:                    # launch/ur_onrobot_moveit.launch.py
+  ur_type:
+    default: ur5e
+    description: Model of the UR robot.
+  onrobot_type:
+    default: 2fg7
+    description: OnRobot gripper on the flange.
+  cell:
+    default: basic
+    description: Cell the robot stands in.
+  use_fake_hardware:
+    default: true
+    description: 'true: simulated robot. false: the real robot.'
+    choices: ['true', 'false']
+  robot_ip:
+    default: ''
+    description: >-
+      Address of the real robot. Empty chooses among the addresses the robot addresses file lists for the
+      cell, as the bringup does.
+  tf_prefix:
+    default: ''
+    description: Prefix of the joint names, for setups with several robots.
+  joint_states_topic:
+    default: /merged_joint_states
+    description: Topic with the joint states of the arm and the gripper together.
+  launch_rviz:
+    default: true
+    description: Start RViz with the motion planning panel.
+    choices: ['true', 'false']
+  trajectory_controller:
+    default: scaled_joint_trajectory_controller
+    description: Controller of the arm MoveIt sends its trajectories to.
+    choices: [scaled_joint_trajectory_controller, joint_trajectory_controller]
+
+servo_launch_arguments:              # launch/ur_onrobot_servo.launch.py
+  ur_type:
+    default: ur5e
+    description: Model of the UR robot.
+  onrobot_type:
+    default: 2fg7
+    description: OnRobot gripper on the flange.
+  cell:
+    default: basic
+    description: Cell the robot stands in.
+  use_fake_hardware:
+    default: true
+    description: 'true: simulated robot. false: the real robot.'
+    choices: ['true', 'false']
+  robot_ip:
+    default: ''
+    description: >-
+      Address of the real robot. Empty chooses among the addresses the robot addresses file lists for the
+      cell, as the bringup does.
+  tf_prefix:
+    default: ''
+    description: Prefix of the joint names, for setups with several robots.
+  launch_joy:
+    default: false
+    description: Start a joy node, to command Servo from a gamepad.
+    choices: ['true', 'false']
+
+files:                               # relative to this package
+  srdf: srdf/ur_onrobot.srdf.xacro
+  kinematics: config/kinematics.yaml
+  joint_limits: config/joint_limits.yaml
+  ompl: config/ompl_planning.yaml
+  pilz: config/pilz_industrial_motion_planner_planning.yaml
+  moveit_controllers: config/moveit_controllers.yaml
+  servo: config/ur_onrobot_servo.yaml
+  rviz: rviz/moveit.rviz
+
+planning:
+  pipelines: {ompl: ompl, pilz_industrial_motion_planner: pilz}   # pipeline name: key of `files`
+  default_pipeline: ompl
+
+controller_manager_section: moveit_simple_controller_manager   # section of moveit_controllers with the list
+arm_controllers: [scaled_joint_trajectory_controller, joint_trajectory_controller]
+
+trajectory_execution:
+  moveit_manage_controllers: true
+  trajectory_execution.allowed_execution_duration_scaling: 1.2
+  trajectory_execution.allowed_goal_duration_margin: 0.5
+  trajectory_execution.allowed_start_tolerance: 0.01
+  trajectory_execution.execution_duration_monitoring: false
+
+planning_scene_monitor:
+  publish_planning_scene: true
+  publish_geometry_updates: true
+  publish_state_updates: true
+  publish_transforms_updates: true

@@ -1,231 +1,54 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# Copyright 2026 Tony Le, Gabriel Novas
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
 """
-start_robot.launch.py - Launch principal con selector TUI (Textual) y soporte headless/no bloqueante.
-Compatible con ROS 2 Humble y Dockerfile.aimen.
+Run a whole cell after asking how in a terminal window.
+
+With interactive:=false, or without a terminal, it is ur_onrobot_bringup.launch.py with the
+arguments given.
 """
 
-import os
 import sys
-from ament_index_python.packages import get_package_share_directory, get_package_prefix, PackageNotFoundError
+
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription, LogInfo, GroupAction
-from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.substitutions import FindPackageShare
+from launch.actions import LogInfo, OpaqueFunction, Shutdown
+from onrobot_description.config_loader import ConfigError
+from onrobot_description.grippers import gripper_names
+from onrobot_description.launch_arguments import declare_arguments
+from ur_onrobot_control.config import control_config, include, is_true, launch_values, PACKAGE
+from ur_onrobot_control.config import ur_types
+from ur_workspace_description.cells import cell_names
 
 
-def import_selector_tui():
-    """Busca e importa selector_tui de forma dinámica independientemente de la forma de instalación."""
-    try:
-        from ur_onrobot_control.scripts import selector_tui
-        return selector_tui
-    except ImportError:
-        pass
-
-    # Intentar rutas relativas e instaladas
-    candidate_paths = [
-        os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts')),
+def launch_setup(context, *args, **kwargs):
+    config = control_config('bringup')
+    values = launch_values(context, config)
+    asked = launch_values(context, config, 'selector_launch_arguments')
+    if is_true(asked['interactive']) and sys.stdin.isatty() and sys.stdout.isatty():
+        try:
+            from ur_onrobot_control.selector import RESULT_KEYS, run_selector
+        except ImportError as error:
+            raise ConfigError(
+                f'[Fail-Fast] The selector cannot be loaded ({error}). Install textual or launch '
+                'with interactive:=false') from error
+        chosen = run_selector({key: values[key] for key in RESULT_KEYS})
+        if chosen is None:
+            return [LogInfo(msg='Launch cancelled in the selector'),
+                    Shutdown(reason='cancelled in the selector')]
+        values.update(chosen)
+    return [
+        LogInfo(msg='Launching with: ' + ', '.join(f'{k}={v}' for k, v in values.items() if v)),
+        include(PACKAGE, 'ur_onrobot_bringup.launch.py', values),
     ]
-    try:
-        share_dir = get_package_share_directory('ur_onrobot_control')
-        candidate_paths.append(os.path.join(share_dir, 'scripts'))
-    except PackageNotFoundError:
-        pass
-
-    try:
-        prefix_dir = get_package_prefix('ur_onrobot_control')
-        candidate_paths.append(os.path.join(prefix_dir, 'lib', 'ur_onrobot_control'))
-    except PackageNotFoundError:
-        pass
-
-    for p in candidate_paths:
-        if os.path.isdir(p) and p not in sys.path:
-            sys.path.insert(0, p)
-
-    try:
-        import selector_tui
-        return selector_tui
-    except ImportError:
-        return None
-
-
-def interactive_selector(context):
-    """
-    Función de selección:
-    - Si interactive=true y hay TTY disponible: lanza la TUI con Textual.
-    - Si interactive=false o no hay TTY: modo no bloqueante headless basado en argumentos.
-    """
-    interactive_str = LaunchConfiguration('interactive').perform(context).lower()
-    is_interactive = (interactive_str in ('true', '1', 'yes'))
-    has_tty = sys.stdin.isatty() and sys.stdout.isatty()
-
-    # Sincronizar posibles alias provenientes de .bash_aliases
-    use_fake_hw = LaunchConfiguration('use_fake_hardware').perform(context).strip().lower()
-    if use_fake_hw in ('true', '1', 'yes'):
-        context.launch_configurations['use_simulation'] = 'true'
-    elif use_fake_hw in ('false', '0', 'no'):
-        context.launch_configurations['use_simulation'] = 'false'
-
-    env_alias = LaunchConfiguration('environment').perform(context).strip().lower()
-    if env_alias in ('basic', 'left', 'right'):
-        context.launch_configurations['sim_env'] = env_alias
-
-    ur_type = LaunchConfiguration('ur_type').perform(context)
-    onrobot_type = LaunchConfiguration('onrobot_type').perform(context)
-    use_simulation = LaunchConfiguration('use_simulation').perform(context)
-    sim_env = LaunchConfiguration('sim_env').perform(context)
-    robot_ip = LaunchConfiguration('robot_ip').perform(context)
-    launch_rviz_str = LaunchConfiguration('launch_rviz').perform(context)
-    launch_rviz_bool = (launch_rviz_str.lower() in ('true', '1', 'yes'))
-
-    actions = []
-
-    if is_interactive and has_tty:
-        selector_mod = import_selector_tui()
-        if selector_mod is not None:
-            # Ejecutar interfaz TUI de Textual con valores preseleccionados
-            result = selector_mod.run_tui(
-                default_ur=ur_type,
-                default_onrobot=onrobot_type,
-                default_sim=(use_simulation == 'true'),
-                default_env=sim_env,
-                default_rviz=launch_rviz_bool
-            )
-            if not result or result.get('cancelled', False):
-                print("\n🚫 Operación cancelada por el usuario en la TUI.")
-                sys.exit(0)
-
-            # Aplicar configuración seleccionada en la TUI
-            context.launch_configurations['use_simulation'] = str(result.get('use_simulation', 'true'))
-            context.launch_configurations['sim_env'] = str(result.get('sim_env', 'basic'))
-            context.launch_configurations['robot_ip'] = str(result.get('robot_ip', '127.0.0.1'))
-            context.launch_configurations['onrobot_type'] = str(result.get('onrobot_type', onrobot_type))
-            context.launch_configurations['launch_rviz'] = str(result.get('launch_rviz', 'true'))
-
-            sel_sim = context.launch_configurations['use_simulation']
-            sel_env = context.launch_configurations['sim_env']
-            sel_ip = context.launch_configurations['robot_ip']
-            sel_grp = context.launch_configurations['onrobot_type']
-            sel_rviz = context.launch_configurations['launch_rviz']
-
-            print("\n" + "="*60)
-            if sel_sim == 'true':
-                print(f"🎮 TUI -> SIMULACIÓN: Entorno={sel_env.upper()} | Gripper={sel_grp.upper()} | RViz={sel_rviz}")
-            else:
-                print(f"🤖 TUI -> ROBOT REAL: IP={sel_ip} | Gripper={sel_grp.upper()} | RViz={sel_rviz}")
-            print("="*60 + "\n")
-
-            actions.append(LogInfo(msg=f"Configuración TUI aplicada: sim={sel_sim}, env={sel_env}, ip={sel_ip}, gripper={sel_grp}, rviz={sel_rviz}"))
-            return actions
-        else:
-            print("⚠️ [start_robot] 'textual' o 'selector_tui' no disponible. Continuando con configuración de argumentos...")
-
-    # Modo Headless / No bloqueante
-    print("\n" + "="*60)
-    print("🤖 APERTA / UR ONROBOT - MODO HEADLESS / NO BLOQUEANTE".center(60))
-    print("="*60)
-    print(f"   • Simulación:    {use_simulation}")
-    print(f"   • Entorno:       {sim_env}")
-    print(f"   • Robot IP:      {robot_ip}")
-    print(f"   • Tipo Robot UR: {ur_type}")
-    print(f"   • Tipo Gripper:  {onrobot_type}")
-    print(f"   • Lanzar RViz:   {launch_rviz_str}")
-    print("="*60 + "\n")
-
-    actions.append(LogInfo(msg=f"Modo Headless activo: sim={use_simulation}, env={sim_env}, ip={robot_ip}, gripper={onrobot_type}, rviz={launch_rviz_str}"))
-    return actions
 
 
 def generate_launch_description():
-    declared_arguments = [
-        DeclareLaunchArgument('ur_type', default_value='ur5e',
-                            description='Tipo de robot UR (ur5, ur5e, ur10, etc.)'),
-        DeclareLaunchArgument('onrobot_type', default_value='2fg7',
-                            choices=['2fg7', '3fg15', 'vgc10'],
-                            description='Tipo de gripper OnRobot (2fg7, 3fg15, vgc10)'),
-        DeclareLaunchArgument('launch_onrobot', default_value='true',
-                            description='Lanzar control del gripper'),
-        DeclareLaunchArgument('launch_rviz', default_value='true',
-                            description='Lanzar RViz2'),
-        DeclareLaunchArgument('rviz_config', default_value='view_robot.rviz',
-                            description='Configuración de RVIZ'),
-        DeclareLaunchArgument('interactive', default_value='true',
-                            description='true=Abrir TUI textual interactiva si hay TTY; false=Modo headless usando argumentos'),
-        
-        # Parámetros del entorno / ejecución (pueden venir de CLI o ser sobreescritos por TUI)
-        DeclareLaunchArgument('use_simulation', default_value='true',
-                            description='true=simulación, false=robot real'),
-        DeclareLaunchArgument('use_fake_hardware', default_value='',
-                            description='Alias de use_simulation (true=simulación, false=robot real)'),
-        DeclareLaunchArgument('robot_ip', default_value='127.0.0.1',
-                            description='IP del robot físico (127.0.0.1 para simulación)'),
-        DeclareLaunchArgument('sim_env', default_value='basic',
-                            choices=['basic', 'left', 'right'],
-                            description='Entorno: basic, left, right'),
-        DeclareLaunchArgument('environment', default_value='',
-                            description='Alias de sim_env (basic, left, right)'),
-        DeclareLaunchArgument('load_freedrive_controller', default_value='false',
-                            description='Cargar el controlador de guiado a mano (freedrive) del UR. Desactivado por '
-                                        'defecto: mientras está cargado, el nodo de control puede colgarse al parar'),
-    ]
-
-    # Selector TUI / Headless
-    selector_action = OpaqueFunction(function=interactive_selector)
-
-    # ========== LAUNCH DE SIMULACIÓN ==========
-    simulation_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'launch',
-                'start_simulation.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'ur_type': LaunchConfiguration('ur_type'),
-            'onrobot_type': LaunchConfiguration('onrobot_type'),
-            'launch_onrobot': LaunchConfiguration('launch_onrobot'),
-            'launch_rviz': LaunchConfiguration('launch_rviz'),
-            'rviz_config': LaunchConfiguration('rviz_config'),
-            'sim_env': LaunchConfiguration('sim_env'),
-            'load_freedrive_controller': LaunchConfiguration('load_freedrive_controller'),
-        }.items()
-    )
-    simulation_group = GroupAction(
-        [simulation_launch],
-        condition=IfCondition(LaunchConfiguration('use_simulation'))
-    )
-
-    # ========== LAUNCH DE ROBOT REAL ==========
-    real_robot_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([
-                FindPackageShare('ur_onrobot_control'),
-                'launch',
-                'start_real_robot.launch.py'
-            ])
-        ]),
-        launch_arguments={
-            'ur_type': LaunchConfiguration('ur_type'),
-            'robot_ip': LaunchConfiguration('robot_ip'),
-            'onrobot_type': LaunchConfiguration('onrobot_type'),
-            'launch_onrobot': LaunchConfiguration('launch_onrobot'),
-            'launch_rviz': LaunchConfiguration('launch_rviz'),
-            'sim_env': LaunchConfiguration('sim_env'),
-            'use_fake_hardware': 'false',
-            'load_freedrive_controller': LaunchConfiguration('load_freedrive_controller'),
-        }.items()
-    )
-    real_robot_group = GroupAction(
-        [real_robot_launch],
-        condition=UnlessCondition(LaunchConfiguration('use_simulation'))
-    )
-
-    return LaunchDescription([
-        *declared_arguments,
-        selector_action,
-        simulation_group,
-        real_robot_group,
-    ])
+    config = control_config('bringup')
+    choices = {'ur_type': ur_types(), 'onrobot_type': gripper_names(), 'cell': cell_names()}
+    arguments = declare_arguments(config, 'launch_arguments', choices=choices)
+    arguments += declare_arguments(config, 'selector_launch_arguments')
+    return LaunchDescription(arguments + [OpaqueFunction(function=launch_setup)])

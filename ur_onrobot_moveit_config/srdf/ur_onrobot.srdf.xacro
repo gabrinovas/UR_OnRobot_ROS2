@@ -1,41 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="$(arg robot_name)">
-  <!-- Arguments for dynamic resolution -->
-  <xacro:arg name="robot_name" default="ur_onrobot"/>
-  <xacro:arg name="onrobot_type" default="2fg7"/>
-  <xacro:arg name="sim_env" default="basic"/>
+
+  <!-- Semantic description of a UR arm with an OnRobot gripper in a cell. The arguments robot_name,
+       onrobot_type and cell are required; the launch files give them (robot_name is the description_name of
+       the cell file). The gripper and the furniture of the cell bring their own files, found by name. -->
   <xacro:arg name="tf_prefix" default=""/>
-
-  <xacro:property name="onrobot_type" value="$(arg onrobot_type)"/>
-  <xacro:property name="sim_env" value="$(arg sim_env)"/>
   <xacro:property name="tf_prefix" value="$(arg tf_prefix)"/>
+  <xacro:property name="cell"
+    value="${xacro.load_yaml('$(find ur_workspace_description)/config/cells/$(arg cell).yaml')}"/>
+  <xacro:property name="exclusions" value="${cell['moveit']['collision_exclusions']}"/>
 
-  <!-- Include Sub-Macros -->
   <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/ur5e_collisions.srdf.xacro"/>
-  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/2fg7_macro.srdf.xacro"/>
-  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/3fg15_macro.srdf.xacro"/>
-  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/vgc10_macro.srdf.xacro"/>
-  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/inc/environment_collisions.srdf.xacro"/>
+  <xacro:include filename="$(find ur_onrobot_moveit_config)/srdf/grippers/$(arg onrobot_type).srdf.xacro"/>
 
-  <!-- ==================== PLANNING GROUPS ==================== -->
-  <!-- UR Manipulator Group (Arm + Gripper TCP) -->
   <group name="ur_manipulator">
     <chain base_link="${tf_prefix}base_link" tip_link="${tf_prefix}gripper_tcp"/>
   </group>
 
-  <!-- ==================== GROUP STATES (ARM) ==================== -->
-  <xacro:if value="${sim_env == 'right'}">
-    <xacro:property name="home_shoulder_pan" value="1.5708"/>
-  </xacro:if>
-  <xacro:if value="${sim_env == 'left'}">
-    <xacro:property name="home_shoulder_pan" value="3.1415"/>
-  </xacro:if>
-  <xacro:if value="${sim_env == 'basic'}">
-    <xacro:property name="home_shoulder_pan" value="-1.5708"/>
-  </xacro:if>
-
   <group_state name="home" group="ur_manipulator">
-    <joint name="${tf_prefix}shoulder_pan_joint" value="${home_shoulder_pan}"/>
+    <joint name="${tf_prefix}shoulder_pan_joint" value="${cell['moveit']['home_shoulder_pan']}"/>
     <joint name="${tf_prefix}shoulder_lift_joint" value="-1.5708"/>
     <joint name="${tf_prefix}elbow_joint" value="1.5708"/>
     <joint name="${tf_prefix}wrist_1_joint" value="-1.5708"/>
@@ -52,24 +35,11 @@
     <joint name="${tf_prefix}wrist_3_joint" value="0.0"/>
   </group_state>
 
-  <!-- ==================== ARM COLLISIONS ==================== -->
   <xacro:ur5e_collisions tf_prefix="${tf_prefix}"/>
+  <xacro:gripper_srdf tf_prefix="${tf_prefix}"/>
 
-  <!-- ==================== GRIPPER MACROS ==================== -->
-  <xacro:if value="${onrobot_type == '2fg7'}">
-    <xacro:onrobot_2fg7_srdf tf_prefix="${tf_prefix}"/>
-  </xacro:if>
-
-  <xacro:if value="${onrobot_type == '3fg15'}">
-    <xacro:onrobot_3fg15_srdf tf_prefix="${tf_prefix}"/>
-  </xacro:if>
-
-  <xacro:if value="${onrobot_type == 'vgc10'}">
-    <xacro:onrobot_vgc10_srdf tf_prefix="${tf_prefix}"/>
-  </xacro:if>
-
-  <!-- ==================== ENVIRONMENT COLLISIONS ==================== -->
-  <xacro:if value="${sim_env in ['left', 'right']}">
+  <xacro:if value="${exclusions != None}">
+    <xacro:include filename="$(find ur_onrobot_moveit_config)/${exclusions}"/>
     <xacro:environment_collisions tf_prefix="${tf_prefix}"/>
   </xacro:if>
 

@@ -3,7 +3,12 @@
 
     <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
     <xacro:include filename="$(find onrobot_description)/urdf/onrobot_macro.xacro"/>
+    <xacro:include filename="$(find onrobot_driver)/urdf/onrobot_ros2_control.xacro"/>
 
+    <!-- A UR arm with an OnRobot gripper on its flange. Every parameter is required.
+         include_gripper_ros2_control: false when the gripper runs in a controller manager of its own, so that
+         its hardware is not loaded into the controller manager of the arm.
+         cable_connector: add two collision spheres where the gripper cable comes out. -->
     <xacro:macro name="ur_onrobot" params="
         parent
         *origin
@@ -11,8 +16,8 @@
         ur_type
         onrobot_type
         tf_prefix
-        use_fake_hardware:=false
-        cable_connector:=true
+        use_fake_hardware
+        cable_connector
         joint_limits_parameters_file
         kinematics_parameters_file
         physical_parameters_file
@@ -20,14 +25,14 @@
         script_filename
         output_recipe_filename
         input_recipe_filename
-        connection_type:=tcp
-        ip_address:=192.168.1.1
-        port:=502
-        device_address:=65
-        include_gripper_ros2_control:=true
+        connection_type
+        device
+        ip_address
+        port
+        device_address
+        include_gripper_ros2_control
         ">
 
-        <!-- Create the UR robot -->
         <xacro:ur_robot
             robot_ip="${robot_ip}"
             name="${ur_type}"
@@ -45,26 +50,27 @@
             <xacro:insert_block name="origin" />
         </xacro:ur_robot>
 
-        <!--Create the OnRobot model with ALL parameters -->
-        <xacro:onrobot
-            onrobot_type="${onrobot_type}"
-            prefix="${tf_prefix}"
-            use_fake_hardware="${use_fake_hardware}"
-            connection_type="${connection_type}"
-            ip_address="${ip_address}"
-            port="${port}"
-            device_address="${device_address}"
-            include_ros2_control="${include_gripper_ros2_control}"
-        />
+        <xacro:onrobot onrobot_type="${onrobot_type}" prefix="${tf_prefix}"/>
+        <xacro:if value="${include_gripper_ros2_control}">
+            <xacro:onrobot_ros2_control
+                onrobot_type="${onrobot_type}"
+                prefix="${tf_prefix}"
+                use_fake_hardware="${use_fake_hardware}"
+                use_mock_hardware="false"
+                connection_type="${connection_type}"
+                device="${device}"
+                ip_address="${ip_address}"
+                port="${port}"
+                device_address="${device_address}"
+            />
+        </xacro:if>
 
-        <!-- Connect the OnRobot to the UR robot -->
         <joint name="${tf_prefix}onrobot_base_link_joint" type="fixed">
             <parent link="${tf_prefix}tool0"/>
             <child link="${tf_prefix}onrobot_base_link"/>
             <origin xyz="0 0 0" rpy="0 0 0"/>
         </joint>
 
-        <!-- Include cable connector collision links -->
         <xacro:if value="${cable_connector}">
             <link name="${tf_prefix}cable_connector_0">
                 <collision>

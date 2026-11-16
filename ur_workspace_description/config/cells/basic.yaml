@@ -1,0 +1,16 @@
+# Cell "basic": the robot alone, with nothing around it.
+# One file per cell: the launch files, the descriptions and MoveIt offer the cells found in this folder.
+
+description_name: ur_onrobot      # name of the robot in the URDF and in the SRDF
+
+robot:
+  base_yaw: 0                     # rad, rotation of the robot base around the vertical axis
+  cable_connector: true           # add the collision spheres of the gripper cable connector
+  # Program the UR controller runs to be driven from outside: package and path inside it.
+  script: {package: ur_client_library, file: resources/external_control.urscript}
+
+environment: null                 # no furniture
+
+moveit:
+  home_shoulder_pan: -1.5708      # rad, shoulder pan of the "home" pose of the planning group
+  collision_exclusions: null      # no pairs of the environment to exclude from collision checking

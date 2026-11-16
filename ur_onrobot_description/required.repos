@@ -1,5 +1,0 @@
-repositories:
-  onrobot_description:
-    type: git
-    url: https://github.com/gabrinovas/OnRobot_ROS2_Description.git
-    version: main

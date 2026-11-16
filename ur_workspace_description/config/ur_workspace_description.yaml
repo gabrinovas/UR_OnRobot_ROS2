@@ -1,0 +1,18 @@
+# Values of the ur_workspace_description package. Launch arguments given on the command line override them.
+
+view_launch_arguments:               # arguments of launch/view_cell.launch.py
+  cell:
+    default: right
+    description: Cell whose furniture is shown (one of the files in config/cells that has an environment).
+
+view:
+  description_file: urdf/cell.urdf.xacro    # relative to this package
+  rviz_config: rviz/view_platform.rviz      # relative to this package
+
+# The private file with the addresses of the robots (format and place: config/robot_addresses.template.yaml).
+robot_addresses:
+  environment_variable: UR_ONROBOT_ROBOT_ADDRESSES   # path of the file
+  package_file: config/robot_addresses.yaml          # read when the variable is not set; relative to this package
+  template: config/robot_addresses.template.yaml     # relative to this package
+  simulation_address: 127.0.0.1                      # written in the description of a simulated robot, which uses none
+  ping: {count: 1, wait_s: 1}                        # how each address of a cell is asked whether its robot is on
