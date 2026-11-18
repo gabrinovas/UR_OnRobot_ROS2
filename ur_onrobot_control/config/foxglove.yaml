@@ -1,0 +1,21 @@
+# Values of launch/foxglove_bridge.launch.py: the WebSocket bridge Foxglove Studio connects to.
+
+launch_arguments:
+  port:
+    default: 8765
+    description: WebSocket port the bridge listens on.
+  address:
+    default: 0.0.0.0
+    description: Address the bridge listens on (0.0.0.0 accepts connections from the whole network).
+  send_buffer_limit:
+    default: 10000000
+    description: Bytes kept for a client that reads slowly.
+  use_sim_time:
+    default: false
+    description: Use simulation time.
+    choices: ['true', 'false']
+
+bridge:
+  client_topic_whitelist: ['.*']   # topics a client may publish
+  min_qos_depth: 1
+  max_qos_depth: 10

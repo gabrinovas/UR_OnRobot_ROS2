@@ -1,0 +1,59 @@
+# Controllers the controller manager of the arm can load, and its update rate.
+# Loaded after config/update_rate/<ur_type>.yaml, so the rate written here is the one in force.
+controller_manager:
+  ros__parameters:
+    # 100 Hz for every model. Delete this line to run at the rate of the model (config/update_rate/<ur_type>.yaml,
+    # 500 Hz for the e-Series); see "Update rate" in the README before doing it.
+    update_rate: 100  # Hz
+
+    # Environment controllers
+    environment_joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # Robot controllers (existing)
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    finger_width_controller:
+      type: position_controllers/JointGroupPositionController
+
+    io_and_status_controller:
+      type: ur_controllers/GPIOController
+
+    speed_scaling_state_broadcaster:
+      type: ur_controllers/SpeedScalingStateBroadcaster
+
+    force_torque_sensor_broadcaster:
+      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+
+    joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    scaled_joint_trajectory_controller:
+      type: ur_controllers/ScaledJointTrajectoryController
+
+    forward_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    forward_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+    force_mode_controller:
+      type: ur_controllers/ForceModeController
+
+    freedrive_mode_controller:
+      type: ur_controllers/FreedriveModeController
+
+    passthrough_trajectory_controller:
+      type: ur_controllers/PassthroughTrajectoryController
+
+    tcp_pose_broadcaster:
+      type: pose_broadcaster/PoseBroadcaster
+
+    ur_configuration_controller:
+      type: ur_controllers/URConfigurationController
+
+    tool_contact_controller:
+      type: ur_controllers/ToolContactController
+
+# Environment joint state broadcaster - configure for static joints

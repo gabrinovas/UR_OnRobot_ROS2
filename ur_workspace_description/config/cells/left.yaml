@@ -1,0 +1,28 @@
+# Cell "left": robot on the first table, conveyor and second table to its left, safety barriers around.
+# One file per cell: the launch files, the descriptions and MoveIt offer the cells found in this folder.
+
+description_name: left_robot_with_environment   # name of the robot in the URDF and in the SRDF
+
+robot:
+  base_yaw: 1.570796327           # rad, rotation of the robot base around the vertical axis
+  cable_connector: true           # add the collision spheres of the gripper cable connector
+  # Program the UR controller runs to be driven from outside: package and path inside it.
+  script: {package: ur_client_library, file: resources/external_control.urscript}
+
+environment:
+  # File with the furniture, relative to ur_workspace_description. It defines the macro cell_environment,
+  # which receives this whole section. Positions are x y z in metres.
+  file: urdf/environments/table_conveyor_cell.xacro
+  table: [-0.15, -0.65, -0.75]            # in the world
+  conveyor: [-1.02, -0.70, -0.75]         # in the world
+  second_table: [-1.79, -0.65, -0.75]     # in the world
+  first_barrier: {side: right}            # narrow barrier at the fixed far end of the table
+  second_barrier: {side: left, position: [0, -0.05, 0.75]}   # narrow barrier, relative to the table
+  back_barrier: [0.85, -0.05, 0.75]       # wide barriers and top, relative to the table
+  front_barrier: [-0.95, -0.05, 0.75]
+  top_barrier: [0, -0.05, 1.9]
+
+moveit:
+  home_shoulder_pan: 3.1415      # rad, shoulder pan of the "home" pose of the planning group
+  # Pairs of the environment excluded from collision checking: file relative to ur_onrobot_moveit_config.
+  collision_exclusions: srdf/inc/environment_collisions.srdf.xacro

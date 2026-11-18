@@ -1,0 +1,131 @@
+# Values of launch/ur_control.launch.py: the driver of the UR arm (controller manager, controllers and the
+# helper nodes of ur_robot_driver). A value given on the command line overrides the default of its argument.
+
+launch_arguments:
+  ur_type:
+    required: true
+    description: Model of the UR robot (one of the files in config/update_rate).
+  robot_ip:
+    required: true
+    description: Address of the robot.
+  cell:
+    default: basic
+    description: Cell the robot stands in (a file of ur_workspace_description/config/cells).
+  onrobot_type:
+    default: 2fg7
+    description: OnRobot gripper on the flange.
+  include_gripper_ros2_control:
+    default: true
+    description: >-
+      Load the gripper hardware into the controller manager of the arm. false when the gripper runs in a
+      controller manager of its own, so that a gripper failure cannot stop the arm.
+    choices: ['true', 'false']
+  kinematics_params_file:
+    default: ''
+    description: Calibration file of this robot. Empty uses the default kinematics of the model.
+  gripper_ip_address:
+    default: ''
+    description: >-
+      Address of the Compute Box of the gripper: needed when the hardware of a real gripper over tcp is loaded
+      into the controller manager of the arm (include_gripper_ros2_control).
+  tf_prefix:
+    default: ''
+    description: Prefix of the joint names, for setups with several robots.
+  use_fake_hardware:
+    default: false
+    description: Simulate the arm (mock hardware) instead of connecting to it.
+    choices: ['true', 'false']
+  headless_mode:
+    default: false
+    description: Tell the helper nodes of the driver that the robot program is started without the pendant.
+    choices: ['true', 'false']
+  controller_spawner_timeout:
+    default: 10
+    description: Seconds the controller spawners wait for the controller manager.
+  initial_joint_controller:
+    default: scaled_joint_trajectory_controller
+    description: Controller that moves the arm at start.
+    choices: [scaled_joint_trajectory_controller, joint_trajectory_controller, forward_velocity_controller,
+              forward_position_controller, freedrive_mode_controller, passthrough_trajectory_controller]
+  activate_joint_controller:
+    default: true
+    description: Activate the initial joint controller (false leaves it loaded and inactive).
+    choices: ['true', 'false']
+  launch_rviz:
+    default: true
+    description: Start RViz.
+    choices: ['true', 'false']
+  launch_dashboard_client:
+    default: true
+    description: Start the dashboard client (real robot only).
+    choices: ['true', 'false']
+  launch_robot_state_publisher:
+    default: true
+    description: Start a robot_state_publisher with the description of the arm.
+    choices: ['true', 'false']
+  use_tool_communication:
+    default: false
+    description: Bridge the RS485 line of the tool connector to a local device (e-Series only).
+    choices: ['true', 'false']
+  tool_device_name:
+    default: /tmp/ttyUR
+    description: Local device created for the tool RS485 line (use_tool_communication).
+  tool_tcp_port:
+    default: 54321
+    description: Port of the robot that carries the tool RS485 line (use_tool_communication).
+  load_freedrive_controller:
+    default: false
+    description: >-
+      Load the freedrive (hand guiding) controller. Off by default: while it is loaded the control node can
+      hang when it is stopped (see freedrive_stop_timeout).
+    choices: ['true', 'false']
+  freedrive_stop_timeout:
+    default: 2
+    description: >-
+      Seconds the launch waits for the control node to stop before terminating it, while the freedrive
+      controller is loaded.
+
+controller_manager: /controller_manager
+
+# Parameter files of the control node, in order (a later file overrides an earlier one). Paths relative to
+# this package; {ur_type} is replaced by the model of the robot.
+parameter_files:
+  update_rate: config/update_rate/{ur_type}.yaml
+  controllers:
+    - config/controllers/controller_manager.yaml
+    - config/controllers/broadcasters.yaml
+    - config/controllers/motion_controllers.yaml
+update_rate_directory: config/update_rate   # one file per supported model of robot
+
+controllers:
+  active:                                    # spawned and activated
+    - joint_state_broadcaster
+    - io_and_status_controller
+    - speed_scaling_state_broadcaster
+    - force_torque_sensor_broadcaster
+    - tcp_pose_broadcaster
+    - ur_configuration_controller
+  inactive:                                  # spawned and left inactive
+    - scaled_joint_trajectory_controller
+    - joint_trajectory_controller
+    - forward_velocity_controller
+    - forward_position_controller
+    - force_mode_controller
+    - passthrough_trajectory_controller
+    - freedrive_mode_controller
+    - tool_contact_controller
+  freedrive: freedrive_mode_controller       # loaded only on request (load_freedrive_controller)
+  real_robot_only: [tcp_pose_broadcaster]    # not available with mock hardware
+  consistent:                                # kept running by the controller stopper when the program stops
+    - io_and_status_controller
+    - force_torque_sensor_broadcaster
+    - joint_state_broadcaster
+    - speed_scaling_state_broadcaster
+    - tcp_pose_broadcaster
+    - ur_configuration_controller
+
+trajectory_until:
+  motion_action: '/{controller}/follow_joint_trajectory'   # {controller}: the initial joint controller
+  until_action: tool_contact_controller/detect_tool_contact
+
+rviz_config: {package: ur_onrobot_description, file: rviz/view_robot.rviz}

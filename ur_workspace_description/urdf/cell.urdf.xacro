@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="workspace_environment">
+
+  <!-- The furniture of one cell, without the robot (to look at it). The argument cell is required: the name of
+       a file of config/cells that has an environment. -->
+  <xacro:property name="cell"
+    value="${xacro.load_yaml('$(find ur_workspace_description)/config/cells/$(arg cell).yaml')}"/>
+
+  <xacro:include filename="$(find ur_workspace_description)/${cell['environment']['file']}"/>
+  <link name="world"/>
+  <xacro:cell_environment environment="${cell['environment']}"/>
+
+</robot>

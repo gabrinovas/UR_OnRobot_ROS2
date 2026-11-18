@@ -49,3 +49,6 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# The real addresses of the robots (the template beside it is public)
+ur_workspace_description/config/robot_addresses.yaml

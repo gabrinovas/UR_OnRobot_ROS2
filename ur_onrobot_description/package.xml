@@ -3,24 +3,30 @@
 <package format="3">
   <name>ur_onrobot_description</name>
   <version>0.0.1</version>
-  <description>
-  	URDF description of Universal Robots with OnRobot grippers
-  </description>
-  
+  <description>URDF description of Universal Robots arms with OnRobot grippers</description>
   <maintainer email="tonyle98@outlook.com">Tony Le</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
   <exec_depend>joint_state_publisher_gui</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>onrobot_description</exec_depend>
+  <exec_depend>onrobot_driver</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <exec_depend>ur_client_library</exec_depend>
+  <exec_depend>ur_description</exec_depend>
+  <exec_depend>ur_robot_driver</exec_depend>
+  <exec_depend>ur_workspace_description</exec_depend>
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
-  <exec_depend>ur_description</exec_depend>
-  <exec_depend>onrobot_description</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

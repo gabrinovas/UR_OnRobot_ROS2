@@ -1,0 +1,11 @@
+# Parameters of the joint_state_merger node. The launch file adds tf_prefix.
+/**:
+  ros__parameters:
+    arm_topic: /joint_states                 # joint states of the arm (and anything else in its manager)
+    gripper_topic: /onrobot/joint_states     # joint states of the gripper, from its own controller manager
+    merged_topic: /merged_joint_states       # arm and gripper together
+    queue_depth: 10
+    # Joints of the arm, without prefix. Only these are taken from arm_topic.
+    arm_joints: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, wrist_1_joint, wrist_2_joint,
+                 wrist_3_joint]
+    minimum_stamp_step_ns: 1000              # a merged message is stamped at least this later than the last

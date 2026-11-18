@@ -1,188 +1,152 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# Copyright 2026 Tony Le, Gabriel Novas
+#
+# Use of this source code is governed by an MIT-style
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
 """
-servo_keyboard_teleop.py - Teleoperación interactiva por teclado para MoveIt 2 Servo
-Permite comandar el TCP del UR5e y accionar las pinzas OnRobot desde el terminal.
+Jog the tool of the arm with MoveIt Servo and drive the gripper, from the keyboard.
+
+  ros2 run ur_onrobot_control servo_keyboard_teleop.py --onrobot-type 2fg7
+
+Keys, topics and speeds are in config/servo_keyboard_teleop.yaml.
 """
 
-import sys
+import argparse
 import select
+import sys
 import termios
 import tty
-import time
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import TwistStamped
+
 from control_msgs.action import GripperCommand
+from geometry_msgs.msg import TwistStamped
+from onrobot_description.config_loader import require
+from onrobot_description.grippers import gripper_names, load_gripper
+import onrobot_driver
+import rclpy
 from rclpy.action import ActionClient
+from rclpy.node import Node
 from std_srvs.srv import Trigger
-
-
-INSTRUCTIONS = """
-╔═══════════════════════════════════════════════════════════════╗
-║         TELEOPERACIÓN CARTESIANA MOVEIT SERVO (UR5e)          ║
-╚═══════════════════════════════════════════════════════════════╝
-
-  Movimiento Lineal:             Rotación Angular:
-      [W] : +X                       [U] : +Roll (X)
-  [A] [S] [D] : -Y / -X / +Y     [J] [K] [L] : -Yaw / -Pitch / +Yaw
-      [R] : +Z                       [I] : +Pitch (Y)
-      [F] : -Z                       [O] : -Roll (X)
-
-  Control de Gripper / Vacío:
-      [ESPACIO] : Cerrar pinza / Activar vacío
-      [B]       : Abrir pinza / Desactivar vacío
-
-  Ajustes y Parámetros:
-      [1] : Frame de referencia BASE_LINK
-      [2] : Frame de referencia GRIPPER_TCP
-      [+] : Incrementar velocidad (+0.05 m/s)
-      [-] : Reducir velocidad (-0.05 m/s)
-
-      [Q] / [Ctrl+C] : Salir
-─────────────────────────────────────────────────────────────────
-"""
+from ur_onrobot_control.config import control_config
 
 
 class ServoKeyboardTeleop(Node):
-    def __init__(self):
+
+    def __init__(self, config, gripper):
         super().__init__('servo_keyboard_teleop')
+        self.config = config
+        depth = require(config, 'queue_depth')
+        self.twist_publisher = self.create_publisher(
+            TwistStamped, require(config, 'twist_topic'), depth)
+        driver_arguments = require(onrobot_driver.driver_config(), 'launch_arguments')
+        names = {
+            'namespace': require(driver_arguments, 'ns', 'default'),
+            'controller': require(
+                onrobot_driver.load_driver_gripper(gripper), 'controllers', 'action')[0]}
+        self.gripper_client = ActionClient(
+            self, GripperCommand, require(config, 'gripper_action').format(**names))
+        # Closed and open are the two ends of the first joint of the gripper (width or vacuum).
+        description = load_gripper(gripper)
+        joint = next(iter(require(description, 'joints')))
+        limits = (require(description, 'joints', joint, 'lower'),
+                  require(description, 'joints', joint, 'upper'))
+        vacuum = require(description, 'kind') == 'vacuum'
+        self.closed_position, self.open_position = (limits[1], limits[0]) if vacuum else limits
+        self.linear_speed = require(config, 'linear_speed')
+        self.angular_speed = require(config, 'angular_speed')
+        self.frame_id = require(config, 'start_frame')
 
-        self.twist_pub = self.create_publisher(TwistStamped, '/servo_node/delta_twist_cmds', 10)
-        self.gripper_client = ActionClient(self, GripperCommand, '/onrobot/gripper_action_controller/gripper_cmd')
-        self.start_servo_client = self.create_client(Trigger, '/servo_node/start_servo')
-
-        self.linear_speed = 0.15   # m/s
-        self.angular_speed = 0.40  # rad/s
-        self.frame_id = 'base_link'
-        self.gripper_closed = False
-
-        self.enable_servo()
-        self.get_logger().info('Nodo de teleoperación por teclado iniciado')
-
-    def enable_servo(self):
-        if self.start_servo_client.wait_for_service(timeout_sec=1.0):
-            req = Trigger.Request()
-            self.start_servo_client.call_async(req)
-            self.get_logger().info('Servicio /servo_node/start_servo activado correctamente')
+        start_servo = self.create_client(Trigger, require(config, 'start_servo_service'))
+        if start_servo.wait_for_service(timeout_sec=require(config, 'service_wait_s')):
+            start_servo.call_async(Trigger.Request())
+            self.get_logger().info('MoveIt Servo started')
         else:
-            self.get_logger().warn('Servicio /servo_node/start_servo no detectado aún')
+            self.get_logger().warn('The start service of MoveIt Servo is not available yet')
 
-    def publish_twist(self, lx=0.0, ly=0.0, lz=0.0, ax=0.0, ay=0.0, az=0.0):
-        msg = TwistStamped()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = self.frame_id
+    def publish_twist(self, direction):
+        """Publish the motion of one key: six values of -1, 0 or 1 times the speeds."""
+        message = TwistStamped()
+        message.header.stamp = self.get_clock().now().to_msg()
+        message.header.frame_id = self.frame_id
+        linear, angular = message.twist.linear, message.twist.angular
+        linear.x, linear.y, linear.z = (float(v * self.linear_speed) for v in direction[:3])
+        angular.x, angular.y, angular.z = (float(v * self.angular_speed) for v in direction[3:])
+        self.twist_publisher.publish(message)
 
-        msg.twist.linear.x = float(lx)
-        msg.twist.linear.y = float(ly)
-        msg.twist.linear.z = float(lz)
-        msg.twist.angular.x = float(ax)
-        msg.twist.angular.y = float(ay)
-        msg.twist.angular.z = float(az)
-
-        self.twist_pub.publish(msg)
-
-    def trigger_gripper(self, close_gripper=True):
-        if not self.gripper_client.wait_for_server(timeout_sec=0.5):
-            self.get_logger().warn('Servidor de acción del gripper no disponible')
+    def move_gripper(self, close):
+        wait_s = require(self.config, 'action_wait_s')
+        if not self.gripper_client.wait_for_server(timeout_sec=wait_s):
+            self.get_logger().warn('The gripper action is not available')
             return
-
         goal = GripperCommand.Goal()
-        goal.command.position = 0.035 if close_gripper else 0.073  # 35 mm cerrado, 73 mm abierto (montaje outwards 2FG7)
-        goal.command.max_effort = 40.0
+        goal.command.position = float(self.closed_position if close else self.open_position)
+        goal.command.max_effort = float(require(self.config, 'gripper_max_effort'))
         self.gripper_client.send_goal_async(goal)
-        self.gripper_closed = close_gripper
-        state_str = "CERRADO / VACÍO ON" if close_gripper else "ABIERTO / VACÍO OFF"
-        print(f"\r  >>> Gripper: {state_str}                          ", end='')
+        report(f"Gripper: {'closed / vacuum on' if close else 'open / vacuum off'}")
+
+    def change_speed(self, sign):
+        lowest, highest = require(self.config, 'linear_speed_range')
+        step = sign * require(self.config, 'linear_speed_step')
+        self.linear_speed = min(highest, max(lowest, self.linear_speed + step))
+        report(f'Linear speed: {self.linear_speed:.2f} m/s')
 
 
-def get_key(settings, timeout=0.08):
+def report(text):
+    """Write a status line over the previous one."""
+    print(f'\r  {text:<50}', end='')
+
+
+def read_key(settings, wait_s):
+    """Return the key pressed within the wait, or '' when there was none."""
     tty.setraw(sys.stdin.fileno())
-    rlist, _, _ = select.select([sys.stdin], [], [], timeout)
-    if rlist:
-        key = sys.stdin.read(1)
-    else:
-        key = ''
+    ready, _, _ = select.select([sys.stdin], [], [], wait_s)
+    key = sys.stdin.read(1) if ready else ''
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
-    return key
+    return key.lower()
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Keyboard jogging with MoveIt Servo')
+    parser.add_argument('--onrobot-type', required=True, choices=gripper_names())
+    arguments = parser.parse_args(rclpy.utilities.remove_ros_args(sys.argv)[1:])
+    config = control_config('servo_keyboard_teleop')
+    print(require(config, 'help'))
     if not sys.stdin.isatty():
-        print(INSTRUCTIONS)
-        print("AVISO: servo_keyboard_teleop requiere una terminal TTY interactiva (ej. docker exec -it ... o terminal local).")
-        return
+        print('This program needs an interactive terminal (for example docker exec -it ...).')
+        return 1
 
     settings = termios.tcgetattr(sys.stdin)
     rclpy.init()
-    node = ServoKeyboardTeleop()
-
-    print(INSTRUCTIONS)
-    print(f"Estado inicial: Frame={node.frame_id} | Vel={node.linear_speed:.2f} m/s\n")
-
+    node = ServoKeyboardTeleop(config, arguments.onrobot_type)
+    still = [0, 0, 0, 0, 0, 0]
     try:
         while rclpy.ok():
-            key = get_key(settings, timeout=0.05)
-            lx = ly = lz = 0.0
-            ax = ay = az = 0.0
-
-            if key in ('w', 'W'):
-                lx = node.linear_speed
-            elif key in ('s', 'S'):
-                lx = -node.linear_speed
-            elif key in ('a', 'A'):
-                ly = node.linear_speed
-            elif key in ('d', 'D'):
-                ly = -node.linear_speed
-            elif key in ('r', 'R'):
-                lz = node.linear_speed
-            elif key in ('f', 'F'):
-                lz = -node.linear_speed
-            elif key in ('u', 'U'):
-                ax = node.angular_speed
-            elif key in ('o', 'O'):
-                ax = -node.angular_speed
-            elif key in ('i', 'I'):
-                ay = node.angular_speed
-            elif key in ('k', 'K'):
-                ay = -node.angular_speed
-            elif key in ('j', 'J'):
-                az = node.angular_speed
-            elif key in ('l', 'L'):
-                az = -node.angular_speed
-            elif key == '1':
-                node.frame_id = 'base_link'
-                print(f"\r  [Frame cambiado a: {node.frame_id}]                 ", end='')
-            elif key == '2':
-                node.frame_id = 'gripper_tcp'
-                print(f"\r  [Frame cambiado a: {node.frame_id}]                 ", end='')
-            elif key in ('+', '='):
-                node.linear_speed = min(0.6, node.linear_speed + 0.05)
-                print(f"\r  [Velocidad lineal: {node.linear_speed:.2f} m/s]         ", end='')
-            elif key in ('-', '_'):
-                node.linear_speed = max(0.02, node.linear_speed - 0.05)
-                print(f"\r  [Velocidad lineal: {node.linear_speed:.2f} m/s]         ", end='')
-            elif key == ' ':
-                node.trigger_gripper(True)
-            elif key in ('b', 'B'):
-                node.trigger_gripper(False)
-            elif key in ('q', 'Q', '\x03'):  # 'q' o Ctrl-C
-                print("\nSaliendo de la teleoperación...")
+            key = read_key(settings, require(config, 'key_wait_s'))
+            direction = require(config, 'motion_keys').get(key, still)
+            if key in require(config, 'frames'):
+                node.frame_id = require(config, 'frames', key)
+                report(f'Frame: {node.frame_id}')
+            elif key in require(config, 'faster_keys'):
+                node.change_speed(1)
+            elif key in require(config, 'slower_keys'):
+                node.change_speed(-1)
+            elif key == require(config, 'close_key'):
+                node.move_gripper(True)
+            elif key == require(config, 'open_key'):
+                node.move_gripper(False)
+            elif key in require(config, 'quit_keys'):
                 break
-
-            # Publicar velocidad activa o cero
-            node.publish_twist(lx, ly, lz, ax, ay, az)
+            node.publish_twist(direction)
             rclpy.spin_once(node, timeout_sec=0.0)
-
-    except Exception as e:
-        print(f"\nError en teleoperación: {e}")
     finally:
-        # Detener movimiento
-        node.publish_twist(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        node.publish_twist(still)
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

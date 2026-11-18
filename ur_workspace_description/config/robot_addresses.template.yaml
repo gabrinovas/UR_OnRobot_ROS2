@@ -1,0 +1,31 @@
+# Addresses of the robots of an installation. TEMPLATE: the addresses below are examples.
+#
+# The real file holds the addresses of your robots, so it is not part of this repository. To create it:
+#   - copy this file anywhere and set the environment variable UR_ONROBOT_ROBOT_ADDRESSES to its path, or
+#   - copy it to config/robot_addresses.yaml of this package (git ignores it) and build the package again.
+# The real robot cannot be launched without it; the simulation does not read it.
+
+# Folder with the kinematics calibration extracted from each robot (see "Robot calibration" in the README).
+calibration_directory: ~/robot_calibration
+
+# Every robot address, the cells it can be used in and its calibration.
+addresses:
+  192.0.2.101:
+    cells: [right, basic]                             # files of config/cells; other names are ignored
+    kinematics_calibration: null                      # null: no calibration, the generic kinematics of the model
+  192.0.2.105:
+    cells: [left, basic]
+    kinematics_calibration: ur5e/192.0.2.105.yaml     # relative to calibration_directory
+
+# Address of each cell when none is given and the network does not single one out.
+default:
+  basic: 192.0.2.101
+  left: 192.0.2.105
+  right: 192.0.2.101
+
+# Compute Box of the OnRobot gripper of each cell (gripper connected over tcp). A cell whose gripper hangs
+# from the tool connector of the robot (serial) is left out.
+gripper_compute_box:
+  basic: 192.0.2.1
+  left: 192.0.2.1
+  right: 192.0.2.1
