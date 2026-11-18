@@ -36,6 +36,7 @@
         <xacro:ur_robot
             robot_ip="${robot_ip}"
             name="${ur_type}"
+            ur_type="${ur_type}"
             parent="${parent}"
             tf_prefix="${tf_prefix}"
             use_fake_hardware="${use_fake_hardware}"

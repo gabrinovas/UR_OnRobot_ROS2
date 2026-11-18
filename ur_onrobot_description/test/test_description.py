@@ -44,6 +44,13 @@ def test_the_gripper_hardware_can_be_left_out():
     assert [block.attrib['name'] for block in root.findall('ros2_control')] == ['ur5e']
 
 
+def test_the_real_arm_hardware_is_told_its_model():
+    root = generate('right', '2fg7', use_fake_hardware='false', include_gripper_ros2_control='false')
+    models = [
+        parameter.text for parameter in root.findall("ros2_control/hardware/param[@name='ur_type']")]
+    assert models == ['ur5e']
+
+
 def test_the_prefix_reaches_the_arm_and_the_gripper():
     root = generate('basic', '3fg15', tf_prefix='cell_')
     joints = {joint.attrib['name'] for joint in root.findall('joint')}
