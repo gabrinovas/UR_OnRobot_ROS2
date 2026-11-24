@@ -1,0 +1,21 @@
+# How the conveyor measured in the lab becomes the meshes the descriptions load (conveyor_meshes.py).
+# Lengths are in the unit of the mesh, millimetres. The mesh has z up; the belt runs along y and x goes across it.
+
+original: environment/conveyor.stl   # relative to this folder
+merge_tolerance: 0.001               # vertices closer than this are one vertex
+level_step: 0.5                      # heights of horizontal faces are grouped in steps of this size to find the belt
+
+visual:                              # the mesh to look at
+  file: conveyor.stl
+  triangles: 40000                   # triangles left by the simplification
+  max_deviation: 0.5                 # largest distance allowed between the original surface and the simplified one
+
+collision:                           # three convex pieces: nothing fills the gap between the two rails
+  body_file: conveyor_body.stl       # the conveyor up to its belt
+  rail_files: [conveyor_rail_1.stl, conveyor_rail_2.stl]   # the rail at the low x side, then the other one
+  rail_above_belt: 1.0               # a vertex this much above the belt belongs to a rail
+  max_deviation: 2.0                 # largest difference allowed between the top of the pieces and that of the original
+  check:
+    cuts: [0.1, 0.3, 0.5, 0.7, 0.9]  # where along the conveyor both tops are compared, as shares of its length
+    step: 0.1                        # distance between the points compared across the conveyor
+    across_tolerance: 1.0            # a wall of the original may be this far across from the same wall of a piece

@@ -162,7 +162,7 @@ launch with an error that starts with `[Fail-Fast]` and names it.
 ### Adding a cell
 
 Add `ur_workspace_description/config/cells/<name>.yaml`. A cell with the furniture of the existing ones (two
-tables, a conveyor, safety barriers) needs nothing else: it gives the positions. A cell with other furniture
+tables and a conveyor) needs nothing else: it gives the positions. A cell with other furniture
 also brings its own environment file (a xacro with a macro `cell_environment`) and its file of collision pairs
 for MoveIt, and names both in its YAML. No launch file or description has to be edited: they list the files
 of that folder. The address of its robot goes in the robot addresses file.

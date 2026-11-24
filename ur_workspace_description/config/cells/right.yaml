@@ -1,4 +1,4 @@
-# Cell "right": robot on the first table, conveyor and second table to its right, safety barriers around.
+# Cell "right": robot on the first table, conveyor and second table to its right.
 # One file per cell: the launch files, the descriptions and MoveIt offer the cells found in this folder.
 
 description_name: right_robot_with_environment   # name of the robot in the URDF and in the SRDF
@@ -16,11 +16,12 @@ environment:
   table: [-0.55, -0.65, -0.75]            # in the world
   conveyor: [0.22, -0.70, -0.75]          # in the world
   second_table: [1.09, -0.65, -0.75]      # in the world
-  first_barrier: {side: left}             # narrow barrier at the fixed far end of the table
-  second_barrier: {side: right, position: [0, 0.2, 0.75]}   # narrow barrier, relative to the table
-  back_barrier: [-0.15, -0.05, 0.75]      # wide barriers and top, relative to the table
-  front_barrier: [1.64, -0.05, 0.75]
-  top_barrier: [0, -0.05, 1.9]
+  # LEGACY, commented out on 2026-11-24: the safety barriers (see urdf/environments/table_conveyor_cell.xacro).
+  # first_barrier: {side: left}             # narrow barrier at the fixed far end of the table
+  # second_barrier: {side: right, position: [0, 0.2, 0.75]}   # narrow barrier, relative to the table
+  # back_barrier: [-0.15, -0.05, 0.75]      # wide barriers and top, relative to the table
+  # front_barrier: [1.64, -0.05, 0.75]
+  # top_barrier: [0, -0.05, 1.9]
 
 moveit:
   home_shoulder_pan: 1.5708      # rad, shoulder pan of the "home" pose of the planning group

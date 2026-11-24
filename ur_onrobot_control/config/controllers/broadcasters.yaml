@@ -5,11 +5,13 @@ environment_joint_state_broadcaster:
       - world_to_table
       - world_to_conveyor
       - world_to_table_2
-      - table_to_barrier_left
-      - table_to_barrier_right
-      - table_to_barrier_back
-      - table_to_barrier_front
-      - table_to_barrier_top
+      # LEGACY, commented out on 2026-11-24: the safety barriers are not part of the cell any more
+      # (ur_workspace_description/urdf/environments/table_conveyor_cell.xacro).
+      # - table_to_barrier_left
+      # - table_to_barrier_right
+      # - table_to_barrier_back
+      # - table_to_barrier_front
+      # - table_to_barrier_top
 
 # Robot joint state broadcaster
 joint_state_broadcaster:

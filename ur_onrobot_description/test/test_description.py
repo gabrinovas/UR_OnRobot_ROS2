@@ -45,9 +45,10 @@ def test_the_gripper_hardware_can_be_left_out():
 
 
 def test_the_real_arm_hardware_is_told_its_model():
-    root = generate('right', '2fg7', use_fake_hardware='false', include_gripper_ros2_control='false')
-    models = [
-        parameter.text for parameter in root.findall("ros2_control/hardware/param[@name='ur_type']")]
+    root = generate('right', '2fg7', use_fake_hardware='false',
+                    include_gripper_ros2_control='false')
+    models = [parameter.text
+              for parameter in root.findall("ros2_control/hardware/param[@name='ur_type']")]
     assert models == ['ur5e']
 
 

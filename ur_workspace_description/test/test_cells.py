@@ -6,6 +6,7 @@
 
 """Check the cell files and the descriptions generated from them."""
 
+import os
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -43,15 +44,43 @@ def test_an_unknown_cell_names_the_valid_ones():
         load_cell('no_such_cell')
 
 
-@pytest.mark.parametrize('cell', cell_names(with_environment=True))
-def test_the_furniture_of_a_cell_is_a_valid_description(cell):
+# What every piece of furniture collides with: meshes of meshes/environment.
+COLLISION_MESHES = {
+    'table_top': ['table.stl'],
+    'table_top_2': ['table.stl'],
+    'conveyor_belt': ['conveyor_body.stl', 'conveyor_rail_1.stl', 'conveyor_rail_2.stl'],
+}
+
+
+def furniture_links(cell):
+    """Return the links, by name, of the description of the furniture of a cell."""
     description = package_file('ur_workspace_description', 'urdf', 'cell.urdf.xacro')
     result = subprocess.run(['xacro', description, f'cell:={cell}'],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert result.returncode == 0, result.stderr
-    links = {link.attrib['name'] for link in ET.fromstring(result.stdout).findall('link')}
-    assert {'world', 'table_top', 'conveyor_belt', 'table_top_2', 'safety_barrier_top'} <= links
-    assert {'safety_barrier_left', 'safety_barrier_right'} <= links
+    return {link.attrib['name']: link for link in ET.fromstring(result.stdout).findall('link')}
+
+
+@pytest.mark.parametrize('cell', cell_names(with_environment=True))
+def test_the_furniture_of_a_cell_is_two_tables_and_a_conveyor(cell):
+    # The safety barriers are legacy: commented out, neither shown nor used for collisions.
+    assert set(furniture_links(cell)) == {'world', *COLLISION_MESHES}
+
+
+@pytest.mark.parametrize('cell', cell_names(with_environment=True))
+def test_every_piece_of_furniture_collides_where_it_is_seen(cell):
+    links = furniture_links(cell)
+    for name, meshes in COLLISION_MESHES.items():
+        shown = links[name].find('visual')
+        collisions = links[name].findall('collision')
+        files = [collision.find('geometry/mesh').attrib['filename'] for collision in collisions]
+        assert [os.path.basename(file) for file in files] == meshes
+        for collision in collisions:
+            assert collision.find('origin').attrib == shown.find('origin').attrib
+            scale = collision.find('geometry/mesh').attrib['scale']
+            assert scale == shown.find('geometry/mesh').attrib['scale']
+        for mesh in meshes:
+            package_file('ur_workspace_description', 'meshes', 'environment', mesh)
 
 
 def test_the_cell_is_required_and_must_have_furniture():

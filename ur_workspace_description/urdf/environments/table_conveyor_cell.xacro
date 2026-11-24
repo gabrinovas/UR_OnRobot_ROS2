@@ -1,31 +1,27 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-  <!-- Furniture of a cell with two tables, a conveyor between them and safety barriers around the first
-       table. Sizes and meshes are those of this furniture; where each piece stands comes from the cell file
-       (config/cells/<cell>.yaml, section environment), so the left and right cells share this file.
-       All links hang from the link "world", which the including file creates. -->
+  <!-- Furniture of a cell with two tables and a conveyor between them. Sizes and meshes are those of this
+       furniture; where each piece stands comes from the cell file (config/cells/<cell>.yaml, section
+       environment), so the left and right cells share this file. All links hang from the link "world",
+       which the including file creates.
+       Every piece collides where it is seen: the origin of a mesh is a corner of the piece on the floor, and
+       what it collides with is one or more meshes with that same origin. -->
 
   <xacro:include filename="$(find ur_workspace_description)/meshes/materials/materials.xacro"/>
   <xacro:property name="cell_meshes" value="package://ur_workspace_description/meshes/environment"/>
+  <xacro:property name="mesh_scale" value="0.001 0.001 0.001"/>   <!-- the meshes are in millimetres -->
 
-  <!-- A table or the conveyor: a mesh to look at, a box to collide with, fixed to the world. -->
-  <xacro:macro name="cell_furniture" params="link joint mesh material box position">
-    <link name="${link}">
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry>
-          <mesh filename="${cell_meshes}/${mesh}" scale="0.001 0.001 0.001"/>
-        </geometry>
-        <material name="${material}"/>
-      </visual>
-      <collision>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry>
-          <box size="${box}"/>
-        </geometry>
-      </collision>
-    </link>
+  <!-- One mesh of the furniture, as what a visual or a collision is made of. -->
+  <xacro:macro name="furniture_mesh" params="mesh">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="${cell_meshes}/${mesh}" scale="${mesh_scale}"/>
+    </geometry>
+  </xacro:macro>
+
+  <!-- The fixed joint that stands a piece of furniture in the world. -->
+  <xacro:macro name="furniture_joint" params="link joint position">
     <joint name="${joint}" type="fixed">
       <parent link="world"/>
       <child link="${link}"/>
@@ -33,7 +29,60 @@
     </joint>
   </xacro:macro>
 
-  <!-- A safety barrier fixed to the first table. position: x y z as text. -->
+  <!-- A table: the same mesh to look at and to collide with. -->
+  <xacro:macro name="cell_table" params="link joint position">
+    <link name="${link}">
+      <visual>
+        <xacro:furniture_mesh mesh="table.stl"/>
+        <material name="workspace_light_gray"/>
+      </visual>
+      <collision>
+        <xacro:furniture_mesh mesh="table.stl"/>
+      </collision>
+    </link>
+    <xacro:furniture_joint link="${link}" joint="${joint}" position="${position}"/>
+  </xacro:macro>
+
+  <!-- The conveyor: one mesh to look at and three pieces to collide with, its body up to the belt and each
+       of its two rails. The gripper works between the rails, so the gap between them must stay open: the
+       pieces are convex because the simulation of the same cell fills every mesh up to its convex hull, and
+       both use the same files. The four meshes are made by meshes_original/conveyor_meshes.py from the
+       conveyor measured in the lab. -->
+  <xacro:macro name="cell_conveyor" params="position">
+    <link name="conveyor_belt">
+      <visual>
+        <xacro:furniture_mesh mesh="conveyor.stl"/>
+        <material name="workspace_dark_gray"/>
+      </visual>
+      <collision name="conveyor_body">
+        <xacro:furniture_mesh mesh="conveyor_body.stl"/>
+      </collision>
+      <collision name="conveyor_rail_1">
+        <xacro:furniture_mesh mesh="conveyor_rail_1.stl"/>
+      </collision>
+      <collision name="conveyor_rail_2">
+        <xacro:furniture_mesh mesh="conveyor_rail_2.stl"/>
+      </collision>
+    </link>
+    <xacro:furniture_joint link="conveyor_belt" joint="world_to_conveyor" position="${position}"/>
+  </xacro:macro>
+
+  <xacro:macro name="cell_environment" params="environment">
+    <xacro:cell_table link="table_top" joint="world_to_table" position="${environment['table']}"/>
+    <xacro:cell_conveyor position="${environment['conveyor']}"/>
+    <xacro:cell_table link="table_top_2" joint="world_to_table_2" position="${environment['second_table']}"/>
+  </xacro:macro>
+
+  <!-- LEGACY, commented out on 2026-11-24: the safety barriers of the cell. They are not part of the
+       description any more: they are neither shown nor used for collisions. They are kept here, as they
+       were, in case they are wanted again; their meshes are still in meshes/environment, and their
+       positions, commented out too, in the cell files (config/cells) with their collision pairs in
+       ur_onrobot_moveit_config/srdf/inc/environment_collisions.srdf.xacro. Their collision boxes were
+       never where their meshes were (turned 90 degrees, and 0.8 m tall against 0.45 m): place them
+       before bringing them back.
+
+       A safety barrier fixed to the first table. position: x y z as text.
+
   <xacro:macro name="cell_barrier" params="name mesh box collision_xyz collision_rpy position">
     <link name="safety_barrier_${name}">
       <visual>
@@ -57,20 +106,13 @@
     </joint>
   </xacro:macro>
 
-  <xacro:macro name="cell_environment" params="environment">
+       Inside cell_environment: two narrow barriers at the ends of the table, two wide ones along it, and
+       the top.
+
     <xacro:property name="second" value="${environment['second_barrier']['position']}"/>
     <xacro:property name="back" value="${environment['back_barrier']}"/>
     <xacro:property name="front" value="${environment['front_barrier']}"/>
     <xacro:property name="top" value="${environment['top_barrier']}"/>
-
-    <xacro:cell_furniture link="table_top" joint="world_to_table" mesh="table.stl"
-      material="workspace_light_gray" box="1.2 0.7 0.75" position="${environment['table']}"/>
-    <xacro:cell_furniture link="conveyor_belt" joint="world_to_conveyor" mesh="conveyor.stl"
-      material="workspace_dark_gray" box="2.05 0.825 0.05" position="${environment['conveyor']}"/>
-    <xacro:cell_furniture link="table_top_2" joint="world_to_table_2" mesh="table.stl"
-      material="workspace_light_gray" box="1.2 0.7 0.75" position="${environment['second_table']}"/>
-
-    <!-- Two narrow barriers at the ends of the table, two wide ones along it, and the top. -->
     <xacro:cell_barrier name="${environment['first_barrier']['side']}" mesh="narrow_safety_barrier.stl"
       box="1.2 0.05 0.8" collision_xyz="0 0 0.4" collision_rpy="0 0 1.5708" position="0 1.55 0.75"/>
     <xacro:cell_barrier name="${environment['second_barrier']['side']}" mesh="narrow_safety_barrier.stl"
@@ -85,6 +127,6 @@
     <xacro:cell_barrier name="top" mesh="top_safety_barrier.stl"
       box="0.7 1.2 0.01" collision_xyz="0 0 0" collision_rpy="0 0 0"
       position="${top[0]} ${top[1]} ${top[2]}"/>
-  </xacro:macro>
+  -->
 
 </robot>

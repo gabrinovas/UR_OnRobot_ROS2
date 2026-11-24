@@ -11,7 +11,11 @@
     <disable_collisions link1="table_top" link2="table_top_2" reason="Never"/>
     <disable_collisions link1="table_top_2" link2="conveyor_belt" reason="Adjacent"/>
 
-    <!-- Barriers with tables and conveyor -->
+    <!-- LEGACY, commented out on 2026-11-24: the pairs of the safety barriers, which are not part of the
+         description of the cell any more (ur_workspace_description/urdf/environments/table_conveyor_cell.xacro).
+
+         Barriers with tables and conveyor:
+
     <disable_collisions link1="table_top" link2="safety_barrier_right" reason="Adjacent"/>
     <disable_collisions link1="table_top" link2="safety_barrier_left" reason="Adjacent"/>
     <disable_collisions link1="table_top" link2="safety_barrier_back" reason="Adjacent"/>
@@ -30,7 +34,8 @@
     <disable_collisions link1="conveyor_belt" link2="safety_barrier_front" reason="Never"/>
     <disable_collisions link1="conveyor_belt" link2="safety_barrier_top" reason="Never"/>
 
-    <!-- Barriers with each other -->
+         Barriers with each other:
+
     <disable_collisions link1="safety_barrier_right" link2="safety_barrier_left" reason="Never"/>
     <disable_collisions link1="safety_barrier_right" link2="safety_barrier_back" reason="Adjacent"/>
     <disable_collisions link1="safety_barrier_right" link2="safety_barrier_front" reason="Adjacent"/>
@@ -40,5 +45,6 @@
     <disable_collisions link1="safety_barrier_left" link2="safety_barrier_top" reason="Adjacent"/>
     <disable_collisions link1="safety_barrier_back" link2="safety_barrier_top" reason="Adjacent"/>
     <disable_collisions link1="safety_barrier_front" link2="safety_barrier_top" reason="Adjacent"/>
+    -->
   </xacro:macro>
 </robot>
